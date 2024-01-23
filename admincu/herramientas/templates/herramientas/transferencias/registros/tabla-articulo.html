@@ -1,0 +1,31 @@
+{% load staticfiles %}
+{% load humanize %}
+<table class="table table-striped anopa display nowrap" style="width:100%">
+
+    <thead>
+      <tr>
+        <th>Categorias</th>
+        <th>Cantidad de socios</th>
+        <th>Cantidad de cuota cobrada</th>
+        <th>Importe cuota cobrada</th>
+        <th>Total cobrado</th>
+        <th>1% Total cobrado o Aporte Mín</th>
+
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in datos %}
+        <tr>
+            <td>{{ c.categoria }}</td>
+            <td>{{ c.cantidad }}</td>            
+            <td>{{ c.cuota_cobrada }}</td>
+            <td>{{ c.importe }}</td>
+            <td>{{ c.total_cobrado }}</td>
+            <td>{{ c.1_total_cobrado }}</td>
+
+
+        </tr>
+
+        {% endfor %}
+    </tbody>
+  </table>

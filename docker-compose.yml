@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+
+
+  mysql:
+    container_name: ${PROJECT_NAME}_db
+    image: 'mysql:8'
+    volumes:
+      - './database/data:/var/lib/mysql'
+    command: ["mysqld", "--innodb_force_recovery=0", "--innodb_fast_shutdown=1"] 
+    ports:
+      - '3308:3306'
+    environment:
+      DDBB_NAME: project
+      DDBB_USER: root
+      DDBB_PASSWORD: password
+      DDBB_HOST: admincu_db
+      DDBB_PORT: 3306
+
+
+
+
+  web:
+    container_name: ${PROJECT_NAME}_web
+    build: .
+    working_dir: /app/admincu
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - '8085:8000'
+    expose:
+      - '8000'
+    links:
+      - mysql
+    environment:
+      DDBB_NAME: project
+      DDBB_USER: root
+      DDBB_PASSWORD: password
+      DDBB_HOST: admincu_db
+      DDBB_PORT: 3306
+

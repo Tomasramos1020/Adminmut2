@@ -1,0 +1,340 @@
+{% load humanize %}
+<table class="table table-striped anopa display nowrap" style="width:100%">
+
+
+  {% if parametro == "Ingreso" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20">Numero</th>
+        <th>Nombre</th>
+        <th>Cuenta Contable</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          {% if not objeto.es_cuota_social %}
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td>{{ forloop.counter }}</td>
+        <td>{{objeto}}</td>
+        <td><small>{{objeto.cuenta_contable.nombre}}</small></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+
+
+  {% elif parametro == "Gasto" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20">Numero</th>
+        <th>Nombre</th>
+        <th>Cuenta Contable</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{ forloop.counter }}</td>
+        <td>{{objeto}}</td>
+        <td><small>{{objeto.cuenta_contable.nombre}}</small></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+
+
+  {% elif parametro == "Punto" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th>Numero</th>
+        <th>CAE</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+
+        </td>
+        <td>{{objeto}}</td>
+        <td>
+          {%if objeto.issuance_type == "CAE"%}
+          <i class="fa fa-check"></i>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+
+
+  {% elif parametro == "Caja" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th>Numero</th>
+        <th>Nombre</th>
+        <th>Entidad</th>
+        <th>Saldo trasladable</th>
+        <th>Cuenta Contable</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{objeto.id}}</td>
+        <td>{{objeto.nombre}}</td>
+        <td>{% if objeto.entidad %}{{objeto.entidad}}{%endif%}</td>
+        <td>{% if objeto.fecha %}Al {{objeto.fecha|date:"d/m/Y"}}: ${{objeto.saldo|intcomma|default:"0.00"}}{% endif %}</td>
+        <td><small>{{objeto.cuenta_contable.nombre}}</small></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+
+
+  {% elif parametro == "Socio" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th>Nombre</th>
+        <th>Apellido</th>
+        <th>Numero</th>
+        <th>Categoria</th>  
+        <th>Cuit</th>
+        <th>Domicilio</th>
+        <th>Localidad</th>
+        <th>Provincia</th>
+        <th>Fecha de Nacimiento</th>
+        <th>Telefono</th>
+        <th>Email</th>
+        <th>Profesion</th>
+        <th>Fecha de Ingreso</th>
+        <th>Notificaciones</th>  
+        <th>Estado</th>          
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      
+      <tr>
+        <td class="text-center">
+          {% if not objeto.baja %}
+            {% if not objeto.nombre_servicio_mutual %}
+            <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+              <i class="fa fa-pencil"></i>
+            </a>
+            {% endif %}
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          {% if not objeto.nombre_servicio_mutual %}
+          <a href="{% url 'finalizar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-danger btn-xs">
+          <i class="fa fa-user-times"></i>
+          </a>
+          {% endif %}
+          {% else %}
+          <a href="{% url 'reactivar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-success btn-xs">
+            <i class="fa fa-user-plus"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td>{{objeto.nombre}}</td>
+        <td>{{objeto.apellido}}</td>
+        <td>
+          {% if not objeto.nombre_servicio_mutual %}
+           {{objeto.numero_asociado|default:""}}
+          {% endif %}
+        </td>
+        <td>{{objeto.tipo_asociado|default:""}}</td>        
+        <td>
+          {{objeto.cuit|default:""}}     
+        </td>
+        <td>{% if objeto.domicilio %}{{objeto.domicilio}}{% endif %}</td>
+        <td>{{objeto.localidad|default:""}}</td>
+        <td>{{objeto.provincia|default:""}}</td>
+        <td>
+          {{objeto.fecha_nacimiento|default:""}}
+        </td> 
+        <td>{% if objeto.telefono %}{{objeto.telefono}}{% endif %}</td>
+          <td>{{objeto.mail|default:""}}</td>
+        <td>{{objeto.profesion|default:""}}</td>
+        <td>{{objeto.fecha_alta|default:""}}</td>
+        {% if objeto.notificaciones %}
+        <td>Si</td>
+        {% else %}
+        <td>No</td>
+        {% endif %}
+        <td>{{objeto.estado}}</td>        
+      </tr>
+    {% endfor %}
+    </tbody>
+
+
+  {% elif parametro == "Acreedor" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th>Numero</th>
+        <th>Nombre</th>
+        <th>Documento</th>
+        <th>Cuenta Contable</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{forloop.counter}}</td>
+        <td>{{objeto}}</td>
+        <td>
+          {% if objeto.tipo_documento and objeto.numero_documento %}
+            {{objeto.tipo_documento}}: {{objeto.numero_documento}}
+          {% endif %}
+        </td>
+        <td><small>{{objeto.cuenta_contable.nombre}}</small></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+
+  {% elif parametro == "Tipo_asociado" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th>Nombre</th>
+        <th>Descripcion</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'finalizar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-danger btn-xs">
+          <i class="fa fa-user-times"></i>
+          </a>
+          {% else %}
+          <a href="{% url 'reactivar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-success btn-xs">
+            <i class="fa fa-user-plus"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td>{{objeto.nombre}}</td>
+        <td>{{objeto.descripcion|default:" " }}</td>        
+      </tr>
+    {% endfor %}
+    </tbody>
+  
+    {% elif parametro == "Servicio_mutual" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th>Nombre</th>
+        <th>Nombre del reglamento</th>
+        <th>Fecha del reglamento</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'finalizar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-danger btn-xs">
+          <i class="fa fa-user-times"></i>
+          </a>
+          {% else %}
+          <a href="{% url 'reactivar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-success btn-xs">
+            <i class="fa fa-user-plus"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td>{{objeto.nombre|default:" " }}</td>
+        <td>{{objeto.nombre_reglamento|default:" " }}</td>
+        <td>{{objeto.fecha_reglamento|default:" " }}</td>        
+      </tr>
+    {% endfor %}
+    </tbody>
+
+
+    {% elif parametro == "interes" or parametro == "descuento" or parametro == "bonificacion" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th>Nombre</th>
+        <th>Ingresos</th>
+        {% if not parametro == "bonificacion" %}
+          <th>Plazo</th>
+        {% endif %}
+        <th>Tipo</th>
+        <th>Monto</th>
+        {% if parametro == "interes" %}
+          <th>Base de calculo</th>
+        {% endif %}
+        <th>Cuenta Contable</th>
+        <th>Finalizacion</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          {% if not objeto.finalizacion %}
+            <a href="{% url 'finalizar_accesorio' pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-danger btn-xs">
+              <i class="fa fa-trash"></i>
+            </a>
+          {% endif %}
+        </td>
+        <td>{{objeto}}</td>
+        <td>{% for ingreso in objeto.ingreso.all %}{{ ingreso }}; {% endfor %}</td>
+        {% if not parametro == "bonificacion" %}
+          <td>{{objeto.plazo}} dias</td>
+        {% endif %}
+        <td>{{objeto.get_tipo_display}}</td>
+        <td>{% if objeto.tipo == "tasa" %}{{objeto.monto}}%{% else %} ${{objeto.monto}} {% endif %}</td>
+        {% if parametro == "interes" %}
+          <td>{{objeto.get_base_calculo_display}}</td>
+        {% endif %}
+        <td>{{objeto.cuenta_contable.nombre}}</td>
+        <td>{{objeto.finalizacion|date:"d/m/Y"|default:""}}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  {% endif %}
+</table>

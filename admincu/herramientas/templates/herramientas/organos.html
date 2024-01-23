@@ -1,0 +1,72 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+{% load humanize %}
+
+{% block css %}
+  <link rel="stylesheet" href='{% static "plugins/datatables/jquery.dataTables.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/buttons.bootstrap.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/dataTables.bootstrap.min.css" %}'>
+{% endblock %}
+
+
+{% block titulo %}
+  Organos Directivos y de Fiscalización
+{% endblock %}
+
+
+{% block header %}
+Organos Directivos y de Fiscalización
+{% endblock %}
+
+{% block contenido %}
+
+
+<div class="row">
+  <div class="col-md-3">
+    {% include 'herramientas/barra_organos.html' %}
+  </div>
+
+  <div class="col-md-9">
+
+    <div class="row">
+
+      <div class="col-md-6">
+        {% if not socios %}        
+        <div class="card-box widget-box-four">
+
+
+              <p>
+                No hay socios designados como directivos o como organos de fiscalización. <br>
+              </p>
+
+        </div>
+        {% endif %} 
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-border panel-info">
+          <div class="panel-heading">
+            <h3 class="panel-title">Organos directivos y de fiscalización</h3>
+          </div>
+          <div class="panel-body">
+            <div class="table-responsive">
+              {% include 'herramientas/transferencias/registros/tabla-organos.html' %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block js %}
+  {% if not instance %}
+    <script src='{% static "assets/pages/jquery.toastr.js" %}'></script>
+    {% include 'comunes/js_datatable_print_excel_titulo.html' %}
+  {% endif %}
+{% endblock %}

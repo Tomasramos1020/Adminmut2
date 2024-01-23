@@ -1,0 +1,43 @@
+{% extends extension %}
+
+{% block panel-body %}
+  <div class="alert alert-icon alert-white alert-warning alert-dismissible fade in" role="alert">
+      <i class="mdi mdi-alert"></i>
+      <strong>Aclaraciones:</strong>
+      <ul>
+        <li>Solo se admiten archivos de tipo ".xlsx"</li>
+        <li>Campos con * son obligatorios</li>
+        <li>
+          Debe contener las siguientes columnas con sus respectivos formatos:
+          <ol>
+            <li>*nombre: Nombre</li>
+            <li>*apellido: Apellido </li>
+            <li>*cuit: Cuit del asociado </li>
+            <li>*tipo_persona: Colocar "fisica o juridica"</li>
+            <li>*tipo_asociado: Alguna de la categorias cargadas</li>
+            {% if not consorcio.cuit_nasociado %}
+              <li>*numero_asociado: Numero del asociado</li>
+            {% endif %}
+            <li>*fecha_alta: Fecha de alta del asociado</li>
+            <li>*provincia: Provincia</li>
+            <li>*localidad: Localidad</li>
+            <li>*calle: Nombre de la calle</li>
+            <li>numero_calle: Numero de la calle</li>
+            <li>piso: Numero de piso </li>
+            <li>departamento: numero o letra del departamento</li>
+            <li>*codigo_postal: Codigo Postal</li>
+            <li>fecha_nacimiento: Fecha de nacimiento del asociado</li>
+            <li>telefono: Telefono del asociado</li>
+            <li>profesion: Profesion</li>
+            <li>mail: Mail del asociado</li>
+            <li>notificaciones: Colocar "si" o "no" </li>
+            <li>es_extranjero: Colocar "si" o "no" </li>
+
+
+          </ol>
+
+        </li>
+      </ul>
+  </div>
+    {{wizard.form.as_p}}
+{% endblock %}

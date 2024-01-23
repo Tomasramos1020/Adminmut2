@@ -1,0 +1,127 @@
+{% load humanize %}
+<table class="table table-striped anopa display nowrap" style="width:100%">
+
+
+
+    {% if elemento == "Sucursal" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th>Nombre</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{ forloop.counter }}</td>
+        <td>{{objeto.nombre}}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+
+
+  {% elif elemento == "Producto" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th width="20">Nombre</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{ forloop.counter }}</td>
+        <td>{{objeto.nombre}}</td>
+
+      </tr>
+    {% endfor %}
+    </tbody>
+
+    {% elif elemento == "Deposito" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th width="20">Nombre</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{ forloop.counter }}</td>
+        <td>{{objeto.nombre}}</td>
+
+      </tr>          
+    {% endfor %}
+      </tbody>
+
+      {% elif elemento == "Stock" %}
+      <thead>
+        <tr>
+          <th width="20"></th>
+          <th width="20"></th>
+          <th width="20">Nombre</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for objeto in object_list %}
+        <tr>
+          <td class="text-center">
+            <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+              <i class="fa fa-pencil"></i>
+            </a>
+          </td>
+          <td>{{ forloop.counter }}</td>
+          <td>{{objeto.nombre}}</td>
+  
+        </tr>          
+      {% endfor %}
+      
+        </tbody>
+        {% elif elemento == "Transporte" %}
+        <thead>
+          <tr>
+            <th width="20"></th>
+            <th width="20"></th>
+            <th width="20">Nombre</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for objeto in object_list %}
+          <tr>
+            <td class="text-center">
+              <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+                <i class="fa fa-pencil"></i>
+              </a>
+            </td>
+            <td>{{ forloop.counter }}</td>
+            <td>{{objeto.nombre}}</td>
+    
+          </tr>          
+        {% endfor %}
+          </tbody>
+      
+
+    {% endif %}
+</table>
+
+
+
+

@@ -1,0 +1,41 @@
+{% load staticfiles %}
+{% load humanize %}
+<table class="table table-striped anopa display nowrap" style="width:100%">
+
+    <thead>
+      <tr>
+        <th>Cargo</th>
+        <th>Nombre</th>
+        <th>Apellido</th>
+        <th>Cuit</th>
+        <th>Numero</th>
+        <th>Domicilio</th>
+        <th>Nª de calle</th>
+        <th>Localidad</th>
+        <th>Provincia</th>
+        <th>Fecha de Nacimiento</th>
+        <th>Telefono</th>
+        <th>Profesion</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for socio in socios %}
+        <tr>
+            <td>{{ socio.cargo }}</td>
+            <td>{{ socio.nombre }}</td>
+            <td> {{ socio.apellido }}</td>
+            <td> {{ socio.cuit }}</td>
+            <td> {{ socio.numero_asociado }}</td>
+            <td> {{ socio.domicilio }}</td>
+            <td> {{ socio.numero_calle }}</td>            
+            <td> {{ socio.localidad }}</td>     
+            <td> {{ socio.provincia }}</td>
+            <td> {{ socio.fecha_nacimiento }}</td>
+            <td> {{ socio.telefono }}</td>
+            <td> {{ socio.profesion }}</td>                                                                        
+
+        </tr>
+        {% endfor %}
+
+    </tbody>
+  </table>

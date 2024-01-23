@@ -1,0 +1,60 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+
+{% block css %}
+  <link rel="stylesheet" href='{% static "plugins/datatables/jquery.dataTables.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/buttons.bootstrap.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/dataTables.bootstrap.min.css" %}'>
+{% endblock %}
+
+{% block titulo %}
+  Proveeduria
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="parametros" bhijo1=nombre_parametro %}
+{% endblock %}
+
+{% block header %}
+  Proveeduria
+{% endblock %}
+
+{% block contenido %}
+
+  <div class="row">
+
+    <div class="col-md-9">
+      <div class="panel panel-border panel-info">
+        <div class="panel-heading">
+          <h3 class="panel-title">{{ nombre_parametro|capfirst }}</h3>
+        </div>
+        <div class="panel-body">
+          <div class="row">
+            <div class="col-xs-12">
+                <a href="{% url 'crear' modelo=elemento %}" class="btn btn-info pull-right">
+                  <i class="fa fa-plus"></i> Nuevo
+                </a>
+            </div>
+          </div>
+          <br>
+          <div class="row">
+            <div class="col-md-12">
+              <div class="table-responsive" >
+                {% include 'tablas.html' %}
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+{% endblock %}
+
+{% block js %}
+  {% if not instance %}
+    <script src='{% static "assets/pages/jquery.toastr.js" %}'></script>
+    {% include 'comunes/js_datatable_print_excel_titulo.html' %}
+  {% endif %}
+{% endblock %}

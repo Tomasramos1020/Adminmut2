@@ -1,0 +1,90 @@
+{% extends extension %}
+{% load humanize %}
+
+{% block panel-body %}
+  <div class="row">
+    <div class="col-md-12">
+      {% if errores %}
+        <div class="alert alert-icon alert-white alert-danger">
+            <i class="mdi mdi-block-helper"></i>
+            <p>Hemos encontrado algunos errores en el archivo.</p>
+            <ul>
+              {% for error in errores %}
+                <li>{{error}}</li>
+              {% endfor %}
+            </ul>
+            <p>Las líneas que se muestran abajo no poseen errores, si solo queres importar esos socios hace click en confirmar, sino hace click en resetear y subsana los errores</p>
+        </div>
+      {% endif %}
+      {% if socios %}
+        <div class="alert alert-icon alert-white alert-warning">
+            <i class="mdi mdi-alert"></i>
+            <strong>Revision:</strong> Estos son los datos que pudimos recopilar del archivo que subiste
+        </div>
+        <p>
+          <div class="table-responsive">
+            <table class="table table-condensed table-bordered">
+              <thead>
+                <tr>
+                  <th>Apellido</th>
+                  <th>Nombre</th>
+                  <th class="text-right">Cuit</th>
+                  <th>T.de asoc</th>
+                  <th>F.de alta</th>
+                  {% if not consorcio.cuit_nasociado %}
+                    <th>Nª de asoc</th>
+                  {% endif %}
+                  <th>F.de nac</th>
+                  <th>Provincia</th>
+                  <th>Localidad</th>
+                  <th>Calle</th>
+                  <th>T.de persona</th>
+                  <th>prof</th>
+                  <th>Mail</th>                
+                  <th>tel</th>                
+                  <th>cp</th>                
+                  <th>notif</th>                
+
+                </tr>
+              </thead>
+
+              <tbody>
+                {% for socio in socios %}
+                  <tr>
+                    <td>{{ socio.apellido }}</td>
+                    <td>{{ socio.nombre }}</td>
+                    <td class="text-right">{{ socio.cuit }}</td>
+                    <td>{{ socio.tipo_asociado }}</td>                    
+                    <td>{{ socio.fecha_alta|date:"d/m/Y" }}</td>
+                    {% if not consorcio.cuit_nasociado %}
+                      <td>{{ socio.numero_asociado }}</td>
+                    {% endif %}
+                    <td>{{ socio.fecha_nacimiento|date:"d/m/Y" }}</td>
+                    <td>{{ socio.provincia }}</td>
+                    <td>{{ socio.localidad }}</td>
+                    <td>{{ socio.calle }}</td>
+                    <td>{{ socio.tipo_persona }}</td>                    
+                    <td>{{ socio.profesion }}</td>                    
+                    <td>{{ socio.mail }}</td>                    
+                    <td>{{ socio.telefono }}</td>                    
+                    <td>{{ socio.codigo_postal }}</td>                                        
+                    <td>{{ socio.notificaciones }}</td>                    
+
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+{% endblock %}
+{% block js-extra %}
+  {% if not socios %}
+    <script>
+        $(':input[type="submit"]').prop('disabled', true);
+    </script>
+  {% endif %}
+{% endblock %}

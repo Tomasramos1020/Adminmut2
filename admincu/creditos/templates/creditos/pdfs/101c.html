@@ -1,0 +1,116 @@
+{% load staticfiles %}
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{factura.receipt.receipt_type}} {{factura.formatoAfip}}</title>
+    <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <div class="receipt">
+
+      <header>
+        <div class="taxpayer-details group">
+          <address>
+              <img src="{{ factura.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+              <h3>{{ factura.consorcio.nombre_completo }}</h3>
+            {{ factura.consorcio.domicilio }} -
+            {{ factura.consorcio.provincia }}<br>
+            Matrícula INAES: {{ factura.consorcio.matricula }}            
+          </address>
+
+          <div class="receipt-details">
+            <div class="receipt-type-description">
+              NOTA DE CREDITO
+            </div>
+            <strong>              
+              Res. Gral. Nº1415 AFIP-ANEXO I<br>
+              Apartado A-Inciso K<br>
+              </strong> 
+            <strong>Nº</strong> {{ factura.formatoAfip }}<br>
+            Fecha: {{ factura.credito_set.first.periodo|date:"d/m/Y" }}<br>
+            <small>
+              C.U.I.T.: {{ factura.consorcio.cuit }}<br>
+              IVA: Exento<br>
+              Inicio de actividad: {{factura.consorcio.contribuyente.active_since|date:"d/m/Y"}}
+            </small>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="client">
+
+          <div class="client-data">
+            <strong>{% if factura.consorcio.id == 10 %}CLIENTE:{% else %}ASOCIADO:{% endif %}</strong>
+            {{ factura.socio }} <br>
+            <strong>CUIT:</strong>
+            {{ factura.socio.cuit }} <br>
+            <strong>N° DE ASOCIADO:</strong>
+            {{ factura.socio.numero_asociado }} <br>
+          </div>
+        </div>
+
+        <hr>
+
+      </header>
+
+      <p><strong>Detalle de creditos:</strong></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Periodo</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for credito in factura.credito_set.all %}
+            <tr>
+              <td>{{ credito.ingreso }}{% if credito.detalle_limpio %}*{% endif %}</td>
+              <td>{{ credito.periodo|date:"Y-m-d" }}</td>
+              <td>{{ credito.bruto|intcomma }}{% if credito.acc_desc %}**{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if factura.detalles %}
+        <p><strong>* Detalles:</strong></p>
+        <p>
+          <ul>
+            {% for detalle in factura.detalles %}
+              <li>{{detalle}}</li>
+            {% endfor %}
+          </ul>
+        </p>
+      {% endif %}
+
+      {% if factura.descuentos %}
+        <p><strong>** Descuentos:</strong></p>
+        <p>
+          <ul>
+            {% for descuento in factura.descuentos %}
+              <li>{{descuento}}</li>
+            {% endfor %}
+          </ul>
+        </p>
+      {% endif %}
+
+
+      <div class="taxpayer-details group">
+        <div class="receipt-details">
+          <table>
+            <tr>
+              <th>Total del Comprobante:</th>
+              <th>{{ factura.receipt.total_amount|intcomma }}</th>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+
+    </div>
+  </body>
+</html>

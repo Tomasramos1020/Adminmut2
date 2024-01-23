@@ -1,0 +1,24 @@
+{% extends extension %}
+
+{% block panel-body %}
+  <div class="alert alert-icon alert-white alert-warning alert-dismissible fade in" role="alert">
+      <i class="mdi mdi-alert"></i>
+      <strong>Aclaraciones:</strong>
+      <ul>
+        <li>Solo se admiten archivos de tipo ".xlsx"</li>
+        <li>
+          Debe contener las siguientes columnas con sus respectivos formatos:
+          <ol>
+            <li>fecha: Fecha</li>
+            <li>socio: Numero (Debe colocarse el numero de cuit tal cual se encuentra en el padron)</li>
+            <li>ingreso: Nombre (Debe colocarse el nombre del recurso tal cual se encuentra en home)</li>
+            <li>caja: Numero (Debe colocarse el numero de la caja tal cual se encuentra en home)</li>
+            <li>importe: Numero</li>
+            <li>detalle: Texto (Puede estar vacio)</li>
+          </ol>
+        </li>
+      </ul>
+  </div>
+    {{wizard.form.as_p}}
+{% endblock %}
+

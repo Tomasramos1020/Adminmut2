@@ -1,0 +1,28 @@
+
+  {% include 'sidebar/parametros.html' %}
+
+{% if user.groups.all.0.name == "superusuario" %}
+
+  {% include 'sidebar/superusuario.html' %}
+
+{% elif user.groups.all.0.name == "socio" %}
+
+  {% include 'sidebar/socio.html' %}
+
+{% elif user.groups.all.0.name == "contable" %}
+
+	{% include 'sidebar/contable.html' %}
+  {% include 'sidebar/reportes.html' %}
+  {% include 'sidebar/herramientas.html' %}
+
+{% else %}
+
+  {% include 'sidebar/basico.html' %}
+  {% include 'sidebar/reportes.html' %}
+  {% include 'sidebar/herramientas.html' %}
+  {% if consorcio.proveeduria %}
+    {% include 'sidebar/proveeduria.html' %}
+  {% endif %}
+ 
+
+{% endif %}

@@ -1,0 +1,18 @@
+{% extends extension %}
+
+{% block panel-body %}
+  <div class="alert alert-icon alert-white alert-warning alert-dismissible fade in" role="alert">
+      <i class="mdi mdi-alert"></i>
+      <strong>Aclaraciones:</strong>
+      <ul>
+        <li>
+          Puede elegir dos tipos de importacion:
+          <ol>
+            <li>Parcial: Incorpora nuevos asociados al padron existente </li>
+            <li>Total: Renueva completamente el padron de asociados</li>
+          </ol>
+        </li>
+      </ul>
+  </div>
+    {{wizard.form.as_p}}
+{% endblock %}
