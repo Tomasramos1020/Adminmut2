@@ -1,0 +1,22 @@
+# version 1.0
+name: CI - Build and push to Github Container Registry
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    name: push image to docker hub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        name: Check out code
+
+      - uses: mr-smithers-excellent/docker-build-push@v5
+        name: Build & push Docker image
+        with:
+          image: django
+          registry: ghcr.io
+          username: ${{ secrets.GHCR_USERNAME }}
+          password: ${{ secrets.GHCR_TOKEN }}
