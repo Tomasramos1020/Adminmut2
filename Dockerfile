@@ -27,5 +27,9 @@ COPY /admincu/migrations_extra/0018_auto_20180808_1242.py /usr/local/lib/python3
 
 EXPOSE 8000
 
-CMD [ "gunicorn", "admincu.wsgi.application", "--bind", "0.0.0.0:8000", "--timeout", "1800" ]
+
+
+#CMD [ "gunicorn", "admincu.wsgi", "--bind", "0.0.0.0:8000", "--timeout", "1800", "--chdir=/app/admincu" ]
+
+CMD [ "/app/admincu/manage.py", "runserver", "0.0.0.0:8000"]
 
