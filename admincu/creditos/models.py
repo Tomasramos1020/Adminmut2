@@ -265,7 +265,7 @@ class Factura(models.Model):
 			archivo = []
 			enteros = []
 			factura = self
-			if self.consorcio.id in [2, 4, 8, 17, 7, 3]: # 2 Demo, 4 Prado, 8 Praderas, 17 Terrazas, 7 Chacras, 3 jardines
+			if self.consorcio.id in []: 
 				dominios = self.socio.socio.all()
 				if dominios:
 					creditos = Credito.objects.filter(
