@@ -15,7 +15,7 @@
     {% for objeto in object_list %}
       <tr>
         <td class="text-center">
-          <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+          <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
             <i class="fa fa-pencil"></i>
           </a>
         </td>
@@ -38,7 +38,7 @@
     {% for objeto in object_list %}
       <tr>
         <td class="text-center">
-          <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+          <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
             <i class="fa fa-pencil"></i>
           </a>
         </td>
@@ -61,7 +61,7 @@
     {% for objeto in object_list %}
       <tr>
         <td class="text-center">
-          <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+          <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
             <i class="fa fa-pencil"></i>
           </a>
         </td>
@@ -84,7 +84,7 @@
       {% for objeto in object_list %}
         <tr>
           <td class="text-center">
-            <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
               <i class="fa fa-pencil"></i>
             </a>
           </td>
@@ -107,7 +107,7 @@
         {% for objeto in object_list %}
           <tr>
             <td class="text-center">
-              <a href="{% url 'instancia' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+              <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
                 <i class="fa fa-pencil"></i>
               </a>
             </td>
@@ -116,8 +116,138 @@
     
           </tr>          
         {% endfor %}
-          </tbody>
-      
+      </tbody>
+      {% elif elemento == "Notas_Pedido" %}
+      <thead>
+        <tr>
+          <th width="20"></th>
+          <th width="20"></th>
+          <th width="20">Nombre</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for objeto in object_list %}
+        <tr>
+          <td class="text-center">
+            <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+              <i class="fa fa-pencil"></i>
+            </a>
+          </td>
+          <td>{{ forloop.counter }}</td>
+          <td>{{objeto.nombre}}</td>
+  
+        </tr>          
+      {% endfor %}
+    </tbody>
+    {% elif elemento == "Comp_Venta" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th width="20">Nombre</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{ forloop.counter }}</td>
+        <td>{{objeto.nombre}}</td>
+
+      </tr>          
+    {% endfor %}
+  </tbody>
+  {% elif elemento == "Consol_Carga" %}
+  <thead>
+    <tr>
+      <th width="20"></th>
+      <th width="20"></th>
+      <th width="20">Nombre</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for objeto in object_list %}
+    <tr>
+      <td class="text-center">
+        <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+          <i class="fa fa-pencil"></i>
+        </a>
+      </td>
+      <td>{{ forloop.counter }}</td>
+      <td>{{objeto.nombre}}</td>
+
+    </tr>          
+  {% endfor %}
+  </tbody>
+  {% elif elemento == "Guia_Distri" %}
+  <thead>
+    <tr>
+      <th width="20"></th>
+      <th width="20"></th>
+      <th width="20">Nombre</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for objeto in object_list %}
+    <tr>
+      <td class="text-center">
+        <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+          <i class="fa fa-pencil"></i>
+        </a>
+      </td>
+      <td>{{ forloop.counter }}</td>
+      <td>{{objeto.nombre}}</td>
+
+    </tr>          
+  {% endfor %}
+</tbody>
+{% elif elemento == "Informe" %}
+<thead>
+  <tr>
+    <th width="20"></th>
+    <th width="20"></th>
+    <th width="20">Nombre</th>
+  </tr>
+</thead>
+<tbody>
+{% for objeto in object_list %}
+  <tr>
+    <td class="text-center">
+      <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+        <i class="fa fa-pencil"></i>
+      </a>
+    </td>
+    <td>{{ forloop.counter }}</td>
+    <td>{{objeto.nombre}}</td>
+
+  </tr>          
+{% endfor %}
+{% elif elemento == "Recibo_Provee" %}
+<thead>
+  <tr>
+    <th width="20"></th>
+    <th width="20"></th>
+    <th width="20">Nombre</th>
+  </tr>
+</thead>
+<tbody>
+{% for objeto in object_list %}
+  <tr>
+    <td class="text-center">
+      <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+        <i class="fa fa-pencil"></i>
+      </a>
+    </td>
+    <td>{{ forloop.counter }}</td>
+    <td>{{objeto.nombre}}</td>
+
+  </tr>          
+{% endfor %}
+
 
     {% endif %}
 </table>

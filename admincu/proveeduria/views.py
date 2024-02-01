@@ -39,15 +39,15 @@ class Index(generic.TemplateView):
 PIVOT = {
 	'Sucursal': ['Sucursales', sucursalForm],
 	'Producto': ['Productos', productoForm],
-	'Deposito': ['Deposito', depositoForm],
+	'Deposito': ['Depositos', depositoForm],
 	'Stock': ['Stock', stockForm],
-	'Transporte': ['Transporte', transporteForm],
-	'Notas_Pedido': ['Notas_Pedido', notas_pedidoForm],
-	'Comp_Venta': ['Comp_Venta', comp_ventaForm],
-	'Consol_Carga': ['Consol_Carga', consol_cargaForm],
-	'Guia_Distri': ['Guia_Distri', guia_distriForm],
-	'Informe': ['Informe', informeForm],
-	'Recibo_Provee': ['Recibo_Provee', recibo_proveeForm],
+	'Transporte': ['Transportes', transporteForm],
+	'Notas_Pedido': ['Notas de Pedido', notas_pedidoForm],
+	'Comp_Venta': ['Comprobantes de Venta', comp_ventaForm],
+	'Consol_Carga': ['Consolidacion de Carga', consol_cargaForm],
+	'Guia_Distri': ['Guia de Distribucion', guia_distriForm],
+	'Informe': ['Informes', informeForm],
+	'Recibo_Provee': ['Recibos de Proveedores', recibo_proveeForm],
 
 
 }
@@ -75,7 +75,7 @@ class Crear(generic.CreateView):
 
 	""" Para crear una nueva instancia de cualquier modelo excepto Punto """
 
-	template_name = 'arquitectura/instancia.html'
+	template_name = 'instancia.html'
 	model = None
 
 	def get_form_class(self):
