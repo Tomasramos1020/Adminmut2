@@ -154,12 +154,30 @@ def hacer_pdf_factura(modeladmin, request, queryset):
 
 hacer_pdf_factura.short_description = "hacer pdf de esta factura"
 
+def rehacer_pdf_factura(modeladmin, request, queryset):
+	for factura in queryset:
+		factura.pdf = None
+		factura.save()
+		factura.hacer_pdf()
+		messages.success(request, 'hecho')
+
+rehacer_pdf_factura.short_description = "re-hacer pdf de esta factura"
+
+def rehacer_pdf_facturas_liquidacion(modeladmin, request, queryset):
+	for liquidacion in queryset:
+		for factura in Factura.objects.filter(liquidacion=liquidacion):
+			factura.pdf = None
+			factura.save()
+			factura.hacer_pdf()
+		messages.success(request, 'hecho')
+
+rehacer_pdf_facturas_liquidacion.short_description = "re-hacer pdf de las facturas de esta liquidacion"
 
 
 class FacturaAdmin(admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
 	list_filter = ['consorcio']
-	actions = [enviar_mail_factura, procesar_facturas_exp, obtener_barcode_exp, obtener_codigo_exp, obtener_ses_exp, obtener_informe_deuda, obtener_cupon, hacer_pdf_factura, cobro_exp]
+	actions = [enviar_mail_factura, procesar_facturas_exp, obtener_barcode_exp, obtener_codigo_exp, obtener_ses_exp, obtener_informe_deuda, obtener_cupon, hacer_pdf_factura, cobro_exp, rehacer_pdf_factura]
 
 admin.site.register(Factura, FacturaAdmin)
 
@@ -167,7 +185,7 @@ admin.site.register(Factura, FacturaAdmin)
 class LiquidacionAdmin(admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
 	list_filter = ['consorcio']
-	actions = [procesar_liquidacion, procesar_liquidacion_exp, enviar_mail_liquidacion, eliminar_cupon_exp, obtener_barcode_exp_liquidacion, inf_deuda_2]
+	actions = [procesar_liquidacion, procesar_liquidacion_exp, enviar_mail_liquidacion, eliminar_cupon_exp, obtener_barcode_exp_liquidacion, inf_deuda_2, rehacer_pdf_facturas_liquidacion]
 
 admin.site.register(Liquidacion, LiquidacionAdmin)
 

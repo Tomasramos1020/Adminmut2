@@ -59,10 +59,9 @@ class ComprobanteCreator:
 					consorcio=self.consorcio,
 					socio=self.socio,
 					credito=credito,
-					fecha=date.today(),
+					fecha=self.fecha_operacion,
 					subtotal=subtotal,
 				)
-
 				bruto = credito.bruto
 				int_desc = credito.int_desc(fecha_operacion=self.fecha_operacion, condonacion=self.condonacion)
 				total = credito.subtotal(fecha_operacion=self.fecha_operacion, condonacion=self.condonacion) # Lo que deberia colocar el usuario para saldar
@@ -78,7 +77,7 @@ class ComprobanteCreator:
 							consorcio=self.consorcio,
 							liquidacion=credito.liquidacion,
 							factura=credito.factura,
-							fecha=date.today(),
+							fecha=self.fecha_operacion,
 							periodo=credito.periodo,
 							ingreso=credito.ingreso,
 							dominio=credito.dominio,
@@ -313,7 +312,7 @@ class ComprobanteCreator:
 			consorcio=self.consorcio,
 			socio=self.socio,
 			punto=punto,
-			fecha=date.today(),
+			fecha=self.fecha_operacion,
 			descripcion=self.descripcion,
 			total=total,
 		)

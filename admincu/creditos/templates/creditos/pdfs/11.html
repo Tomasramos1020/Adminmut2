@@ -69,9 +69,9 @@
           <tr>
             <th>Concepto</th>
             <th>Periodo</th>
-            <th>Capital</th>
-            <th>Bonificacion</th>
             <th>Subtotal</th>
+            <th>Bonificacion</th>
+            <th>Total</th>
           </tr>
         </thead>
         <tbody>
@@ -114,7 +114,7 @@
         <div class="receipt-details">
           <table>
             <tr>
-              <th>Suma de Capital:</th>
+              <th>Subtotal Comprobante:</th>
               <th>{{ factura.suma_capitales|intcomma }}</th>
             </tr>
             <tr>
@@ -128,45 +128,6 @@
           </table>
         </div>
       </div>
-
-      {% if tablas_vencimientos %}
-
-        <p><strong>El monto a pagar de su factura es:</strong></p>
-        <table>
-          <thead>
-            <tr>
-              <th>1° Vencimiento</th>
-              {% if tablas_vencimientos.fecha1 != tablas_vencimientos.fecha2  %}
-                <th>2° Vencimiento</th>
-              {% endif %}
-            </tr>
-          </thead>
-          <tbody>
-              <tr>
-                <td>${{ tablas_vencimientos.saldo1|floatformat:2 }}</td>
-                {% if tablas_vencimientos.fecha1 != tablas_vencimientos.fecha2  %}
-                  <td>${{ tablas_vencimientos.saldo2|floatformat:2 }}</td>
-                {% endif %}
-              </tr>
-              <tr>
-                <td>{{ tablas_vencimientos.fecha1|date:"d/m/Y" }}</td>
-                {% if tablas_vencimientos.fecha1 != tablas_vencimientos.fecha2  %}
-                  <td>{{ tablas_vencimientos.fecha2|date:"d/m/Y" }}</td>
-                {% endif %}                
-              </tr>              
-          </tbody>
-        </table>        
-        
-        <p>Esta factura corresponde exclusivamente a las expensas del mes en curso. Las deudas anteriores serán informadas por aparte</p>
-        
-
-      {% endif %}
-
-      {% if texto_saldo %}
-        <p><strong>Saldo a la fecha:</strong></p>
-        <p>{{texto_saldo}}</p>
-      {% endif %}
-
       <footer>
         <div class="{% if factura.credito_set.all.count > 25 %}footer_varias_paginas{% else %}footer_recibo{% endif %}">
         <hr>
