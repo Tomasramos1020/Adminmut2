@@ -15,6 +15,9 @@ from django.utils.timezone import now
 from tablib import Dataset
 from functools import partial, wraps
 
+from django.conf import settings
+
+
 from admincu.funciones import *
 from admincu.generic import OrderQS
 from consorcios.models import *

@@ -25,10 +25,10 @@ services:
   web:
     container_name: ${PROJECT_NAME}_web
     build: .
-#    working_dir: /app/admincu
+    working_dir: /app/admincu
 #    command: python manage.py runserver 0.0.0.0:8000
-#    volumes:
-#      - .:/app
+    volumes:
+      - .:/app
     ports:
       - '8085:8000'
     expose:

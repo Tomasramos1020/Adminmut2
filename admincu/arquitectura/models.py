@@ -332,7 +332,7 @@ class Socio(models.Model):
 	numero_asociado = models.CharField(max_length=13, blank=True, null=True)
 	descripcion = models.TextField(blank=True, null=True)
 	nombre_servicio_mutual = models.CharField(max_length=80, blank=True, null=True)
-	directivo = models.CharField(max_length=20, choices=DIRECTIVO_CHOICES, blank=True, null=True)
+	directivo = models.CharField(max_length=100, choices=DIRECTIVO_CHOICES, blank=True, null=True)
 	estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='vigente')
 
 	def save(self, *args, **kwargs):
