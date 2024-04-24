@@ -159,6 +159,7 @@ class Ingreso(models.Model):
 	prioritario = models.BooleanField(default=False)
 	cuenta_contable = models.ForeignKey(Cuenta, on_delete=models.CASCADE)
 	es_cuota_social = models.BooleanField(default=False)
+	es_proveeduria = models.BooleanField(default=False)
 
 	def __str__(self):
 		return self.nombre
@@ -334,6 +335,16 @@ class Socio(models.Model):
 	nombre_servicio_mutual = models.CharField(max_length=80, blank=True, null=True)
 	directivo = models.CharField(max_length=100, choices=DIRECTIVO_CHOICES, blank=True, null=True)
 	estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='vigente')
+	presidente = models.CharField(max_length=150, blank=True, null=True)
+	gerente = models.CharField(max_length=150, blank=True, null=True)
+	secretario = models.CharField(max_length=150, blank=True, null=True)
+	tesorero = models.CharField(max_length=150, blank=True, null=True)
+	cant_socios = models.IntegerField(blank=True, null=True)
+	activos = models.IntegerField(blank=True, null=True)
+	adherentes = models.IntegerField(blank=True, null=True)
+	participantes = models.IntegerField(blank=True, null=True)
+	honorarios = models.IntegerField(blank=True, null=True)
+
 
 	def save(self, *args, **kwargs):
 		self.tipo_documento = DocumentType.objects.get(id=1)

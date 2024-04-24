@@ -47,9 +47,11 @@
                 <a href="{% url 'crear' modelo=parametro %}" class="btn btn-info pull-right">
                   <i class="fa fa-plus"></i> Nuevo
                 </a>
+                {% if not cons.es_federacion %}
                 <a href="{% url 'importacion' modelo=parametro %}" class="btn btn-info pull-right" style="margin-left: 500px;">
                   <i class="fa fa-plus"></i> Importacion
                 </a>
+                {% endif %}
 
               {% else %}
                 <a href="{% url 'crear' modelo=parametro %}" class="btn btn-info pull-right">

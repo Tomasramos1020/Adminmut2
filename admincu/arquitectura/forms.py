@@ -152,7 +152,9 @@ class socioForm(FormControl, forms.ModelForm):
 			'numero_calle','piso','departamento','codigo_postal',
 			'telefono','profesion', 
 			'mail',   'notificaciones', 'causa_baja',
-			'medida_disciplinaria', 'observacion', 'directivo', 'estado' 
+			'medida_disciplinaria', 'observacion', 'directivo', 'estado', 'presidente',
+			'gerente','secretario','tesorero','cant_socios','activos','adherentes','participantes',
+			'honorarios' 
 			]
 		labels = {
 			'nombre': "Nombre (obligatorio)",
@@ -173,7 +175,16 @@ class socioForm(FormControl, forms.ModelForm):
 			'medida_disciplinaria': 'Medida disciplinaria',
 			'domicilio': 'Calle (obligatorio)',
 			'directivo': '¿Es Directivo o Junta Fiscalizadora?',
-			'estado':'Estado del socio'			
+			'estado':'Estado del socio',
+			'presidente':'Presidente',
+			'gerente':'Gerente',
+			'tesorero':'Tesorero',
+			'secretario':'Secretario',
+			'cant_socios':'Cantidad de Socios',
+			'activos':'Activos',
+			'adherentes':'Adherentes',
+			'participantes':'Participantes',
+			'honorarios':'Honorarios'			
 		}
 		widgets = {
 			'notificaciones': NullBooleanSelect(),
@@ -200,11 +211,34 @@ class socioForm(FormControl, forms.ModelForm):
 		self.fields['localidad'].required = True
 		self.fields['domicilio'].required = True
 		self.fields['apellido'].required = True
+
+		if self.consorcio and self.consorcio.es_federacion:
+			self.fields['apellido'].label = 'Matricula (obligatorio)'
+			self.fields['tipo_asociado'].label = 'Tipo (obligatorio)'
+			self.fields['profesion'].widget = forms.HiddenInput()
+			self.fields['es_extranjero'].widget = forms.HiddenInput()
+			self.fields['numero_documento'].label = 'Cuit (obligatorio)'
+			self.fields['directivo'].widget = forms.HiddenInput()
+			self.fields['fecha_nacimiento'].label = 'Fecha de constitucion'
+			self.fields['tipo_persona'].widget = forms.HiddenInput()
+			self.fields['causa_baja'].label = 'Mails de contacto'
+			self.fields['medida_disciplinaria'].label = 'Telefono de contacto'
+			self.fields['estado'].label = 'Estado'
+
 		if self.consorcio and self.consorcio.cuit_nasociado:
 			self.fields['numero_asociado'].widget = forms.HiddenInput()
 			self.fields['numero_asociado'].required = False
-
-	
+			
+		if self.consorcio and self.consorcio.es_federacion == False:
+			self.fields['presidente'].widget = forms.HiddenInput()
+			self.fields['secretario'].widget = forms.HiddenInput()	
+			self.fields['gerente'].widget = forms.HiddenInput()	
+			self.fields['tesorero'].widget = forms.HiddenInput()	
+			self.fields['cant_socios'].widget = forms.HiddenInput()	
+			self.fields['activos'].widget = forms.HiddenInput()	
+			self.fields['adherentes'].widget = forms.HiddenInput()	
+			self.fields['participantes'].widget = forms.HiddenInput()	
+			self.fields['honorarios'].widget = forms.HiddenInput()	
 
 
 	def clean_numero_asociado(self):

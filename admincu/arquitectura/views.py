@@ -102,6 +102,7 @@ class Listado(generic.ListView):
 		context = super().get_context_data(**kwargs)
 		context["parametro"] = self.kwargs['modelo']
 		context["nombre_parametro"] = PIVOT[self.kwargs['modelo']][0]
+		context["cons"] = consorcio(self.request)
 		return context
 
 

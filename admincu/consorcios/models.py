@@ -41,6 +41,7 @@ class Consorcio(models.Model):
 	cuit_nasociado = models.BooleanField(default=False)
 	proveeduria = models.BooleanField(default=False)
 	matricula = models.CharField(max_length=50, blank=True, null=True)
+	es_federacion = models.BooleanField(default=False)
 
 
 	def __str__(self):
