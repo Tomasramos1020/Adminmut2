@@ -301,7 +301,7 @@ class Socio(models.Model):
 	es_socio = models.BooleanField(default=True)
 	usuarios = models.ManyToManyField(User, blank=True)
 	# Nombre del socio
-	nombre = models.CharField(max_length=80,blank=True, null=True)
+	nombre = models.CharField(max_length=250,blank=True, null=True)
 	apellido = models.CharField(max_length=80)
 	fecha_nacimiento = models.DateField(blank=True, null=True)
 	es_extranjero = models.BooleanField(default=False)

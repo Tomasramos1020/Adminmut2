@@ -215,7 +215,7 @@ class socioForm(FormControl, forms.ModelForm):
 		if self.consorcio and self.consorcio.es_federacion:
 			self.fields['apellido'].label = 'Matricula (obligatorio)'
 			self.fields['tipo_asociado'].label = 'Tipo (obligatorio)'
-			self.fields['profesion'].widget = forms.HiddenInput()
+			self.fields['profesion'].label = 'Delegados'
 			self.fields['es_extranjero'].widget = forms.HiddenInput()
 			self.fields['numero_documento'].label = 'Cuit (obligatorio)'
 			self.fields['directivo'].widget = forms.HiddenInput()

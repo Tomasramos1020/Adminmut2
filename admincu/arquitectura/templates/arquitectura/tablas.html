@@ -142,10 +142,10 @@
         <th>Telefono</th>
         <th>Email</th>
         {% if object_list.first.consorcio.es_federacion %}
-        <th>Cantidad de socios</th>
-        {% else %}  
-        <th>Profesion</th>
-        {% endif %}  
+        <th>Delegados</th>
+        {% else %}
+        <th>Profesion</th>  
+        {% endif %}
         {% if object_list.first.consorcio.es_federacion %}
         <th>Fecha de alta</th>
         {% else %}  
@@ -154,7 +154,8 @@
         {% if object_list.first.consorcio.es_federacion %} 
         <th>Gerente</th> 
         <th>Secretario</th>          
-        <th>Tesorero</th>          
+        <th>Tesorero</th>
+        <th>Cantidad de socios</th>          
         <th>Activos</th>          
         <th>Adherentes</th>          
         <th>Participantes</th>          
@@ -223,16 +224,13 @@
         </td> 
         <td>{% if objeto.telefono %}{{objeto.telefono}}{% endif %}</td>
           <td>{{objeto.mail|default:""}}</td>
-          {% if object_list.first.consorcio.es_federacion %}
-          <td>{{objeto.cant_socios|default:""}}</td>
-          {% else %}
         <td>{{objeto.profesion|default:""}}</td>
-        {% endif %}
         <td>{{objeto.fecha_alta|default:""}}</td>
         {% if object_list.first.consorcio.es_federacion %}
         <td>{{objeto.gerente|default:""}}</td>
         <td>{{objeto.secretario|default:""}}</td>
         <td>{{objeto.tesorero|default:""}}</td>
+        <td>{{objeto.cant_socios|default:""}}</td>
         <td>{{objeto.activos|default:""}}</td>
         <td>{{objeto.adherentes|default:""}}</td>
         <td>{{objeto.participantes|default:""}}</td>
