@@ -187,7 +187,7 @@ class WizardLiquidacionManager:
 
 		elif tipo == "grupo":
 			grupos = Tipo_asociado.objects.filter(id__in=data_inicial['tipo_asociado'])
-			todos_los_socios_de_los_grupos = Socio.objects.filter(tipo_asociado__in=grupos)
+			todos_los_socios_de_los_grupos = Socio.objects.filter(tipo_asociado__in=grupos,nombre_servicio_mutual__isnull=True,baja__isnull=True)
 			q_socios_de_los_grupos = todos_los_socios_de_los_grupos.count()
 			for d in data_creditos:
 				if d:
@@ -215,7 +215,7 @@ class WizardLiquidacionManager:
 							'periodo':data_inicial['fecha_operacion'],
 							'ingreso':Ingreso.objects.get(consorcio=consorcio(self.request),es_cuota_social=True),
 						}
-						for socio in Socio.objects.filter(tipo_asociado=d['categorias_asociado']):
+						for socio in Socio.objects.filter(tipo_asociado=d['categorias_asociado'],nombre_servicio_mutual__isnull=True,baja__isnull=True):
 							credito = base_credito.copy()
 							credito['socio'] = socio
 							credito['capital'] = round(d['subtotal'],2)

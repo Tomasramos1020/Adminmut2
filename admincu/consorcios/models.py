@@ -26,8 +26,8 @@ class Codigo_Provincia(models.Model):
 class Consorcio(models.Model):
 	contribuyente = models.ForeignKey(TaxPayer, on_delete=models.CASCADE)
 	mercado_pago = models.ForeignKey(Account, blank=True, null=True, on_delete=models.CASCADE)
-	nombre = models.CharField(max_length=20, blank=False, null=False)
-	nombre_completo = models.CharField(max_length=70, blank=False, null=False)
+	nombre = models.CharField(max_length=200, blank=False, null=False)
+	nombre_completo = models.CharField(max_length=250, blank=False, null=False)
 	tipo = models.ForeignKey(Tipo_CU, blank=True, null=True, on_delete=models.CASCADE)
 	abreviatura = models.CharField(max_length=7, blank=False, null=False)
 	domicilio = models.CharField(max_length=70, blank=True, null=True)

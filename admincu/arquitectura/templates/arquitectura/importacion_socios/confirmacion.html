@@ -30,6 +30,7 @@
                   <th>Nombre</th>
                   <th class="text-right">Cuit</th>
                   <th>T.de asoc</th>
+                  <th>Genero</th>
                   <th>F.de alta</th>
                   {% if not consorcio.cuit_nasociado %}
                     <th>Nª de asoc</th>
@@ -54,7 +55,8 @@
                     <td>{{ socio.apellido }}</td>
                     <td>{{ socio.nombre }}</td>
                     <td class="text-right">{{ socio.cuit }}</td>
-                    <td>{{ socio.tipo_asociado }}</td>                    
+                    <td>{{ socio.tipo_asociado }}</td>
+                    <td>{{ socio.genero }}</td>                    
                     <td>{{ socio.fecha_alta|date:"d/m/Y" }}</td>
                     {% if not consorcio.cuit_nasociado %}
                       <td>{{ socio.numero_asociado }}</td>

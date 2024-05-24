@@ -127,6 +127,10 @@
         <th>Categoria</th>
         {% endif %}
         <th>Cuit</th>
+        {% if not object_list.first.consorcio.es_federacion %}
+        <th>Genero</th>
+        <th>Edad</th>
+        {% endif %}
         <th>Domicilio</th>
         <th>Numero</th>
         <th>Piso</th>
@@ -134,6 +138,7 @@
         <th>Localidad</th>
         <th>Provincia</th>
         <th>Codigo postal</th>
+        <th>Fecha de baja</th>
         {% if object_list.first.consorcio.es_federacion %}
         <th>Fecha constitucion</th>
         {% else %}  
@@ -210,6 +215,15 @@
         <td>
           {{objeto.cuit|default:""}}     
         </td>
+        {% if not object_list.first.consorcio.es_federacion %}
+        <td>
+          {{objeto.genero|default:""}}     
+        </td>
+        <td>
+          {{objeto.edad|default:""}}     
+        </td>
+
+        {% endif %}
         <td>{% if objeto.domicilio %}{{objeto.domicilio}}{% endif %}</td>
         <td>{{objeto.numero_calle|default:""}}</td>
         <td>{{objeto.piso|default:""}}</td>
@@ -218,6 +232,7 @@
         <td>{{objeto.localidad|default:""}}</td>
         <td>{{objeto.provincia|default:""}}</td>
         <td>{{objeto.codigo_postal|default:""}}</td>
+        <td>{{objeto.baja|default:""}}</td>
 
         <td>
           {{objeto.fecha_nacimiento|default:""}}

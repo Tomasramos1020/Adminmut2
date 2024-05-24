@@ -147,14 +147,14 @@ class socioForm(FormControl, forms.ModelForm):
 		fields = [
 			'nombre', 'apellido','numero_asociado','tipo_asociado',
 			'fecha_alta',  'tipo_persona',
-			'numero_documento','fecha_nacimiento',	
+			'numero_documento','fecha_nacimiento','genero',	
 			'es_extranjero', 'provincia','localidad','domicilio', 
 			'numero_calle','piso','departamento','codigo_postal',
 			'telefono','profesion', 
 			'mail',   'notificaciones', 'causa_baja',
 			'medida_disciplinaria', 'observacion', 'directivo', 'estado', 'presidente',
 			'gerente','secretario','tesorero','cant_socios','activos','adherentes','participantes',
-			'honorarios' 
+			'honorarios',
 			]
 		labels = {
 			'nombre': "Nombre (obligatorio)",
@@ -163,6 +163,7 @@ class socioForm(FormControl, forms.ModelForm):
 			'localidad':"Localidad (obligatorio)",
 			'numero_asociado' : "Numero de asociado (obligatorio)",
 			'fecha_nacimiento': "Fecha de nacimiento",
+			'genero':"Genero",
 			'es_extranjero': 'Es extranjero?',
 			'tipo_asociado':'Tipo de asociado (obligatorio)',
 			'fecha_alta': 'Fecha de alta (obligatorio)',
@@ -184,7 +185,8 @@ class socioForm(FormControl, forms.ModelForm):
 			'activos':'Activos',
 			'adherentes':'Adherentes',
 			'participantes':'Participantes',
-			'honorarios':'Honorarios'			
+			'honorarios':'Honorarios',
+			'genero':'Genero'			
 		}
 		widgets = {
 			'notificaciones': NullBooleanSelect(),
@@ -224,6 +226,7 @@ class socioForm(FormControl, forms.ModelForm):
 			self.fields['causa_baja'].label = 'Mails de contacto'
 			self.fields['medida_disciplinaria'].label = 'Telefono de contacto'
 			self.fields['estado'].label = 'Estado'
+			self.fields['genero'].widget = forms.HiddenInput()
 
 		if self.consorcio and self.consorcio.cuit_nasociado:
 			self.fields['numero_asociado'].widget = forms.HiddenInput()

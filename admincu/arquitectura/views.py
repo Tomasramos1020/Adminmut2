@@ -438,11 +438,11 @@ class SociosImportacionWizard(SessionWizardView):
 
 		# Validacion de columnas
 		if consorcio(self.request).cuit_nasociado:
-			columnas_necesarias = ['cuit', 'apellido', 'nombre', 'fecha_alta', 'tipo_persona', 'tipo_asociado', 'provincia', 'localidad', 'calle', 'fecha_nacimiento',
+			columnas_necesarias = ['cuit', 'apellido', 'nombre', 'fecha_alta', 'tipo_persona', 'tipo_asociado','genero', 'provincia', 'localidad', 'calle', 'fecha_nacimiento',
 								'es_extranjero', 'numero_calle', 'piso', 'departamento', 'codigo_postal', 'telefono', 'profesion', 'mail', 'notificaciones']
 			print('hasdjsadj')	
 		else:
-			columnas_necesarias = ['cuit', 'apellido', 'nombre', 'fecha_alta', 'tipo_persona', 'tipo_asociado', 'numero_asociado','provincia', 'localidad', 'calle', 'fecha_nacimiento',
+			columnas_necesarias = ['cuit', 'apellido', 'nombre', 'fecha_alta', 'tipo_persona', 'tipo_asociado','genero', 'numero_asociado','provincia', 'localidad', 'calle', 'fecha_nacimiento',
 								'es_extranjero', 'numero_calle', 'piso', 'departamento', 'codigo_postal', 'telefono', 'profesion', 'mail', 'notificaciones']
 			print('olu')
 
@@ -588,6 +588,26 @@ class SociosImportacionWizard(SessionWizardView):
 				except:
 					pass
 
+		data_genero = datos['genero']
+		generos = {}
+		for g in data_genero:
+			if not g in generos.keys():
+				try:
+					if g == 'masculino':
+						generos[g] = 'masculino'
+					if g == 'femenino':
+						generos[g] = 'femenino'
+					if g == 'no binario':
+						generos[g]= 'no_binario'
+					if g == 'otro':
+						generos[g] = 'otro' 
+				except:
+					pass
+
+
+
+
+
 		return {
 			'tipo_personas': tipo_personas,
 			'notificacioness': notificacioness,
@@ -599,8 +619,8 @@ class SociosImportacionWizard(SessionWizardView):
 			'pisos': pisos,
 			'cps': cps,
 			'cuitos': cuitos,
-			'numeros_asociadoss':numeros_asociadoss if not consorcio(self.request).cuit_nasociado else cuitos
-
+			'numeros_asociadoss':numeros_asociadoss if not consorcio(self.request).cuit_nasociado else cuitos,
+			'generos':generos
 
 		}
 
@@ -628,6 +648,7 @@ class SociosImportacionWizard(SessionWizardView):
 				fecha_alta = self.convertirFecha(d['fecha_alta'])
 				tipo_persona = d['tipo_persona']
 				tipo_asociado = objetos_limpios['tas'][d['tipo_asociado']]
+				genero = d['genero']
 				provincia = objetos_limpios['provincias'][d['provincia']]
 				localidad = d['localidad']
 				calle = d['calle']
@@ -639,8 +660,11 @@ class SociosImportacionWizard(SessionWizardView):
 				piso = objetos_limpios['pisos'][d['piso']]
 				numero_calle = d['numero_calle']
 				es_extranjero = objetos_limpios['es_extranjeros'][d['es_extranjero']]
-				fecha_nacimiento = self.convertirFecha(
+				try:
+					fecha_nacimiento = self.convertirFecha(
 					d['fecha_nacimiento'])
+				except:
+					fecha_nacimiento = None
 
 
 				if  consorcio(self.request).cuit_nasociado:
@@ -658,6 +682,7 @@ class SociosImportacionWizard(SessionWizardView):
 					'apellido': apellido,
 					'tipo_persona': tipo_persona,
 					'tipo_asociado': tipo_asociado,
+					'genero': genero,
 					'provincia': provincia,
 					'localidad': localidad,
 					'calle': calle,
@@ -760,10 +785,21 @@ class SociosImportacionWizard(SessionWizardView):
 		except:
 			return "Debe escribir una fecha válida en fecha alta"
 
+		if datos['fecha_nacimiento']:
+			try:
+				self.convertirFecha(datos['fecha_nacimiento'])
+			except:
+				return "Debe escribir una fecha válida en fecha nacimiento"
+		else:
+			None
 		try:
-			self.convertirFecha(datos['fecha_nacimiento'])
+			objetos_limpios['generos'][datos['genero']]
 		except:
-			return "Debe escribir una fecha válida en fecha nacimiento"
+			return "Debe escribir masculino, femenino, no binario o otro en la columna genero"
+
+
+
+
 
 		return None
 
@@ -836,6 +872,7 @@ class SociosImportacionWizard(SessionWizardView):
 				fecha_alta=socio['fecha_alta'],
 				apellido=socio['apellido'],
 				tipo_persona=socio['tipo_persona'],
+				genero=socio['genero'],
 				cuit=socio['cuit'],
 				numero_documento=socio['cuit'],
 				tipo_documento=DocumentType.objects.get(id=1),

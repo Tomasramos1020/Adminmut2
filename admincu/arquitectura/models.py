@@ -293,6 +293,12 @@ class Socio(models.Model):
 
 
 	)
+	GENERO_CHOICES = (
+		('masculino', 'Masculino'),
+		('femenino', 'Femenino'),
+		('no_binario','No Binario'),
+		('otro', 'Otro'),
+		)
 
 	# Usuarios diferentes por mas que tenga dos clubes (No se compensan unos con otros)
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
@@ -301,7 +307,7 @@ class Socio(models.Model):
 	es_socio = models.BooleanField(default=True)
 	usuarios = models.ManyToManyField(User, blank=True)
 	# Nombre del socio
-	nombre = models.CharField(max_length=250,blank=True, null=True)
+	nombre = models.CharField(max_length=280,blank=True, null=True)
 	apellido = models.CharField(max_length=80)
 	fecha_nacimiento = models.DateField(blank=True, null=True)
 	es_extranjero = models.BooleanField(default=False)
@@ -325,7 +331,7 @@ class Socio(models.Model):
 	causa_baja = models.CharField(max_length=100, blank=True, null=True)
 	medida_disciplinaria = models.CharField(max_length=100, blank=True, null=True)
 	observacion = models.CharField(max_length=100, blank=True, null=True)
-
+	genero = models.CharField(max_length=30, choices=GENERO_CHOICES, blank=True, null=True)
 
 	tipo_asociado = models.ForeignKey(Tipo_asociado, on_delete=models.CASCADE, related_name='socio', blank=True, null=True)
 	fecha_alta = models.DateField(blank=True, null=True)
@@ -369,7 +375,11 @@ class Socio(models.Model):
 		DIRECTIVO_DICT = dict(self.DIRECTIVO_CHOICES)
 		return DIRECTIVO_DICT.get(self.directivo, None)	
 
-
+	def edad(self):
+		if self.fecha_nacimiento:
+			today = date.today()
+			return today.year - self.fecha_nacimiento.year - ((today.month, today.day) < (self.fecha_nacimiento.month, self.fecha_nacimiento.day))
+		return None
 
 	def get_saldos(self, fecha=None):
 		fecha = fecha if fecha else date.today()
