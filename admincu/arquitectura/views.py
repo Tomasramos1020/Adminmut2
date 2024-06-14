@@ -40,6 +40,7 @@ class Index(generic.TemplateView):
 
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
+		cons = consorcio(self.request)
 		ingresos = Ingreso.objects.filter(
 			consorcio=consorcio(self.request)).count()
 		gastos = Gasto.objects.filter(
@@ -62,6 +63,8 @@ class Index(generic.TemplateView):
 			consorcio=consorcio(self.request)).count()
 		servicios_mutuales = Servicio_mutual.objects.filter(
 			consorcio=consorcio(self.request), baja__isnull=True).count()
+		convenios = Convenio.objects.filter(
+			consorcio=consorcio(self.request), baja__isnull=True).count()
 		context.update(locals())
 		return context
 
@@ -75,6 +78,7 @@ PIVOT = {
 	'Tipo_asociado': ['Categorias de Asociados', grupoForm],
 	'Acreedor': ['Proveedores', acreedorForm],
 	'Servicio_mutual': ['Servicios Mutuales', servicioForm],
+	'Convenio': ['Convenios', convenioForm],
 
 }
 

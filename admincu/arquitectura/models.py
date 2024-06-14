@@ -36,6 +36,20 @@ class Tipo_asociado(models.Model):
 	def __str__(self):
 		return self.nombre
 
+class Convenio(models.Model):
+
+	""" Convenios """
+
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE, related_name='convenio' )
+	nombre = models.CharField(max_length=80)
+	fecha = models.DateField(blank=True, null=True)
+	observaciones = models.TextField(max_length=10000, blank=True, null=True)
+	reglamento = models.TextField(max_length=10000, blank=True, null=True)
+	baja = models.DateField(blank=True, null=True)
+
+
+	def __str__(self):
+		return self.nombre
 
 
 
@@ -350,6 +364,8 @@ class Socio(models.Model):
 	adherentes = models.IntegerField(blank=True, null=True)
 	participantes = models.IntegerField(blank=True, null=True)
 	honorarios = models.IntegerField(blank=True, null=True)
+	convenio = models.ForeignKey(Convenio, on_delete=models.CASCADE, related_name='socio', blank=True, null=True)
+
 
 
 	def save(self, *args, **kwargs):
@@ -632,3 +648,5 @@ class Servicio_mutual(models.Model):
 
 	def __str__(self):
 		return self.nombre
+
+

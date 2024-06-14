@@ -15,11 +15,17 @@
     {% for objeto in object_list %}
       <tr>
         <td class="text-center">
-          {% if not objeto.es_cuota_social %}
+          {% if object_list.first.consorcio.es_federacion%}
           <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
             <i class="fa fa-pencil"></i>
           </a>
+          {% elif not objeto.es_cuota_social %}
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+
           {% endif %}
+
         </td>
         <td>{{ forloop.counter }}</td>
         <td>{{objeto}}</td>
@@ -131,6 +137,9 @@
         <th>Genero</th>
         <th>Edad</th>
         {% endif %}
+        {% if object_list.first.consorcio.convenios %}
+        <th>Convenio</th>
+        {% endif %}
         <th>Domicilio</th>
         <th>Numero</th>
         <th>Piso</th>
@@ -224,6 +233,12 @@
         </td>
 
         {% endif %}
+        {% if object_list.first.consorcio.convenios %}
+        <td>
+          {{objeto.convenio|default:""}}     
+        </td>
+        {% endif %}        
+      
         <td>{% if objeto.domicilio %}{{objeto.domicilio}}{% endif %}</td>
         <td>{{objeto.numero_calle|default:""}}</td>
         <td>{{objeto.piso|default:""}}</td>
@@ -368,6 +383,46 @@
         <td>{{objeto.nombre|default:" " }}</td>
         <td>{{objeto.nombre_reglamento|default:" " }}</td>
         <td>{{objeto.fecha_reglamento|default:" " }}</td>        
+      </tr>
+    {% endfor %}
+    </tbody>
+    {% elif parametro == "Convenio" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th>Nombre</th>
+        <th>Fecha del Convenio</th>
+        <th>Observaciones</th>
+        <th>Reglamento</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'finalizar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-danger btn-xs">
+          <i class="fa fa-user-times"></i>
+          </a>
+          {% else %}
+          <a href="{% url 'reactivar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-success btn-xs">
+            <i class="fa fa-user-plus"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td>{{objeto.nombre|default:" " }}</td>
+        <td>{{objeto.fecha|default:" " }}</td>
+        <td>{{objeto.observaciones|default:" " }}</td>
+        <td>{{objeto.reglamento|default:" " }}</td>        
+
       </tr>
     {% endfor %}
     </tbody>

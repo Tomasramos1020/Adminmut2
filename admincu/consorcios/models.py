@@ -42,6 +42,7 @@ class Consorcio(models.Model):
 	proveeduria = models.BooleanField(default=False)
 	matricula = models.CharField(max_length=50, blank=True, null=True)
 	es_federacion = models.BooleanField(default=False)
+	convenios = models.BooleanField(default=False)
 
 
 	def __str__(self):

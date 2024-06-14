@@ -19,12 +19,13 @@ class ingresoForm(FormControl, forms.ModelForm):
 		model = Ingreso
 		fields = [
 			'nombre', 'prorrateo',
-			'prioritario', 'cuenta_contable'
+			'prioritario', 'cuenta_contable', 'es_cuota_social'
 		]
 		labels = {
 			'nombre': "Nombre del ingreso",
 			'prioritario': "Tiene prioridad de cobro?",
 			'prorrateo': "Prorratea por m2?",
+			'es_cuota_social': "¿Se calcula para articulo 9?"
 		}
 		widgets = {
 			'prorrateo': NullBooleanSelect(),
@@ -41,6 +42,9 @@ class ingresoForm(FormControl, forms.ModelForm):
 				).order_by('numero')
 		if self.instance.primario:
 			self.fields.pop('cuenta_contable')
+		if self.consorcio and self.consorcio.es_federacion == False:
+			self.fields['es_cuota_social'].widget = forms.HiddenInput()
+
 
 	def clean_nombre(self):
 		nombre = self.cleaned_data['nombre']
@@ -154,7 +158,7 @@ class socioForm(FormControl, forms.ModelForm):
 			'mail',   'notificaciones', 'causa_baja',
 			'medida_disciplinaria', 'observacion', 'directivo', 'estado', 'presidente',
 			'gerente','secretario','tesorero','cant_socios','activos','adherentes','participantes',
-			'honorarios',
+			'honorarios','convenio'
 			]
 		labels = {
 			'nombre': "Nombre (obligatorio)",
@@ -186,7 +190,8 @@ class socioForm(FormControl, forms.ModelForm):
 			'adherentes':'Adherentes',
 			'participantes':'Participantes',
 			'honorarios':'Honorarios',
-			'genero':'Genero'			
+			'genero':'Genero',
+			'convenio':'Convenio'			
 		}
 		widgets = {
 			'notificaciones': NullBooleanSelect(),
@@ -213,6 +218,9 @@ class socioForm(FormControl, forms.ModelForm):
 		self.fields['localidad'].required = True
 		self.fields['domicilio'].required = True
 		self.fields['apellido'].required = True
+
+		if self.consorcio and self.consorcio.convenio == False:
+			self.fields['convenio'].widget = forms.HiddenInput()
 
 		if self.consorcio and self.consorcio.es_federacion:
 			self.fields['apellido'].label = 'Matricula (obligatorio)'
@@ -436,6 +444,23 @@ class grupoForm(FormControl, forms.ModelForm):
 
 
 
+class convenioForm(FormControl, forms.ModelForm):
+	class Meta:
+		model = Convenio
+		fields = ['nombre','fecha', 'observaciones', 'reglamento' ]
+		labels = {
+			'nombre':"Nombre",
+			'fecha': "Fecha",
+			'observaciones': "Texto",
+			'reglamento': "Observaciones",			
+		}
+
+	def __init__(self, consorcio=None, *args, **kwargs):
+		self.consorcio = consorcio
+		super().__init__(*args, **kwargs)
+
+		self.fields['nombre'].required = True
+
 class servicioForm(FormControl, forms.ModelForm):
 	class Meta:
 		model = Servicio_mutual
@@ -452,6 +477,9 @@ class servicioForm(FormControl, forms.ModelForm):
 		super().__init__(*args, **kwargs)
 
 		self.fields['nombre'].required = True
+
+
+
 
 class hiddenForm(forms.ModelForm):
 
