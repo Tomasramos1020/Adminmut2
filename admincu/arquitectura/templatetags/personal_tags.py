@@ -22,3 +22,7 @@ def add_attr(field, css):
 def multiply(value, arg):
 	value = round(float(value)*float(arg),2)
 	return Decimal("%.2f" % value)
+
+@register.filter(name='replace_underscores')
+def replace_underscores(value):
+    return value.replace('_', ' ').title()	

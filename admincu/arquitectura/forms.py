@@ -218,8 +218,9 @@ class socioForm(FormControl, forms.ModelForm):
 		self.fields['localidad'].required = True
 		self.fields['domicilio'].required = True
 		self.fields['apellido'].required = True
+		self.fields['convenio'].queryset = Convenio.objects.filter(consorcio=consorcio, baja__isnull=True)
 
-		if self.consorcio and self.consorcio.convenio == False:
+		if self.consorcio and not self.consorcio.convenios:
 			self.fields['convenio'].widget = forms.HiddenInput()
 
 		if self.consorcio and self.consorcio.es_federacion:
@@ -306,14 +307,16 @@ class acreedorForm(FormControl, forms.ModelForm):
 		model = Acreedor
 		fields = [
 			'nombre','tipo', 'tipo_documento',
-			'numero_documento', 'genera',
-			'cuenta_contable',
+			'numero_documento', 'direccion','genera',
+			'cuenta_contable','condicion_iva',
 			]
 		labels = {
 			'tipo': 'Tipo de Gasto',
 			'tipo_documento': 'Tipo de documento',
 			'genera': 'Genera retenciones?',
 			'numero_documento': 'Numero de documento',
+			'direccion': 'Direccion',
+			'condicion_iva': 'Condicion ante el IVA',
 		}
 		widgets = {
 			'numero_documento': TextInput(attrs={'type': 'number', 'min': '0', 'step':'1', 'required':True})

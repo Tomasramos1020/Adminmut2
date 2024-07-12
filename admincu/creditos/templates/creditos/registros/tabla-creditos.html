@@ -14,6 +14,9 @@
         {% if not user.groups.first.name == "socio" %}
           <th>Destinatario</th>
         {% endif %}
+        {% if not user.groups.first.name == "socio" and creditos|length and creditos.0.consorcio.convenios %}
+          <th>Convenio</th>
+        {% endif %}
         <th>Concepto</th>
         <th>Periodo</th>
         <th class="text-right">Capital</th>
@@ -48,6 +51,10 @@
             {% if not user.groups.first.name == "socio" %}
               <td>{{ credito.socio }}</td>
             {% endif %}
+            {% if not user.groups.first.name == "socio" and credito.consorcio.convenios%}
+              <td>{{ credito.socio.convenio|default:"" }}</td>
+            {% endif %}
+
             <td>{{ credito.ingreso }}</td>
             <td>{{ credito.periodo|date:"Y-m" }}</td>
             <td class="text-right">

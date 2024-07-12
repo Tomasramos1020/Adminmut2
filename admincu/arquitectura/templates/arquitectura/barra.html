@@ -4,7 +4,7 @@
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Acreedor' %}">Proveedores</a>
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Servicio_mutual' %}">Servicios Mutuales</a>
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Socio' %}">Padron de Asociados</a>
-  {% if cons.convenios %}
+  {% if consorcio.convenios %}
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Convenio' %}">Convenios</a>
   {% endif %}
   <a class="btn btn-block btn-bordered btn-default m-b-25" href="{% url 'parametro' modelo='Tipo_asociado' %}">Categorias de Asociados</a>

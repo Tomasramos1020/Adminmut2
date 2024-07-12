@@ -1,4 +1,6 @@
 {% load humanize %}
+{% load personal_tags %}
+
 <table class="table table-striped anopa display nowrap" style="width:100%">
 
 
@@ -291,6 +293,8 @@
         <th>Nombre</th>
         <th>Documento</th>
         <th>Cuenta Contable</th>
+        <th>Direccion</th>
+        <th>Condicion IVA</th>
       </tr>
     </thead>
     <tbody>
@@ -309,6 +313,8 @@
           {% endif %}
         </td>
         <td><small>{{objeto.cuenta_contable.nombre}}</small></td>
+        <td><small>{{objeto.direccion|default:""}}</small></td>
+        <td><small>{{objeto.condicion_iva|default:""|replace_underscores}}</small></td>
       </tr>
     {% endfor %}
     </tbody>

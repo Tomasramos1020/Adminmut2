@@ -143,6 +143,25 @@ class Comprobante(models.Model):
 	def hacer_pdfs(self):
 		archivo = []
 		enteros = []
+		creditos = Credito.objects.filter(
+				socio=self.socio,
+				liquidacion__estado="confirmado",
+				dominio__isnull=True,
+				fin__isnull=True,
+				)
+		total_deudas = sum([c.saldo for c in creditos])
+#		total_deudas += sum([c.saldo for c in factura.credito_set.all()])
+
+		saldos = self.socio.get_saldos(fecha=date.today())
+		total_saldos = sum([s.saldo() for s in saldos])
+
+		total_adeudado = total_deudas - total_saldos
+		if not total_adeudado == 0:
+			texto_saldo = "Tu saldo total "
+			texto_saldo += "adeudado" if total_adeudado > 0 else "a favor"
+			texto_saldo += " a la fecha, considerando el monto del presente recibo es de: ${}".format(abs(total_adeudado))
+		else:
+			texto_saldo = "Estas al día con tus pagos"
 		if not self.receipt:
 			if self.punto:
 				comprobante = self
@@ -219,6 +238,7 @@ class Comprobante(models.Model):
 			self.tipo(),
 			self.nombre()
 		)
+
 		if self.anulado:
 			self.pdf_anulado = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
 		else:

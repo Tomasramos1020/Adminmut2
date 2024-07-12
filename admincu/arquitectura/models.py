@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from datetime import datetime, date, timedelta
 from email.policy import default
+from turtle import back
 from django.contrib.auth.models import User, Group
 from django.db import models
 from django.db.models import Sum
@@ -619,6 +620,19 @@ class Acreedor(models.Model):
 
 	""" Acreedores de la entidad """
 
+	IVA_CHOICES = (
+		('iva_responsable_inscripto', 'IVA Responsable Inscripto'),
+		('iva_responsable_no_inscripto', 'IVA Responsable no Inscripto'),
+		('iva_no_responsable', 'IVA no Responsable'),
+		('iva_sujeto_exento', 'IVA Sujeto Exento'),
+		('responsable_monotributo', 'Responsable Monotributo'),
+		('sujeto_no_categorizado', 'Sujeto no Categorizado'),
+		('proveedor_exterior', 'Proveedor del Exterior'),
+		('iva_liberado', 'IVA Liberado Ley Nº 19.640'),
+		('iva_ri_ap', 'IVA Responsable Inscripto Agente de Percepción'),
+		)
+
+
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	primario = models.BooleanField(default=False)
 	tipo = models.ManyToManyField(Gasto)
@@ -629,6 +643,8 @@ class Acreedor(models.Model):
 	tipo_documento = models.ForeignKey(DocumentType, blank=True, null=True, on_delete=models.CASCADE)
 	numero_documento = models.CharField(max_length=13, blank=True, null=True)
 	cuenta_contable = models.ForeignKey(Cuenta, on_delete=models.CASCADE)
+	direccion = models.CharField(max_length=250, blank=True, null=True)
+	condicion_iva = models.CharField(max_length=250, choices=IVA_CHOICES, blank=True, null=True)
 
 
 	def __str__(self):
