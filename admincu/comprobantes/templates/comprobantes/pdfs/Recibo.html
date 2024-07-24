@@ -63,18 +63,18 @@
         <thead>
           <tr>
             <th>Concepto</th>
-            <th>Subtotal</th>
-            <th>Int/Desc</th>
-            <th>Total</th>
+            <th>Deuda</th>
+            <th>Pago</th>
+            <th>Saldo</th>
           </tr>
         </thead>
         <tbody>
           {% for cobro in comprobante.cobro_set.all %}
             <tr>
               <td>{{ cobro.credito.ingreso }} {{ cobro.credito.periodo|date:"Y-m" }}</td>
+              <td>{{ cobro.credito.capital|intcomma }}</td>
               <td>{{ cobro.capital|intcomma }}</td>
-              <td>{{ cobro.int_desc|intcomma }}</td>
-              <td>{{ cobro.subtotal|intcomma }}</td>
+              <td>{{ cobro.saldo|intcomma }}</td>
             </tr>
           {% endfor %}
           {% for saldo in comprobante.saldos.all %}

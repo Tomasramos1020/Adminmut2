@@ -646,6 +646,10 @@ class Cobro(models.Model):
 		""" Movimiento de capital (Positivo o negativo) """
 		return self.movimiento(self.capital)
 
+	@property
+	def saldo(self):
+		return self.credito.capital - self.capital
+
 class Saldo(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.SET_NULL)
