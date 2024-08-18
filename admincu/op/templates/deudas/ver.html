@@ -83,6 +83,11 @@
       <div class="text-right">
         <p class="m-t-5 text-uppercase font-14 font-600">Total</p>
         <h2 class="m-b-10">$ {{ deuda.total|intcomma }}</h2>
+        <a href="{% url 'eliminar_deuda' pk=deuda.id %}" class="btn btn-icon btn-xs btn-danger btn-bordered waves-efect waves-light">
+          Eliminar Deuda
+        </a>
+ 
+
       </div>
     </div>
 

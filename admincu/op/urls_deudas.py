@@ -13,5 +13,6 @@ urlpatterns = [
     path('cancelar/<int:pk>/', deud_eliminar, name='deud_eliminar'),
     path('vincular-pago/<int:pk>/', deud_vincular_pago, name='deud_vincular_pago'),
     path('<int:pk>/', deud_ver, name='deud_ver'),
+    path('eliminar_deuda/<int:pk>/', eliminar_deuda, name='eliminar_deuda'),
 
 ]

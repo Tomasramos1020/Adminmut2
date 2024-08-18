@@ -224,6 +224,24 @@ def deud_eliminar(request, pk):
 	messages.add_message(request, messages.SUCCESS, "Deuda cancelada.")
 	return redirect(deud_index)
 
+@group_required('administrativo')
+@transaction.atomic
+def eliminar_deuda(request, pk):
+	try:
+		deuda = Deuda.objects.get(
+				consorcio=consorcio(request),
+				pk=pk,
+				)
+	except:
+		messages.add_message(request, messages.ERROR, 'Hubo un error al cancelar el proceso de generacion de deuda')
+		return redirect(deud_index)
+
+	mj=(deuda.eliminacion())
+	messages.add_message(request, messages.SUCCESS, mj)
+	return redirect(deud_index)
+
+
+
 
 @group_required('administrativo', 'contable')
 def deud_ver(request, pk):

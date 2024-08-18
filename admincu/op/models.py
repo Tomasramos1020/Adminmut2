@@ -10,6 +10,9 @@ from django.template.loader import render_to_string
 from weasyprint import HTML
 from django.core.files.uploadedfile import SimpleUploadedFile
 
+def eliminarAsiento(asiento):
+	asiento.operaciones.all().delete()
+	asiento.delete()
 
 class Deuda(models.Model):
 	usuario = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True)
@@ -28,6 +31,19 @@ class Deuda(models.Model):
 	anulado = models.DateField(blank=True, null=True)
 	asiento_anulado = models.ForeignKey(Asiento, on_delete=models.SET_NULL, blank=True, null=True, related_name='asiento_deuda_anulado')
 
+	def eliminacion(self):
+		deudaOPS = DeudaOP.objects.filter(deuda=self)
+		if not deudaOPS:
+			eliminarAsiento(self.asiento)
+			if self.retencion:
+				self.retencion.delete()
+			GD = GastoDeuda.objects.filter(deuda=self)
+			for g in GD:
+				g.delete()
+			self.delete()
+			return "Deuda eliminada con exito"
+		else:
+			return "no se puede eliminar porque la deuda ya tiene pagos vinculados"
 
 	def cancelado_a_fecha(self, fecha=None):
 		fecha = fecha if fecha else date.today()
