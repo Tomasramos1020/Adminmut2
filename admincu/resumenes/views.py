@@ -355,6 +355,24 @@ def res_edc(request):
 
 @require_http_methods(["POST"])
 @group_required('administrativo', 'contable')
+def res_edcp(request):
+	try:
+		resumen = Resumen.objects.get(slug='estado-de-cuenta-proveedores')
+		proveedor = Acreedor.objects.get(id=request.POST.get('acreedor'))
+	except:
+		messages.add_message(request, messages.ERROR, 'Has seleccionado parametros invalidos')
+		return redirect('resumenes')
+
+	fecha = datetime.strptime(request.POST.get('fecha'), '%Y-%m-%d').date()
+
+	operaciones = proveedor.cuenta_corriente(fecha)
+
+	return render(request, 'resumenes/estado-de-cuenta-proveedores/index.html', locals())
+
+
+
+@require_http_methods(["POST"])
+@group_required('administrativo', 'contable')
 def res_mdc(request):
 	try:
 		resumen = Resumen.objects.get(slug='movimientos-de-caja')

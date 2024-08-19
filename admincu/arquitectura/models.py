@@ -16,6 +16,7 @@ from weasyprint import HTML
 
 from consorcios.models import *
 from contabilidad.models import *
+from datetime import datetime
 
 
 
@@ -97,7 +98,7 @@ class Caja(models.Model):
 
 		datos = []
 
-		datos.append({self.fecha: ['Saldo Inicial' ,'', self.saldo, 0]})
+		datos.append({self.fecha: ['Saldo Inicial' ,'', self.saldo, 0, '', 0]})
 
 		cajacomprobantes = self.cajacomprobante_set.filter(fecha__range=[self.fecha ,fin])
 		for caja in cajacomprobantes:
@@ -112,27 +113,27 @@ class Caja(models.Model):
 						pass
 				else:
 					referencia = caja.referencia
-				datos.append({caja.fecha: [caja.nombre, referencia, caja.valor, 0]})
+				datos.append({caja.fecha: [caja.nombre, referencia, caja.valor, 0, caja.comprobante.fecha]})
 			else:
 				nombre = 'Anulacion de {}'.format(caja.nombre)
-				datos.append({caja.fecha: [nombre, caja.referencia, 0, -caja.valor]})
+				datos.append({caja.fecha: [nombre, caja.referencia, 0, -caja.valor, caja.comprobante.fecha]})
 
 
 		cajaops = self.cajaop_set.filter(fecha__range=[self.fecha ,fin])
 		for caja in cajaops:
 			if caja.valor >= 0:
-				datos.append({caja.fecha: [caja.nombre, caja.referencia, 0, caja.valor]})
+				datos.append({caja.fecha: [caja.nombre, caja.referencia, 0, caja.valor, caja.fecha]})
 			else:
-				datos.append({caja.fecha: [caja.nombre, caja.referencia, -caja.valor, 0]})
+				datos.append({caja.fecha: [caja.nombre, caja.referencia, -caja.valor, 0, caja.fecha]})
 
 
 		cajatransferenciaorigen = self.transferencia_origen.filter(fecha__range=[self.fecha ,fin])
 		for caja in cajatransferenciaorigen:
-			datos.append({caja.fecha: [caja.nombre, caja.referencia, 0, caja.valor]})
+			datos.append({caja.fecha: [caja.nombre, caja.referencia, 0, caja.valor, caja.fecha]})
 
 		cajatransferenciadestino = self.transferencia_destino.filter(fecha__range=[self.fecha ,fin])
 		for caja in cajatransferenciadestino:
-			datos.append({caja.fecha: [caja.nombre, caja.referencia, caja.valor, 0]})
+			datos.append({caja.fecha: [caja.nombre, caja.referencia, caja.valor, 0, caja.fecha]})
 
 		# Creacion del diccionario con las fechas
 		fechas = {
@@ -649,6 +650,101 @@ class Acreedor(models.Model):
 
 	def __str__(self):
 		return self.nombre
+
+
+	def cuenta_corriente(self, fecha=date.today()):
+
+		#Retorna un diccionario de movimientos ordenados por fecha
+		from op.models import Deuda
+		from op.models import DeudaOP
+		from op.models import OP
+		from op.models import GastoOP
+
+
+		datos = []
+
+
+		# DEUDAS
+		deudas = Deuda.objects.filter(
+			acreedor=self,
+			fecha__lte=fecha,
+		)
+		for deuda in deudas:
+
+			datos.append({deuda.fecha: [deuda, 'nueva deuda', 0, deuda.total, deuda.id]})
+
+			# PAGOS A LAS DEUDAS
+
+			pagos = DeudaOP.objects.filter(deuda=deuda)
+
+			if pagos:				
+				for pago in pagos:
+					if pago.op.anulado == None:
+						fecha_pago = pago.fecha
+
+						# Verifica si la fecha_pago es válida antes de utilizarla
+						if fecha_pago is not None:
+
+							if pago.valor > 0:
+								datos.append({pago.fecha: [pago.op, 'nueva orden de pago', pago.valor, 0, pago.op.id]})
+
+		# PAGOS AL ACREEDOR QUE NO PAGAN DEUDA
+		
+		pagos = OP.objects.filter(
+		acreedor=self,
+		fecha__lte=fecha,
+		anulado = None
+		)
+		if pagos:
+
+			for pago in pagos:
+
+				if not DeudaOP.objects.filter(op=pago).exists():					
+					pago_de_gasto = pago.total
+				else:
+					pago_de_gasto = pago.total - DeudaOP.objects.filter(op=pago).first().deuda.total					
+
+				fecha_pago = pago.fecha_operacion
+				# Verifica si la fecha_pago es válida antes de utilizarla
+				if fecha_pago is not None:
+
+					if pago_de_gasto > 0:
+						# Se agregan dos lineas porque el impacto es de creacion y pago de una deuda, no modifica el estado de cuenta.
+						datos.append({fecha_pago: [pago, 'carga de gasto', 0, pago_de_gasto, pago.id]})
+						datos.append({fecha_pago: [pago, 'carga de gasto', pago_de_gasto,0, pago.id]})
+		
+
+		
+		# A partir de aca se arman los diccionarios listos para la presentacion.
+		# Siempre que necesite armarse un estado de cuenta se debe copiar desde aqui
+		# Se debe completar la lista datos con el formato que aparece arriba, los ultimos dos datos dan el valor del debe y el haber uno debe ser 0. 
+		# Creacion del diccionario con las fechas
+		fechas = {
+			next(iter(movimiento)): [] for movimiento in datos
+		}
+
+		# Incorporacion de operaciones a las fechas
+		for dato in datos:
+			fecha = next(iter(dato))
+			valores = list(dato.values())[0] 
+			fechas[fecha].append(valores)
+
+		# Diccionario de retorno
+		operaciones = {}
+		saldo = 0
+		numero = 1
+		
+		for fecha, movimientos in sorted(fechas.items()):
+			data = {}
+			for m in movimientos:
+				saldo += m[2]
+				saldo -= m[3]
+				m.append(saldo)
+				data.update({numero: m})
+				numero += 1
+			operaciones.update({fecha: data})
+
+		return operaciones
 
 class Socio5():
 	pass
