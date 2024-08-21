@@ -22,6 +22,8 @@ def mayores_index(request):
 		messages.add_message(request, messages.ERROR, mensaje)
 		return redirect('contabilidad')
 
+	asientos_data = []
+
 	if request.method == "POST":
 		cuentas = Cuenta.objects.filter(id__in=request.POST.getlist('cuentas'))
 		fechas = request.POST.get('fechas')
@@ -31,6 +33,24 @@ def mayores_index(request):
 		if ejercicio.inicio <= fecha_ini <= ejercicio.cierre and \
 			ejercicio.inicio <= fecha_fin <= ejercicio.cierre:
 			asientos = asientosNumerados(ejercicio)
+
+			for cuenta in cuentas:
+				saldo = 0
+				for asiento in asientos:
+					if fecha_ini <= asiento.fecha_asiento <= fecha_fin:
+						for op in asiento.operaciones.filter(cuenta=cuenta).order_by('haber'):
+							saldo += (op.debe or 0) - (op.haber or 0)
+							asientos_data.append({
+								'numero': asiento.numero,
+								'fecha_asiento': asiento.fecha_asiento,
+								'cuenta_numero': op.cuenta.numero,
+								'cuenta_nombre': op.cuenta.nombre,
+								'debe': op.debe,
+								'haber': op.haber,
+								'saldo': saldo,
+								'descripcion': op.descripcion,
+							})
+
 		else:
 			mensaje = "Debes seleccionar un periodo entre {} y {}. (Ejercicio: {}).".format(ejercicio.inicio, ejercicio.cierre, ejercicio)
 			messages.add_message(request, messages.ERROR, mensaje)
