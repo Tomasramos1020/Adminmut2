@@ -65,6 +65,8 @@ class Index(generic.TemplateView):
 			consorcio=consorcio(self.request), baja__isnull=True).count()
 		convenios = Convenio.objects.filter(
 			consorcio=consorcio(self.request), baja__isnull=True).count()
+		clientes = Socio.objects.filter(
+			consorcio=consorcio(self.request), es_socio=False, baja__isnull=True).count()
 		context.update(locals())
 		return context
 
@@ -79,6 +81,7 @@ PIVOT = {
 	'Acreedor': ['Proveedores', acreedorForm],
 	'Servicio_mutual': ['Servicios Mutuales', servicioForm],
 	'Convenio': ['Convenios', convenioForm],
+	'Cliente':['No asociados', clienteForm],
 
 }
 
@@ -94,12 +97,14 @@ class Listado(generic.ListView):
 		if self.kwargs['modelo'] == "Punto":
 			objetos = PointOfSales.objects.filter(owner=consorcio(
 				self.request).contribuyente).order_by('number')
+		elif self.kwargs['modelo'] == "Cliente":
+			objetos = Socio.objects.filter(consorcio=consorcio(self.request), es_socio=False)
 		else:
 			objetos = eval(self.kwargs['modelo']).objects.filter(
 				consorcio=consorcio(self.request), nombre__isnull=False)
 			if self.kwargs['modelo'] == "Socio":
 				objetos = objetos.filter(Q(baja__isnull=True) | Q(
-					nombre_servicio_mutual__isnull=True))
+					nombre_servicio_mutual__isnull=True) | Q(es_socio=True))
 		return objetos
 
 	def get_context_data(self, **kwargs):
@@ -181,7 +186,10 @@ class HeaderExeptMixin:
 
 	def dispatch(self, request, *args, **kwargs):
 		try:
-			objeto = eval(kwargs['modelo']).objects.get(
+			if kwargs['modelo'] == "Cliente":
+				objeto = Socio.objects.get(consorcio=consorcio(self.request), pk=kwargs['pk'], es_socio=False)
+			else:
+				objeto = eval(kwargs['modelo']).objects.get(
 				consorcio=consorcio(self.request), pk=kwargs['pk'])
 		except:
 			messages.error(request, 'No se pudo encontrar.')
@@ -196,7 +204,10 @@ class Instancia(HeaderExeptMixin, Crear, generic.UpdateView):
 	""" Para modificar una instancia de cualquier modelo excepto Punto """
 
 	def get_object(self, queryset=None):
-		objeto = eval(self.kwargs['modelo']).objects.get(pk=self.kwargs['pk'])
+		if self.kwargs['modelo'] == "Cliente":
+			objeto = Socio.objects.get(pk=self.kwargs['pk'], es_socio=False)
+		else:	
+			objeto = eval(self.kwargs['modelo']).objects.get(pk=self.kwargs['pk'])
 		return objeto
 
 	@transaction.atomic
@@ -285,7 +296,10 @@ class Finalizar(HeaderExeptMixin, generic.UpdateView):
 	form_class = hiddenForm
 
 	def get_object(self, queryset=None):
-		objeto = eval(self.kwargs['modelo']).objects.get(pk=self.kwargs['pk'])
+		if self.kwargs['modelo'] == "Cliente":
+			objeto = Socio.objects.get(pk=self.kwargs['pk'], es_socio=False)
+		else:
+			objeto = eval(self.kwargs['modelo']).objects.get(pk=self.kwargs['pk'])
 		return objeto
 
 	def get_context_data(self, **kwargs):
@@ -322,7 +336,10 @@ class Reactivar(HeaderExeptMixin, generic.UpdateView):
 	form_class = hiddenForm
 
 	def get_object(self, queryset=None):
-		objeto = eval(self.kwargs['modelo']).objects.get(pk=self.kwargs['pk'])
+		if self.kwargs['modelo'] == "Cliente":
+			objeto = Socio.objects.get(pk=self.kwargs['pk'], es_socio=False)
+		else:
+			objeto = eval(self.kwargs['modelo']).objects.get(pk=self.kwargs['pk'])
 		return objeto
 
 	def get_context_data(self, **kwargs):

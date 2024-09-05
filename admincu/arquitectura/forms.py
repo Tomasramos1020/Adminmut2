@@ -481,6 +481,29 @@ class servicioForm(FormControl, forms.ModelForm):
 
 		self.fields['nombre'].required = True
 
+class clienteForm(FormControl, forms.ModelForm):
+	class Meta:
+		model = Socio
+		fields = [
+			'nombre', 'apellido',
+			'tipo_documento', 'numero_documento',
+			'telefono', 'domicilio',
+			'localidad', 'provincia'
+			]
+
+		labels = {
+			'tipo': 'Tipo de Gasto',
+			'tipo_documento': 'Tipo de documento',
+			'numero_documento': 'Numero de documento'
+		}
+		widgets = {
+			'numero_documento': TextInput(attrs={'type': 'number', 'min': '0', 'step':'1', 'required':True})
+		}
+
+
+	def __init__(self, consorcio=None, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields['tipo_documento'].required = True
 
 
 

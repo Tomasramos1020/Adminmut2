@@ -120,6 +120,13 @@ class ConceptosForm(FormControl, forms.Form):
 			for s in asociados:
 				dato = 'socio-{}'.format(s.id)
 				choices.append((dato, s.nombre_completo))
+		if consorcio.es_federacion:
+			clientes = Socio.objects.filter(consorcio=consorcio, es_socio=False, baja__isnull=True, nombre_servicio_mutual__isnull=True)
+			if clientes:
+				choices.append((None, '------ Padron de NO asociados ------'))
+				for c in clientes:
+					dato = 'cliente-{}'.format(s.id)
+					choices.append((dato, c.nombre_completo))
 		self.fields['destinatario'].choices = choices
 
 
@@ -149,6 +156,13 @@ class IndividualesRecursoForm(FormControl, forms.Form):
 			for s in asociados:
 				dato = 'socio-{}'.format(s.id)
 				choices.append((dato, s.nombre_completo))
+		if consorcio.es_federacion:
+			clientes = Socio.objects.filter(consorcio=consorcio, es_socio=False, baja_isnull=True)
+			if clientes:
+				choices.append((None, '------ Padron de NO asociados ------'))
+				for cliente in clientes:
+					dato = 'socio-{}'.format(cliente.id)
+					choices.append((dato, cliente.nombre_completo))
 		self.fields['destinatario'].choices = choices
 		self.fields['ingreso'].queryset = Ingreso.objects.filter(consorcio=consorcio)
 
@@ -170,6 +184,14 @@ class IndividualesForm(FormControl, forms.Form):
 			for s in asociados:
 				dato = 'socio-{}'.format(s.id)
 				choices.append((dato, s.nombre_completo))
+		if consorcio.es_federacion:
+			clientes = Socio.objects.filter(consorcio=consorcio, es_socio=False, baja__isnull=True)
+			if clientes:
+				choices.append((None, '------ Padron de NO asociados ------'))
+				for cliente in clientes:
+					dato = 'socio-{}'.format(cliente.id)
+					choices.append((dato, cliente.nombre_completo))
+		
 		self.fields['destinatario'].choices = choices
 		self.fields['ingreso'].queryset = Ingreso.objects.filter(consorcio=consorcio)
 

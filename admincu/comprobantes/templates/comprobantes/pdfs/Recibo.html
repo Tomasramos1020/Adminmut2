@@ -41,17 +41,26 @@
             </small>
           </div>
         </div>
-
         <hr>
 
         <div class="client">
 
-          <div class="client-data">
+          <div class="client-data">  
+            {% if not comprobante.socio.es_socio %}
+            <strong>CLIENTE:</strong>
+            {% elif comprobante.socio.es_socio %}
             <strong>SOCIO:</strong>
+            {% endif %}
+            
             {{ comprobante.socio }} <br>
+            
+            {% if not comprobante.socio.es_socio %}
+            <strong>NUMERO DE DOCUMENTO:</strong>
+            {{ comprobante.socio.numero_documento }} <br>
+            {% elif comprobante.socio.es_socio %} 
             <strong>CUIT:</strong>
             {{ comprobante.socio.cuit }} <br>
-          </div>
+            {% endif %}          </div>
         </div>
 
         <hr>

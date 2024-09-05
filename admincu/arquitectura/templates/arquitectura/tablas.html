@@ -432,7 +432,47 @@
       </tr>
     {% endfor %}
     </tbody>
-
+    {% elif parametro == "Cliente" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20"></th>
+        <th>Numero</th>
+        <th>Nombre</th>
+        <th>Documento</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td class="text-center">
+          {% if not objeto.baja %}
+          <a href="{% url 'finalizar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-danger btn-xs">
+          <i class="fa fa-user-times"></i>
+          </a>
+          {% else %}
+          <a href="{% url 'reactivar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-success btn-xs">
+            <i class="fa fa-user-plus"></i>
+          </a>
+          {% endif %}
+        </td>
+        <td>{{forloop.counter}}</td>
+        <td>{{objeto}}</td>
+        <td>
+          {% if objeto.tipo_documento and objeto.numero_documento %}
+            {{objeto.tipo_documento}}: {{objeto.numero_documento}}
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
 
     {% elif parametro == "interes" or parametro == "descuento" or parametro == "bonificacion" %}
     <thead>
