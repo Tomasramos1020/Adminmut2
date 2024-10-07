@@ -32,7 +32,7 @@
             <tbody>
               {% for c in creditos%}
                   <tr>
-                    <td>{{c.fecha|date:"d/m/Y"}}</td>
+                    <td>{{c.periodo|date:"d/m/Y"}}</td>
                     <td>{{c.ingreso|intcomma}}</td>
                     <td>{{c.saldo|intcomma}}</td>
                   </tr>

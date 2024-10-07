@@ -507,6 +507,7 @@ def res_edd(request):
 		liquidacion__estado="confirmado",
 		dominio__isnull=True,
 		fin__isnull=True,
+		periodo__lte=fecha,
 	)
 
 	return render(request, 'resumenes/estado-de-deuda/index.html', locals())
