@@ -489,3 +489,24 @@ def res_gd(request):
 
 
 	return render(request, 'resumenes/gastos/index.html', locals())
+
+@require_http_methods(["POST"])
+@group_required('administrativo', 'contable')
+def res_edd(request):
+	try:
+		resumen = Resumen.objects.get(slug='estado-de-deuda')
+		socio = Socio.objects.get(id=request.POST.get('socio'))
+	except:
+		messages.add_message(request, messages.ERROR, 'Has seleccionado parametros invalidos')
+		return redirect('resumenes')
+
+	fecha = datetime.strptime(request.POST.get('fecha'), '%Y-%m-%d').date()
+
+	creditos = Credito.objects.filter(
+		socio=socio,
+		liquidacion__estado="confirmado",
+		dominio__isnull=True,
+		fin__isnull=True,
+	)
+
+	return render(request, 'resumenes/estado-de-deuda/index.html', locals())

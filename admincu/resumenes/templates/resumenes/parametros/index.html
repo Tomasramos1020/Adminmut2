@@ -69,6 +69,14 @@
               <div class="col-md-6">
                 {% include 'resumenes/parametros/fecha.html' %}
               </div>
+              {% elif resumen.slug == 'estado-de-deuda' %}
+              <div class="col-md-6">
+                {% include 'resumenes/parametros/socio.html' %}
+              </div>
+              <div class="col-md-6">
+                {% include 'resumenes/parametros/fecha.html' %}
+              </div>
+
               {% elif resumen.slug == 'estado-de-cuenta-proveedores' %}
               <div class="col-md-6">
                 {% include 'resumenes/parametros/acreedor.html' %}
