@@ -37,6 +37,12 @@
                     <td>{{c.saldo|intcomma}}</td>
                   </tr>
               {% endfor %}
+                <!-- Fila de total -->
+                <tr class="font-weight-bold">
+                  <td></td>
+                  <td colspan="2" class="text-right"><strong>Total:</strong></td>
+                  <td>{{ total_saldo|intcomma }}</td>
+                </tr>
             </tbody>
           </table>
         </div>
@@ -47,4 +53,58 @@
 
 {% block js %}
   {% include 'comunes/js_datatable_print_excel_titulo.html' with titulo_print=resumen.nombre %}
-{% endblock %}
+  <script>
+      $(document).ready(function() {
+          // Obtener si es federación desde Django
+          var esFederacion = "{{ consorcio.es_federacion }}";
+    
+          // Definir el título según el valor de consorcio.es_federacion
+          var titleText;
+          if (esFederacion == "True") { 
+              titleText = 'Estado de Deuda de Mat. {{ socio.apellido }}, {{ socio.nombre }} al {{ fecha|date:"d/m/Y" }}';
+          } else {
+              titleText = 'Estado de Deuda de {{ socio.nombre }} {{ socio.apellido }} al {{ fecha|date:"d/m/Y" }}';
+          }
+    
+          // Destruir la instancia existente del DataTable si existe
+          if ($.fn.dataTable.isDataTable('.anopa')) {
+              $('.anopa').DataTable().destroy();
+          }
+    
+          // Inicializar el DataTable con el título correcto y orden
+          $('.anopa').DataTable({
+              dom: "Bfrtip",
+              buttons: [{
+                  extend: "excel",
+                  className: "btn-sm",
+              }, {
+                  extend: "print",
+                  title: titleText,  // Usar el título dinámico
+                  message: '{% include "comunes/titulo_exportacion.html" %}',
+                  className: "btn-sm",
+              }],
+              scrollX: true,
+              columnDefs: [
+              {
+                targets: 0,  // Aplica esto a la primera columna (índice 0)
+                type: 'date',
+              }
+              ],
+              order: [[0, 'asc']],  // Ordenar por la primera columna (índice 0), de forma ascendente ('asc')
+              language: {
+                  "emptyTable": "No hay entradas",
+                  "search": "Buscar: ",
+                  "paginate": {
+                      "first": "Primero",
+                      "last": "Último",
+                      "next": ">",
+                      "previous": "<",
+                  },
+                  "lengthMenu": "Ver _MENU_ entradas",
+                  "info": "Visualizando _START_ a _END_ de _TOTAL_ entradas",
+                  "infoEmpty": "Visualizando 0 a 0 de 0 entradas",
+              },
+          });
+      });
+    </script>
+    {% endblock %}

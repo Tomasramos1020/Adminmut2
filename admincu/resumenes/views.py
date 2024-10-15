@@ -496,6 +496,7 @@ def res_edd(request):
 	try:
 		resumen = Resumen.objects.get(slug='estado-de-deuda')
 		socio = Socio.objects.get(id=request.POST.get('socio'))
+		consorcio = socio.consorcio
 	except:
 		messages.add_message(request, messages.ERROR, 'Has seleccionado parametros invalidos')
 		return redirect('resumenes')
@@ -510,4 +511,15 @@ def res_edd(request):
 		periodo__lte=fecha,
 	)
 
-	return render(request, 'resumenes/estado-de-deuda/index.html', locals())
+	total_saldo = sum(credito.saldo for credito in creditos)
+
+	return render(request, 'resumenes/estado-de-deuda/index.html', {
+    'resumen': resumen,
+    'socio': socio,
+    'fecha': fecha,
+    'creditos': creditos,
+    'context_type': 'estado_deuda',  # Nueva variable de contexto
+	'total_saldo': total_saldo,
+	'consorcio': consorcio,
+	})
+
