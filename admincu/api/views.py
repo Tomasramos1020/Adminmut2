@@ -10,6 +10,34 @@ from arquitectura.models import (
 	Socio
 )
 
+from .serializer import (
+	SocioSerializer,
+	
+)
+
+from rest_framework import permissions
+from rest_framework import status
+
+from datetime import date
+class TokenValidationPermission(permissions.BasePermission):
+	"""
+	Permiso personalizado para validar el token del cliente externo.
+	"""
+	
+	
+	def has_permission(self, request, view):
+		# Aquí debes implementar la lógica para validar el token del cliente externo.
+		# Por ejemplo, verificar si el token está presente en el encabezado de autorización.
+		token = request.headers.get('Authorization')
+
+		# Aquí debes realizar la validación del token.
+		# Si el token es válido, devuelve True. De lo contrario, devuelve False.
+		if token == 'Openkey2024':
+			return True
+		else:
+			return False
+
+
 class EstadoCuentaViewSet(viewsets.ModelViewSet):
 	"""
 		Estado de cuenta para Cliente (Consulta hoy unicamente SimpleSolutions)
@@ -55,3 +83,21 @@ class EstadoCuentaViewSet(viewsets.ModelViewSet):
 		permissions = [IsSSUser]
 		return [p() for p in permissions]
 
+class SocioViewSet(viewsets.ModelViewSet):
+	"""
+		Ver socios (Consulta OpenKey)
+	"""
+	http_method_names = ['get']
+#	permission_classes = [TokenValidationPermission]  # Aplica el permiso de validación del token
+
+
+
+			
+	def list(self, request):
+		queryset = Socio.objects.filter(consorcio__id=9)
+		serializer = SocioSerializer(queryset, many=True)
+		return Response(serializer.data)
+
+
+	def get_queryset(self, **kwargs):
+		return []
