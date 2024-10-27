@@ -35,7 +35,7 @@ def mayores_index(request):
 			asientos = asientosNumerados(ejercicio)
 
 			for cuenta in cuentas:
-				saldo = 0
+				saldo = cuenta.obtener_saldo_inicial(ejercicio, fecha_ini)
 				for asiento in asientos:
 					if fecha_ini <= asiento.fecha_asiento <= fecha_fin:
 						for op in asiento.operaciones.filter(cuenta=cuenta).order_by('haber'):
