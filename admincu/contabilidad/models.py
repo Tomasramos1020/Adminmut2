@@ -5,6 +5,7 @@ from django.db import models
 from django.db.models.signals import pre_delete
 from django.dispatch.dispatcher import receiver
 from consorcios.models import *
+from datetime import timedelta
 
 
 class Cuenta(models.Model):
@@ -58,6 +59,14 @@ class Cuenta(models.Model):
 		else:
 			saldo = haber - debe
 		return saldo
+
+	def obtener_saldo_inicial(self, ejercicio, fecha_ini):
+		""" Obtiene el saldo inicial de la cuenta hasta una fecha dada """
+		# Obtener todas las operaciones hasta la fecha_ini
+		fecha_fin = fecha_ini - timedelta(days=1)
+		operaciones_anteriores = self.operaciones(ejercicio, fecha_inicio=None, fecha_fin=fecha_fin)
+		saldo_inicial = self.saldo_debe(operaciones_anteriores) - self.saldo_haber(operaciones_anteriores)
+		return saldo_inicial
 
 	class Meta:
 		ordering = ['numero']
