@@ -934,9 +934,9 @@ class SociosImportacionWizard(SessionWizardView):
 				'tipo_documento': DocumentType.objects.get(id=1),
 				'notificaciones': socio['notificaciones']
 			}
-		if 'convenio' in socio:
-			socio_data['convenio'] = socio['convenio']
-		socioss.append(Socio(**socio_data))	
+			if 'convenio' in socio:
+				socio_data['convenio'] = socio['convenio']
+			socioss.append(Socio(**socio_data))	
 		Socio.objects.bulk_create(socioss)
 		messages.success(self.request, "Socios guardados con exito")
 		return redirect('parametro', modelo=self.kwargs['modelo'])
