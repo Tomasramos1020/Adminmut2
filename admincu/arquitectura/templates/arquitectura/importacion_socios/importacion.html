@@ -18,6 +18,9 @@
             {% if not consorcio.cuit_nasociado %}
               <li>*numero_asociado: Numero del asociado</li>
             {% endif %}
+            {% if consorcio.convenios %}
+              <li>*convenio: Nombre del convenio tal cual se encuentra en parametros</li>
+              {% endif %}  
             <li>*genero: Colocar "masculino", "femenino", "no binario", "otro"</li>
             <li>*fecha_alta: Fecha de alta del asociado</li>
             <li>*provincia: Provincia</li>

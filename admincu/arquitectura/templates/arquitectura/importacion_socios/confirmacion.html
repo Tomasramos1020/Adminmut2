@@ -30,6 +30,9 @@
                   <th>Nombre</th>
                   <th class="text-right">Cuit</th>
                   <th>T.de asoc</th>
+                  {% if consorcio.convenios %}
+                  <th>Convenio</th>
+                  {% endif %}
                   <th>Genero</th>
                   <th>F.de alta</th>
                   {% if not consorcio.cuit_nasociado %}
@@ -44,11 +47,9 @@
                   <th>Mail</th>                
                   <th>tel</th>                
                   <th>cp</th>                
-                  <th>notif</th>                
 
                 </tr>
               </thead>
-
               <tbody>
                 {% for socio in socios %}
                   <tr>
@@ -56,6 +57,9 @@
                     <td>{{ socio.nombre }}</td>
                     <td class="text-right">{{ socio.cuit }}</td>
                     <td>{{ socio.tipo_asociado }}</td>
+                    {% if consorcio.convenios %}
+                    <td>{{ socio.convenio }}</td>
+                    {% endif %}
                     <td>{{ socio.genero }}</td>                    
                     <td>{{ socio.fecha_alta|date:"d/m/Y" }}</td>
                     {% if not consorcio.cuit_nasociado %}
@@ -70,7 +74,6 @@
                     <td>{{ socio.mail }}</td>                    
                     <td>{{ socio.telefono }}</td>                    
                     <td>{{ socio.codigo_postal }}</td>                                        
-                    <td>{{ socio.notificaciones }}</td>                    
 
                   </tr>
                 {% endfor %}

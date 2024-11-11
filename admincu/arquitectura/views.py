@@ -421,7 +421,14 @@ class SociosImportacionWizard(SessionWizardView):
 		""" Retorna los datos limpios """
 
 		datos = Dataset()
-		return datos.load(in_stream=archivo.read(), format='xls')
+		try:
+			datos.load(in_stream=archivo.read(), format='xls')
+			if not datos.headers:
+				raise ValueError("El archivo no contiene encabezados válidos.")
+			return datos
+		except Exception as e:
+			print(f"Error leyendo archivo: {e}")
+			raise	
 
 	def validar_repetidos_cuit(self, datos):
 		data_cuit = datos['cuit']
@@ -461,12 +468,11 @@ class SociosImportacionWizard(SessionWizardView):
 		if consorcio(self.request).cuit_nasociado:
 			columnas_necesarias = ['cuit', 'apellido', 'nombre', 'fecha_alta', 'tipo_persona', 'tipo_asociado','genero', 'provincia', 'localidad', 'calle', 'fecha_nacimiento',
 								'es_extranjero', 'numero_calle', 'piso', 'departamento', 'codigo_postal', 'telefono', 'profesion', 'mail', 'notificaciones']
-			print('hasdjsadj')	
 		else:
 			columnas_necesarias = ['cuit', 'apellido', 'nombre', 'fecha_alta', 'tipo_persona', 'tipo_asociado','genero', 'numero_asociado','provincia', 'localidad', 'calle', 'fecha_nacimiento',
 								'es_extranjero', 'numero_calle', 'piso', 'departamento', 'codigo_postal', 'telefono', 'profesion', 'mail', 'notificaciones']
-			print('olu')
-
+		if consorcio(self.request).convenios:
+			columnas_necesarias.append('convenio')
 		columnas_archivo = datos.headers
 		errores = ['Falta la columna "{}" en el archivo que deseas importar'.format(
 			columna) for columna in columnas_necesarias if not columna in columnas_archivo]
@@ -565,6 +571,20 @@ class SociosImportacionWizard(SessionWizardView):
 						consorcio=consorcio(self.request), nombre=t)
 				except:
 					pass
+		try:
+			data_convenios = datos['convenio']
+			convenios = {}
+			for c in data_convenios:
+				if not c in convenios.keys():
+					try:
+						convenios[c] = Convenio.objects.get(
+							consorcio=consorcio(self.request), nombre=c
+						)
+					except:
+						pass
+		except:
+			pass
+
 		data_provincias = datos['provincia']
 		provincias = {}
 		for p in data_provincias:
@@ -573,6 +593,7 @@ class SociosImportacionWizard(SessionWizardView):
 					provincias[p] = Codigo_Provincia.objects.get(nombre=p)
 				except:
 					pass
+		
 		data_esextranjero = datos['es_extranjero']
 		es_extranjeros = {}
 		for e in data_esextranjero:
@@ -635,6 +656,7 @@ class SociosImportacionWizard(SessionWizardView):
 			'es_extranjeros': es_extranjeros,
 			'provincias': provincias,
 			'tas': ta,
+			'convenios':convenios,
 			'cuits': cuits,
 			'numero_asociados': numero_asociados if not consorcio(self.request).cuit_nasociado else cuits,
 			'pisos': pisos,
@@ -692,10 +714,15 @@ class SociosImportacionWizard(SessionWizardView):
 					numero_asociado = objetos_limpios['cuits'][d['cuit']]
 				else:				
 					numero_asociado = objetos_limpios['numero_asociados'][d['numero_asociado']]
+				convenio = None
+				if  consorcio(self.request).convenios:
+					convenio = objetos_limpios['convenios'][d['convenio']]
+				else:
+					pass
 
 				notificaciones = objetos_limpios['notificacioness'][d['notificaciones']]
 
-				socios.append({
+				socio = {
 					'codigo_consorcio': consorcio(self.request).id,
 					'fecha_alta': fecha_alta,
 					'nombre': nombre,
@@ -718,7 +745,10 @@ class SociosImportacionWizard(SessionWizardView):
 					'fecha_nacimiento': fecha_nacimiento,
 					'numero_asociado': numero_asociado,
 					'notificaciones': notificaciones
-				})
+				}
+				if  convenio:
+					socio['convenio'] = convenio
+				socios.append(socio) 
 			fila += 1
 
 		return socios, errores
@@ -731,7 +761,13 @@ class SociosImportacionWizard(SessionWizardView):
 			objetos_limpios['tas'][datos['tipo_asociado']]
 		except:
 			return "Debe escribir un tipo de asociado valido"
-
+		if consorcio(self.request).convenios:
+			try:
+				objetos_limpios['convenios'][datos['convenio']]
+			except:
+				return "Debe escribir un nombre de convenio valido"
+		else:
+			pass		
 		try:
 			objetos_limpios['tipo_personas'][datos['tipo_persona']]
 		except:
@@ -841,7 +877,6 @@ class SociosImportacionWizard(SessionWizardView):
 			repetidos_numeros_asociados = self.validar_repetidos_numero_asociado(datos)
 			if consorcio(self.request).cuit_nasociado:
 				repetidos_numeros_asociados = None
-				print('puto')
 				pass
 			objetos_limpios = self.limpiar_datos(datos)
 		if self.steps.current == 'revision':
@@ -873,32 +908,35 @@ class SociosImportacionWizard(SessionWizardView):
 		socios, errores = self.hacer_socios(datos, objetos_limpios)
 		socioss = []
 		for socio in socios:
-			socioss.append(Socio(
-				consorcio=consorcio(self.request),
-				mail=socio['mail'],
-				profesion=socio['profesion'],
-				telefono=socio['telefono'],
-				codigo_postal=socio['codigo_postal'],
-				departamento=socio['departamento'],
-				piso=socio['piso'],
-				numero_calle=socio['numero_calle'],
-				es_extranjero=socio['es_extranjero'],
-				fecha_nacimiento=socio['fecha_nacimiento'],
-				numero_asociado=str(socio['numero_asociado']),
-				nombre=socio['nombre'],
-				provincia=socio['provincia'],
-				localidad=socio['localidad'],
-				domicilio=socio['calle'],
-				tipo_asociado=socio['tipo_asociado'],
-				fecha_alta=socio['fecha_alta'],
-				apellido=socio['apellido'],
-				tipo_persona=socio['tipo_persona'],
-				genero=socio['genero'],
-				cuit=socio['cuit'],
-				numero_documento=socio['cuit'],
-				tipo_documento=DocumentType.objects.get(id=1),
-				notificaciones=socio['notificaciones']
-			))
+			socio_data = {
+				'consorcio': consorcio(self.request),
+				'mail': socio['mail'],
+				'profesion': socio['profesion'],
+				'telefono': socio['telefono'],
+				'codigo_postal': socio['codigo_postal'],
+				'departamento': socio['departamento'],
+				'piso': socio['piso'],
+				'numero_calle': socio['numero_calle'],
+				'es_extranjero': socio['es_extranjero'],
+				'fecha_nacimiento': socio['fecha_nacimiento'],
+				'numero_asociado': str(socio['numero_asociado']),
+				'nombre': socio['nombre'],
+				'provincia': socio['provincia'],
+				'localidad': socio['localidad'],
+				'domicilio': socio['calle'],
+				'tipo_asociado': socio['tipo_asociado'],
+				'fecha_alta': socio['fecha_alta'],
+				'apellido': socio['apellido'],
+				'tipo_persona': socio['tipo_persona'],
+				'genero': socio['genero'],
+				'cuit': socio['cuit'],
+				'numero_documento': socio['cuit'],
+				'tipo_documento': DocumentType.objects.get(id=1),
+				'notificaciones': socio['notificaciones']
+			}
+		if 'convenio' in socio:
+			socio_data['convenio'] = socio['convenio']
+		socioss.append(Socio(**socio_data))	
 		Socio.objects.bulk_create(socioss)
 		messages.success(self.request, "Socios guardados con exito")
 		return redirect('parametro', modelo=self.kwargs['modelo'])
