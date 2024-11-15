@@ -533,6 +533,17 @@ class SociosImportacionWizard(SessionWizardView):
 						pisos[p] = None
 				except:
 					pass
+		data_num_calle = datos['numero_calle']
+		numeros_calle = {}
+		for n in data_num_calle:
+			if not n in numeros_calle.keys():
+				try:
+					if n:
+						numeros_calle[n] = int(n)
+					else:
+						numeros_calle[n] = None
+				except:
+					pass
 
 		try:
 			data_numeroasoc = datos['numero_asociado']
@@ -659,6 +670,7 @@ class SociosImportacionWizard(SessionWizardView):
 			'convenios':convenios,
 			'cuits': cuits,
 			'numero_asociados': numero_asociados if not consorcio(self.request).cuit_nasociado else cuits,
+			'numeros_calle':numeros_calle,
 			'pisos': pisos,
 			'cps': cps,
 			'cuitos': cuitos,
@@ -701,7 +713,7 @@ class SociosImportacionWizard(SessionWizardView):
 				codigo_postal = objetos_limpios['cps'][d['codigo_postal']]
 				departamento = d['departamento']
 				piso = objetos_limpios['pisos'][d['piso']]
-				numero_calle = d['numero_calle']
+				numero_calle = objetos_limpios['numeros_calle'][d['numero_calle']]
 				es_extranjero = objetos_limpios['es_extranjeros'][d['es_extranjero']]
 				try:
 					fecha_nacimiento = self.convertirFecha(
@@ -824,7 +836,13 @@ class SociosImportacionWizard(SessionWizardView):
 				return "Este numero de asociado ya existe"
 		else:
 			pass
-	
+
+		try:
+			objetos_limpios['numeros_calle'][datos['numero_calle']]
+
+		except:
+			return "Debe escribir un numero en la columna numero_calle"
+
 		try:
 			objetos_limpios['pisos'][datos['piso']]
 
