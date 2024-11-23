@@ -31,6 +31,9 @@
         		<thead>
         			<tr class="active">
         				<th>Socio</th>
+                {% if tiene_convenios %}
+                  <th>Convenio</th>
+                {% endif %}
                 <th>Concepto</th>
                 <th>Saldo final</th>
                 <th>Pagos a cuenta</th>
@@ -53,6 +56,9 @@
                       {% endif %}
                       
                     </td>
+                    {% if tiene_convenios %}
+                      <td>{{ objeto.convenio|default:"-" }}</td>
+                    {% endif %}
                     <td>{{ingreso}}</td>
                     {% for periodo, valor in periodos.items|dictsortreversed:0 %}
                       <td class="text-center">{% if valor %}{{valor}}{% else %}-{% endif %}</td>

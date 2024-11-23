@@ -30,6 +30,8 @@ def res_par(request, resumen):
 @require_http_methods(["POST"])
 @group_required('administrativo', 'contable')
 def res_sp(request):
+	consorcio_actual = consorcio(request)
+	tiene_convenios = consorcio_actual.convenios	
 
 	resumen = Resumen.objects.get(slug='saldos-pendientes-de-socios')
 	ingresos = Ingreso.objects.filter(id__in=request.POST.getlist('ingresos'))
@@ -78,6 +80,7 @@ def res_sp(request):
 	saldos = saldos.order_by('periodo')
 	data = {}
 	for d in socios:
+		convenio = d.convenio if tiene_convenios else None  # Obtén el convenio del socio si corresponde
 		data_ingresos = {}
 		for i in ingresos:
 			data_periodos = {}
