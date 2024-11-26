@@ -667,7 +667,7 @@ class SociosImportacionWizard(SessionWizardView):
 			'es_extranjeros': es_extranjeros,
 			'provincias': provincias,
 			'tas': ta,
-			'convenios':convenios,
+			'convenios':convenios if consorcio(self.request).convenios else None,
 			'cuits': cuits,
 			'numero_asociados': numero_asociados if not consorcio(self.request).cuit_nasociado else cuits,
 			'numeros_calle':numeros_calle,
