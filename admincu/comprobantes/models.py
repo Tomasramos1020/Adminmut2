@@ -16,7 +16,7 @@ from admincu.funciones import armar_link, emisor_mail
 from consorcios.models import *
 from arquitectura.models import *
 from creditos.models import *
-
+import re
 
 class Comprobante(models.Model):
 
@@ -523,6 +523,22 @@ class Comprobante(models.Model):
 			self.reversar_operaciones()
 			self.save()
 
+	def fecha_operacion(self):
+		if not self.descripcion and not self.fecha:
+			return None
+		if not self.descripcion:
+			return self.fecha
+		fecha_pattern = re.compile(r'\b(\d{4}[-/]\d{2}[-/]\d{2})\b')
+		match = fecha_pattern.search(self.descripcion)
+		if match:
+			fecha_str = match.group(1)
+			try:
+				fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d')
+			except ValueError as e:
+				return None
+			return fecha_obj.date()
+		else:
+			return self.fecha
 
 	
 

@@ -87,6 +87,7 @@
                 <thead>
                   <tr class="active">
                     <th>Fecha</th>
+                    <th>Fecha Operacion</th>
                     <th>Pago</th>
                     <th>Acreedor</th>
                     <th>Mediante</th>
@@ -97,6 +98,7 @@
                   {% for f in formas_de_pago %}
                     <tr>
                       <td>{{ f.op.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ f.op.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>{{ f.op.formatoAfip }}</td>
                       <td>{{ f.op.acreedor }}</td>
                       <td>{{ f.caja }}</td>
@@ -106,6 +108,7 @@
                   {% for r in retenciones %}
                     <tr>
                       <td>{{ r.op.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ r.op.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>{{ r.op.formatoAfip }}</td>
                       <td>{{ r.op.acreedor }}</td>
                       <td>{{ r.deuda.retencion }}</td>
@@ -146,6 +149,7 @@
                 <thead>
                   <tr class="active">
                     <th>Fecha</th>
+                    <th>Fecha Operacion</th>
                     <th>Pago</th>
                     <th>Acreedor</th>
                     <th>Concepto</th>
@@ -157,6 +161,7 @@
                   {% for d in deudas %}
                     <tr>
                       <td>{{ d.op.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ d.op.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>{{ d.op.formatoAfip }}</td>
                       <td>{{ d.op.acreedor }}</td>
                       <td>{{ d.deuda }}</td>
@@ -167,6 +172,7 @@
                   {% for g in gastos %}
                     <tr>
                       <td>{{ g.op.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ g.op.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>{{ g.op.formatoAfip }}</td>
                       <td>{{ g.op.acreedor }}</td>
                       <td>{{ g.gasto }}</td>

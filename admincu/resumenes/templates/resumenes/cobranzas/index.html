@@ -87,6 +87,7 @@
                 <thead>
                   <tr class="active">
                     <th>Fecha</th>
+                    <th>Fecha Operacion</th>
                     <th>Comprobante</th>
                     <th>Conceptos</th>
                     <th>Socio</th>
@@ -98,6 +99,7 @@
                   {% for f in formas_de_cobro %}
                     <tr>
                       <td>{{ f.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ f.comprobante.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>
                         <a href="{% url 'ver-comprobante' pk=f.comprobante.pk %}">
                           {{ f.comprobante.tipo }} - {{ f.comprobante.nombre }}
@@ -118,6 +120,7 @@
                   {% for s in saldos_utilizados %}
                     <tr>
                       <td>{{ s.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ s.comprobante_origen.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>
                         {% if s.comprobante_destino %}
                           <a href="{% url 'ver-comprobante' pk=s.comprobante_destino.pk %}">
@@ -147,6 +150,7 @@
                   {% for n in nc %}
                     <tr>
                       <td>{{ n.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ n.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>
                         <a href="{% url 'ver-comprobante' pk=n.pk %}">
                           {{ n.tipo }} - {{ n.nombre }}
@@ -200,6 +204,7 @@
                 <thead>
                   <tr class="active">
                     <th>Fecha</th>
+                    <th>Fecha Operacion</th>
                     <th>Comprobante</th>
                     <th>Dominio</th>
                     <th>Recurso</th>
@@ -216,6 +221,10 @@
                         {{c.fecha|date:"d/m/Y"}}
                       </td>
                       <td>
+                        {{c.comprobante.fecha_operacion|date:"d/m/Y"}}
+                      </td>
+
+                      <td>
                           <a href="{% url 'ver-comprobante' pk=c.comprobante.pk %}">
                             {{ c.comprobante.tipo }} - {{ c.comprobante.nombre }}
                           </a>
@@ -231,6 +240,7 @@
                   {% for s in saldos_nuevos %}
                     <tr>
                       <td>{{ s.fecha|date:"d/m/Y" }}</td>
+                      <td>{{ s.comprobante_origen.fecha_operacion|date:"d/m/Y" }}</td>
                       <td>
                         {% if s.comprobante_origen %}
                           <a href="{% url 'ver-comprobante' pk=s.comprobante_origen.pk %}">
