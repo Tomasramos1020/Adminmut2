@@ -157,7 +157,6 @@ class WizardComprobanteManager:
 					liquidacion__estado="confirmado",
 					dominio__isnull=True,
 					fin__isnull=True,
-					factura__receipt__receipt_type__code = 101
 					).order_by('periodo', 'fecha')
 		else:
 			creditos = Credito.objects.filter(
