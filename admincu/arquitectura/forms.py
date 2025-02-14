@@ -256,6 +256,8 @@ class socioForm(FormControl, forms.ModelForm):
 	def clean_numero_asociado(self):
 		numero_asociado = self.cleaned_data['numero_asociado']
 		socios_del_club = Socio.objects.filter(consorcio=self.consorcio)
+		if not numero_asociado:
+			return numero_asociado
 		if self.instance:
 			socios_del_club = socios_del_club.exclude(pk=self.instance.pk)
 		n_asocs = []

@@ -371,6 +371,8 @@ class Socio(models.Model):
 
 
 	def save(self, *args, **kwargs):
+		if not self.numero_asociado:
+			self.numero_asociado = self.cuit or self.numero_documento or "SIN_NUMERO"
 		self.tipo_documento = DocumentType.objects.get(id=1)
 		super(Socio, self).save(*args, **kwargs)
 
