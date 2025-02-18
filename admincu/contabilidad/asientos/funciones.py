@@ -33,7 +33,7 @@ def asiento_cierre_res(ejercicio):
 	positivas = cuentas.filter(numero__range=[400000,499999])
 	negativas = cuentas.filter(numero__gte=500000)
 
-	cuenta_resultados = Cuenta.objects.get(numero=321001)
+	cuenta_resultados = Cuenta.objects.get(numero=331001)
 
 	identificacion = randomNumber(Operacion, 'numero_aleatorio')
 	descripcion = "Cierre de resultados. Ejercicio %s" % ejercicio.nombre

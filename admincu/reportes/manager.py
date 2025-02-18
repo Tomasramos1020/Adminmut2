@@ -184,7 +184,7 @@ class CierreManager(Logo):
 		subtotales = []
 		for c in cuentas_patrimonio:
 			total = c.saldo(ejercicio=self.ejercicio, fecha_fin=self.fecha_fin)
-			if c.numero == "321001":
+			if c.numero == "331001":
 				total += sum([s.total for s in self.hacer_resultados_positivos(total=True)])
 				total += sum([s.total for s in self.hacer_resultados_negativos(total=True)])
 			subtotales.append(Subtotal(
