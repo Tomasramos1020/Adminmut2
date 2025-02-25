@@ -435,8 +435,8 @@ class Socio(models.Model):
 
 		from creditos.models import Credito
 
-		if self.es_socio:
-			creditos = Credito.objects.filter(socio=self, padre__isnull=True, fecha__lte=fin)
+
+		creditos = Credito.objects.filter(socio=self, padre__isnull=True, fecha__lte=fin)
 
 		datos = []
 
