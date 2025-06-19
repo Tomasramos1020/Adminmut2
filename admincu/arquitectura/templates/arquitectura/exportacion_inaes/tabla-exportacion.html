@@ -1,0 +1,84 @@
+{% load staticfiles %}
+{% load humanize %}
+<table class="table table-striped anopa display nowrap" style="width:100%">
+
+    <thead>
+      <tr>
+        <th>Cuit entidad</th>
+        <th>Fecha Ingreso</th>
+        <th>Cuit</th>
+        <th>Tipo Persona</th>
+        <th>Categoría</th>
+        <th>Número Asociado</th>
+        <th>Denominación Social</th>
+        <th>Apellido</th>
+        <th>Nombre</th>
+        <th>Tipo de Documento</th>
+        <th>Número de Documento</th>
+        <th>Calle</th>
+        <th>Número</th>
+        <th>Piso</th>
+        <th>Departamento</th>
+        <th>Código Provincia</th>
+        <th>Código Postal</th>
+        <th>Fecha Acta</th>
+        <th>Organo Emisor</th>
+        <th>Capital Suscripto</th>
+        <th>Capital Integrado</th>
+        <th>Mail</th>
+        <th>Telefono</th>
+        <th>Observacion</th>
+        <th>Valor Cuota</th>
+        <th>Nivel de Riesgo</th>
+        <th>PEP</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for socio in socios %}
+        <tr>
+          <td>{{ socio.consorcio.cuit|cut:"-" }}</td>            
+            <td>{{ socio.fecha_alta|date:"d-m-Y" }}</td>
+            <td>{{ socio.cuit }}</td>
+            <td>{% if socio.tipo_persona == "fisica" %}1{% elif socio.tipo_persona == "juridica" %}2{% endif %}</td>
+            <td>
+              {% if socio.tipo_asociado.nombre == "Activo" %}1
+              {% elif socio.tipo_asociado.nombre == "Adherente" %}2
+              {% elif socio.tipo_asociado.nombre == "Participante" %}3
+              {% else %}4
+              {% endif %}
+            </td>                        
+            <td> {{ socio.numero_asociado }}</td>
+            <td>
+              {% if socio.tipo_persona == "juridica" %}
+                {{ socio.nombre }}
+              {% endif %}
+            </td>            
+            <td> {{ socio.apellido }}</td>            
+            <td> {{ socio.nombre }}</td>     
+            <td>{% if socio.tipo_persona == "fisica" %}2{% endif %}</td>
+            <td>
+              {% if socio.tipo_persona == "fisica" %}
+                {{ socio.numero_documento|slice:"2:-1" }}
+              {% endif %}
+            </td>            
+            <td> {{ socio.domicilio }}</td>
+            <td>{{ socio.numero_calle|default_if_none:"" }}</td>                                                                        
+            <td>{{ socio.piso|default_if_none:"" }}</td>
+            <td>{{ socio.departamento|default_if_none:"" }}</td>
+            <td></td>
+            <td> {{ socio.codigo_postal }}</td>
+            <td> {{ socio.fecha_alta|date:"d-m-Y" }}</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td>{{ socio.mail|default_if_none:"" }}</td>                        
+            <td>{{ socio.telefono|default_if_none:"" }}</td>
+            <td></td>                        
+            <td></td>
+            <td></td>
+            <td></td>
+          </tr>
+        {% endfor %}
+
+    </tbody>
+  </table>

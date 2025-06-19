@@ -51,6 +51,10 @@
                 <a href="{% url 'importacion' modelo=parametro %}" class="btn btn-info pull-right" style="margin-left: 500px;">
                   <i class="fa fa-plus"></i> Importacion
                 </a>
+                <a href="{% url 'exportacion-inaes' modelo=parametro %}" class="btn btn-info pull-left">
+                  <i class="fa fa"></i> Exportacion INAES
+                </a>
+
                 {% endif %}
 
               {% else %}

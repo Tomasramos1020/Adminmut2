@@ -958,3 +958,22 @@ class SociosImportacionWizard(SessionWizardView):
 		Socio.objects.bulk_create(socioss)
 		messages.success(self.request, "Socios guardados con exito")
 		return redirect('parametro', modelo=self.kwargs['modelo'])
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class ExportacionInaes(generic.ListView):
+
+	""" Index de transferencias """
+	template_name = 'arquitectura/exportacion_inaes/exportacion.html'
+	paginate_by = 10
+
+	def get_queryset(self, **kwargs):
+
+		socios = Socio.objects.filter(consorcio=consorcio(
+			self.request),baja__isnull=True)
+		return socios
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		context['socios'] = self.get_queryset()
+		return context
+
