@@ -9,7 +9,7 @@ from django.core.validators import MinValueValidator
 from admincu.forms import *
 from consorcios.models import *
 from .models import *
-
+from arquitectura.models import Convenio
 
 class CreditoForm(FormControl, forms.ModelForm):
 	class Meta:
@@ -295,6 +295,13 @@ class CuotaSocialForm(FormControl, forms.Form):
 		super().__init__(*args, **kwargs)
 		self.fields['categorias_asociado'].queryset = Tipo_asociado.objects.filter(consorcio=consorcio, cuota_social=True)
 
+class CuotaConvenioForm(FormControl, forms.Form):
+	"""Formulario individuales de liquidaciones por convenio"""
+	convenios = forms.ModelChoiceField(queryset=Convenio.objects.none(), empty_label="-- Seleccionar convenio --", label="Convenio")
+	subtotal = forms.DecimalField(max_digits=20, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
+	detalle = forms.CharField(max_length=30, required=False)
 
 
-
+	def __init__(self, consorcio, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields['convenios'].queryset = Convenio.objects.filter(consorcio=consorcio)
