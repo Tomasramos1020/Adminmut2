@@ -23,6 +23,8 @@
   {% if consorcio.proveeduria %}
     {% include 'sidebar/proveeduria.html' %}
   {% endif %}
- 
 
+  {% if consorcio.id == 6 or consorcio.id == 13 %}
+    {% include 'sidebar/chatia.html' %}
+  {% endif %}
 {% endif %}

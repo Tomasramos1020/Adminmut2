@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'api',
     'simple_solutions',
     'proveeduria',
+    'chatia',
 ]
 
 MIDDLEWARE = [
@@ -233,12 +234,12 @@ CRONJOBS = [
 #    ('* * * * * TZ=America/Argentina/Salta', 'herramientas.cron.send_mail'),
 #    ('0,20,40 * * * * TZ=America/Argentina/Salta', 'herramientas.cron.retry_deferred'),
 #    ('0 0 * * * TZ=America/Argentina/Salta', 'herramientas.cron.purge_mail_log'),
-    ('*/20 * * * * TZ=America/Argentina/Salta', 'creditos.cron.procesar_liquidaciones'),
+    ('* * * * * TZ=America/Argentina/Salta', 'creditos.cron.procesar_liquidaciones'),
     ('0 */2 * * * TZ=America/Argentina/Salta', 'creditos.cron.enviar_mails_facturas'),
     ('30 23 * * * TZ=America/Argentina/Salta', 'comprobantes.cron.hacer_asiento'),
     ('0 * * * * TZ=America/Argentina/Salta', 'comprobantes.cron.chequear_mp'),
     ('0 22 * * * TZ=America/Argentina/Salta', 'reportes.cron.enviar_mails_cierres'),
     ('0 10 * * * TZ=America/Argentina/Salta', 'expensas_pagas.cron.procesar_expenas_pagas'),
     ('0 23 * * * TZ=America/Argentina/Salta', 'simple_solutions.cron.procesar_simple_solutions'),
-    ('0 * * * * TZ=America/Argentina/Salta', 'comprobantes.cron.procesar_recibos_masivos'),
+    ('* * * * * TZ=America/Argentina/Salta', 'comprobantes.cron.procesar_recibos_masivos','>> /tmp/paparulo.log'),
 ]
