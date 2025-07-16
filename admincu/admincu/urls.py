@@ -34,6 +34,7 @@ urlpatterns = [
     path('superusuario/', include('consorcios.urls')),
     path('herramientas/', include('herramientas.urls')),
     path('proveeduria/', include('proveeduria.urls')),
+    path('chatia/', include('chatia.urls')),
     path('api/', include('api.urls'))
 
 ]
