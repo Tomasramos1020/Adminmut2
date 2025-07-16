@@ -11,6 +11,8 @@ def chat_home(request):
 @csrf_exempt
 def chat_ajax(request):    
     if request.method == "POST":
+        nombre_usuario = request.user.first_name
+        mail = request.user.email
         consorcio = Consorcio.objects.get(usuarios=request.user)
         nombre_mutual = consorcio.nombre
         cuit = consorcio.cuit()
@@ -26,10 +28,9 @@ def chat_ajax(request):
             "X-API-KEY": "3c32b25552ac105e0740aa6ea9b3908d72be1afe78929fdabbe67fba131ebe2b"
         }
         payload = {
-            "sender": f"{nombre_mutual}, {cuit}, {matricula}, {domicilio}",
+            "sender": f"{nombre_usuario}, {mail}, {nombre_mutual}, {cuit}, {matricula}, {domicilio}",
             "message": mensaje
         }
-        print(payload)
         try:
             response = requests.post(url, headers=headers, data=json.dumps(payload))
             response.raise_for_status()
