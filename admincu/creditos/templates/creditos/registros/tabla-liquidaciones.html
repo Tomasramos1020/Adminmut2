@@ -5,6 +5,7 @@
       <tr>
         <th>Numero</th>
         <th>Fecha</th>
+        {% if liquidaciones.0.consorcio.convenios %}<th class="text-right">Convenio</th>{% endif %}
         <th class="text-right">Capital</th>
         <th class="text-right">Bonificaciones</th>
         <th class="text-right">Total</th>
@@ -16,6 +17,9 @@
           <tr>
             <td>{{ liquidacion.formatoAfip }}</td>
             <td>{{ liquidacion.fecha|date:"d/m/Y" }}</td>
+            {% if liquidacion.consorcio.convenios %}
+              <td class="text-right">{{ liquidacion.convenio }}</td>
+            {% endif %}
             <td class="text-right">{{ liquidacion.suma_capitales|intcomma }}</td>
             <td class="text-right">{% if liquidacion.suma_bonificaciones %}-{{ liquidacion.suma_bonificaciones|intcomma }}{% endif %}</td>
             <td class="text-right">{{ liquidacion.suma_brutos|intcomma }}</td>

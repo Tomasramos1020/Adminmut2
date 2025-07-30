@@ -191,8 +191,24 @@ class Liquidacion(models.Model):
 				cobrados += c.bruto
 
 		return cobrados, pendientes
+	@property
+	def convenio(self):
 
+		""" Retorna el primer socio de la liquidacion y sino retorna "varios" """
+		convenios = (
+			Credito.objects
+			.filter(liquidacion=self, socio__convenio__isnull=False)
+			.values_list('socio__convenio__nombre', flat=True)
+			.distinct()
+		)
 
+		count = convenios.count()
+		if count == 0:
+			return "sin convenio"
+		elif count == 1:
+			return convenios.first()
+		else:
+			return "varios"
 
 	def save(self, *args, **kw):
 		if not self.numero:
@@ -262,6 +278,7 @@ class Factura(models.Model):
 	def hacer_pdf(self):
 
 		if not self.pdf:
+			es_proveeduria = self.credito_set.filter(ingreso__es_proveeduria=True).exists()
 			archivo = []
 			enteros = []
 			factura = self
@@ -312,8 +329,13 @@ class Factura(models.Model):
 				generator = ReceiptBarcodeGenerator(self.receipt)
 				codigo = generator.full_number
 				barcode = codigo
+			
 				#barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
-			html_string = render_to_string('creditos/pdfs/{}.html'.format(self.receipt.receipt_type.code), locals())
+			if es_proveeduria:
+				template_name = 'creditos/pdfs/proveeduria.html'
+			else:
+				template_name = f'creditos/pdfs/{self.receipt.receipt_type.code}.html'
+			html_string = render_to_string(template_name, locals())
 			html = HTML(string=html_string, base_url='https://www.admincu.com/comprobantes/')
 			pdfFactura = html.render()
 			enteros.append(pdfFactura)
