@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/2.0/ref/settings/
 """
 
 import os
+import environ
+
+env = environ.Env()
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+environ.Env.read_env(env_file=os.path.join(BASE_DIR, '.env'))
 
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
@@ -110,11 +115,11 @@ WSGI_APPLICATION = 'admincu.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DDBB_NAME'),
-        'USER': os.environ.get('DDBB_USER'),
-        'PASSWORD': os.environ.get('DDBB_PASSWORD'),
-        'HOST': os.environ.get('DDBB_HOST'),
-        'PORT': os.environ.get('DDBB_PORT')
+        'NAME': env('DDBB_NAME'),
+        'USER': env('DDBB_USER'),
+        'PASSWORD': env('DDBB_PASSWORD'),
+        'HOST': env('DDBB_HOST', default='localhost'),
+        'PORT': env('DDBB_PORT', default='3306'),
     }
 }
 
