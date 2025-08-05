@@ -12,7 +12,7 @@ from tablib import Dataset
 from django_afip.models import PointOfSales, DocumentType, ConceptType
 
 
-import pandas as pd
+# import pandas as pd
 
 from django_afip.models import PointOfSales, DocumentType, ConceptType
 
