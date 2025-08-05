@@ -59,7 +59,7 @@ six==1.11.0
 sqlparse==0.4.1
 supertools==1.0.1
 tablib==0.12.1
-tinycss2==0.6.1
+tinycss2==1.2.1 
 unicodecsv==0.14.1
 urllib3==1.22
 WeasyPrint==53.3
