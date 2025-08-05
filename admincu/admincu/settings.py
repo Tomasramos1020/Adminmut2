@@ -26,12 +26,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # See https://docs.djangoproject.com/en/2.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'c5!2z8em#djn1n^e-04t8*vk_*%bucnyi0z_-qjfangd5c-6-='
+SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = [env("ALLOWED")]
 
 
 # Application definition
@@ -224,14 +224,14 @@ MAINTENANCE_MODE_IGNORE_STAFF = True
 
 # # Configuraciones de seguridad
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 10240
-# SECURE_HSTS_SECONDS = 3600 # Cambiar a 31536000 el 20/05/2018
-# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# SECURE_HSTS_PRELOAD = True
+SECURE_HSTS_SECONDS = 31536000 # Cambiar a 31536000 el 20/05/2018
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 # SECURE_CONTENT_TYPE_NOSNIFF = True
 # SECURE_BROWSER_XSS_FILTER = True
-# SECURE_SSL_REDIRECT = True
-# SESSION_COOKIE_SECURE = True
-# CSRF_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True
+SESSION_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = True
 # X_FRAME_OPTIONS = 'DENY'
 
 

@@ -76,3 +76,4 @@ Cython==0.29.24
 cffi==1.15.0
 django-environ==0.10.0
 # Instalacion en el servidor: apt install build-essential libssl-dev libffi-dev python3-dev libxml2-dev libxslt1-dev zlib1g-dev libjpeg-dev libmysqlclient-dev libfreetype6-dev pkg-config -y
+# SERVIDOR TIENE ALMACENADO LAS LIBRERIAS EN root/pyenv/versions/env38/lib/python3.8/sitepakages
