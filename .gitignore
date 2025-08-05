@@ -2,3 +2,4 @@ database/
 *.pyc
 media/
 .env
+env/
