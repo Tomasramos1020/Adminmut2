@@ -16,8 +16,9 @@ class Exp():
 	"""
 		Exportador/Importador ExP class, generador de barcode numerico.
 	"""
-
-	clientes = set(list(ClienteExp.objects.all().values_list('codigo_exp', flat=True)))
+	@staticmethod
+	def get_clientes():
+		return set(ClienteExp.objects.values_list('codigo_exp', flat=True))
 	fecha_archivo = datetime.now()
 	ftp_servidor = 'files.plataformadepagos.com.ar'
 	ftp_usuario = 'AdminCuUser'
