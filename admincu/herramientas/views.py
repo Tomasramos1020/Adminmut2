@@ -217,12 +217,24 @@ class PDFTransferencia(HeaderExeptMixin, generic.DetailView):
 
 	def get(self, request, *args, **kwargs):
 		transferencia = self.get_object()
-		response = HttpResponse(
-			transferencia.pdf, content_type='application/pdf')
+
+		# ✅ Generar PDF en memoria
+		pdf_bytes = transferencia.hacer_pdf_inst()
+
+		response = HttpResponse(pdf_bytes, content_type='application/pdf')
 		nombre = "Transferencia_%s.pdf" % (transferencia.formatoAfip())
-		content = "inline; filename=%s" % nombre
+		content = f"inline; filename={nombre}"
 		response['Content-Disposition'] = content
 		return response
+
+	# def get(self, request, *args, **kwargs):
+	# 	transferencia = self.get_object()
+	# 	response = HttpResponse(
+	# 		transferencia.pdf, content_type='application/pdf')
+	# 	nombre = "Transferencia_%s.pdf" % (transferencia.formatoAfip())
+	# 	content = "inline; filename=%s" % nombre
+	# 	response['Content-Disposition'] = content
+	# 	return response
 
 
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')

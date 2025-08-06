@@ -103,17 +103,27 @@ class Liquidacion(models.Model):
 		self.save()
 
 	def hacer_pdf(self):
-		if not self.pdf:
-			liquidacion = self
-			html_string_pdf = render_to_string('creditos/pdfs/liquidacion.html', locals())
-			html = HTML(string=html_string_pdf, base_url='https://www.admincu.com/liquidaciones/')
-			pdf = html.write_pdf()
-			ruta = "{}_{}.pdf".format(
-					str(self.consorcio.abreviatura),
-					str(self.formatoAfip())
-				)
-			self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
-			self.save()
+		pass
+
+	def hacer_pdf_inst(self):
+		"""Genera PDF de la liquidación y lo devuelve en memoria (bytes)."""
+		liquidacion = self
+		html_string_pdf = render_to_string('creditos/pdfs/liquidacion.html', locals())
+		html = HTML(string=html_string_pdf, base_url='https://www.admincu.com/liquidaciones/')
+		pdf_bytes = html.write_pdf()
+		return pdf_bytes
+	
+		# if not self.pdf:
+		# 	liquidacion = self
+		# 	html_string_pdf = render_to_string('creditos/pdfs/liquidacion.html', locals())
+		# 	html = HTML(string=html_string_pdf, base_url='https://www.admincu.com/liquidaciones/')
+		# 	pdf = html.write_pdf()
+		# 	ruta = "{}_{}.pdf".format(
+		# 			str(self.consorcio.abreviatura),
+		# 			str(self.formatoAfip())
+		# 		)
+		# 	self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
+		# 	self.save()
 
 	def hacer_asiento(self):
 
@@ -276,83 +286,157 @@ class Factura(models.Model):
 		return creditos
 
 	def hacer_pdf(self):
+		pass
+	
+	def hacer_pdf_inst(self):
+		"""Genera PDF de la factura y lo devuelve como bytes sin guardarlo en media."""
+		es_proveeduria = self.credito_set.filter(ingreso__es_proveeduria=True).exists()
+		archivo = []
+		enteros = []
+		factura = self
 
-		if not self.pdf:
-			es_proveeduria = self.credito_set.filter(ingreso__es_proveeduria=True).exists()
-			archivo = []
-			enteros = []
-			factura = self
-			if self.consorcio.id in []: 
-				dominios = self.socio.socio.all()
-				if dominios:
-					creditos = Credito.objects.filter(
-							dominio__in=dominios,
-							fin__isnull=True,
-							liquidacion__estado="confirmado",
-							)
-				else:
-					creditos = Credito.objects.filter(
-							socio=self.socio,
-							liquidacion__estado="confirmado",
-							dominio__isnull=True,
-							fin__isnull=True,
-							)
-
-				total_deudas = sum([c.saldo for c in creditos])
-				total_deudas += sum([c.saldo for c in factura.credito_set.all()])
-
-				saldos = self.socio.get_saldos(fecha=date.today())
-				total_saldos = sum([s.saldo() for s in saldos])
-
-				total_adeudado = total_deudas - total_saldos
-
-				if total_adeudado:
-					texto_saldo = "Tu saldo total "
-					texto_saldo += "adeudado" if total_adeudado >= 0 else "a favor"
-					texto_saldo += " a la fecha, incluyendo capital, intereses y descuentos y el monto de la presente factura es de: ${}".format(abs(total_adeudado))
-					
-			if self.consorcio.id in [2, 8]: # 2 Demo, 8 Praderas
-				fecha1 = self.expensas_pagas(0) # Se utiliza expensas_pagas porque se creo esa funcion antes con ese nombre pero hace lo mismo
-				fecha2 = self.expensas_pagas(1) # Se utiliza expensas_pagas porque se creo esa funcion antes con ese nombre pero hace lo mismo
-				if not fecha2:
-					fecha2 = fecha1
-				saldo1 = self.saldo(fecha1)
-				saldo2 = self.saldo(fecha2)
-
-				tablas_vencimientos = {
-					'fecha1': fecha1,
-					'saldo1': saldo1,
-					'fecha2': fecha2,
-					'saldo2': saldo2
-				}
-			if self.receipt.receipt_type.code == "11":
-				generator = ReceiptBarcodeGenerator(self.receipt)
-				codigo = generator.full_number
-				barcode = codigo
-			
-				#barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
-			if es_proveeduria:
-				template_name = 'creditos/pdfs/proveeduria.html'
+		if self.consorcio.id in []: 
+			dominios = self.socio.socio.all()
+			if dominios:
+				creditos = Credito.objects.filter(
+					dominio__in=dominios,
+					fin__isnull=True,
+					liquidacion__estado="confirmado",
+				)
 			else:
-				template_name = f'creditos/pdfs/{self.receipt.receipt_type.code}.html'
-			html_string = render_to_string(template_name, locals())
-			html = HTML(string=html_string, base_url='https://www.admincu.com/comprobantes/')
-			pdfFactura = html.render()
-			enteros.append(pdfFactura)
-			for p in pdfFactura.pages:
-				archivo.append(p)
+				creditos = Credito.objects.filter(
+					socio=self.socio,
+					liquidacion__estado="confirmado",
+					dominio__isnull=True,
+					fin__isnull=True,
+				)
+
+			total_deudas = sum([c.saldo for c in creditos])
+			total_deudas += sum([c.saldo for c in factura.credito_set.all()])
+
+			saldos = self.socio.get_saldos(fecha=date.today())
+			total_saldos = sum([s.saldo() for s in saldos])
+
+			total_adeudado = total_deudas - total_saldos
+
+			if total_adeudado:
+				texto_saldo = "Tu saldo total "
+				texto_saldo += "adeudado" if total_adeudado >= 0 else "a favor"
+				texto_saldo += " a la fecha, incluyendo capital, intereses y descuentos y el monto de la presente factura es de: ${}".format(abs(total_adeudado))
+
+		if self.consorcio.id in [2, 8]:  # 2 Demo, 8 Praderas
+			fecha1 = self.expensas_pagas(0)
+			fecha2 = self.expensas_pagas(1)
+			if not fecha2:
+				fecha2 = fecha1
+			saldo1 = self.saldo(fecha1)
+			saldo2 = self.saldo(fecha2)
+
+			tablas_vencimientos = {
+				'fecha1': fecha1,
+				'saldo1': saldo1,
+				'fecha2': fecha2,
+				'saldo2': saldo2
+			}
+
+		if self.receipt.receipt_type.code == "11":
+			generator = ReceiptBarcodeGenerator(self.receipt)
+			codigo = generator.full_number
+			barcode = codigo
+
+		if es_proveeduria:
+			template_name = 'creditos/pdfs/proveeduria.html'
+		else:
+			template_name = f'creditos/pdfs/{self.receipt.receipt_type.code}.html'
+
+		html_string = render_to_string(template_name, locals())
+		html = HTML(string=html_string, base_url='https://www.admincu.com/comprobantes/')
+		pdfFactura = html.render()
+		enteros.append(pdfFactura)
+		for p in pdfFactura.pages:
+			archivo.append(p)
+
+		pdf_bytes = enteros[0].copy(archivo).write_pdf()
+		return pdf_bytes
+
+	# def hacer_pdf(self):
+
+	# 	if not self.pdf:
+	# 		es_proveeduria = self.credito_set.filter(ingreso__es_proveeduria=True).exists()
+	# 		archivo = []
+	# 		enteros = []
+	# 		factura = self
+	# 		if self.consorcio.id in []: 
+	# 			dominios = self.socio.socio.all()
+	# 			if dominios:
+	# 				creditos = Credito.objects.filter(
+	# 						dominio__in=dominios,
+	# 						fin__isnull=True,
+	# 						liquidacion__estado="confirmado",
+	# 						)
+	# 			else:
+	# 				creditos = Credito.objects.filter(
+	# 						socio=self.socio,
+	# 						liquidacion__estado="confirmado",
+	# 						dominio__isnull=True,
+	# 						fin__isnull=True,
+	# 						)
+
+	# 			total_deudas = sum([c.saldo for c in creditos])
+	# 			total_deudas += sum([c.saldo for c in factura.credito_set.all()])
+
+	# 			saldos = self.socio.get_saldos(fecha=date.today())
+	# 			total_saldos = sum([s.saldo() for s in saldos])
+
+	# 			total_adeudado = total_deudas - total_saldos
+
+	# 			if total_adeudado:
+	# 				texto_saldo = "Tu saldo total "
+	# 				texto_saldo += "adeudado" if total_adeudado >= 0 else "a favor"
+	# 				texto_saldo += " a la fecha, incluyendo capital, intereses y descuentos y el monto de la presente factura es de: ${}".format(abs(total_adeudado))
+					
+	# 		if self.consorcio.id in [2, 8]: # 2 Demo, 8 Praderas
+	# 			fecha1 = self.expensas_pagas(0) # Se utiliza expensas_pagas porque se creo esa funcion antes con ese nombre pero hace lo mismo
+	# 			fecha2 = self.expensas_pagas(1) # Se utiliza expensas_pagas porque se creo esa funcion antes con ese nombre pero hace lo mismo
+	# 			if not fecha2:
+	# 				fecha2 = fecha1
+	# 			saldo1 = self.saldo(fecha1)
+	# 			saldo2 = self.saldo(fecha2)
+
+	# 			tablas_vencimientos = {
+	# 				'fecha1': fecha1,
+	# 				'saldo1': saldo1,
+	# 				'fecha2': fecha2,
+	# 				'saldo2': saldo2
+	# 			}
+	# 		if self.receipt.receipt_type.code == "11":
+	# 			generator = ReceiptBarcodeGenerator(self.receipt)
+	# 			codigo = generator.full_number
+	# 			barcode = codigo
+			
+	# 			#barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
+	# 		if es_proveeduria:
+	# 			template_name = 'creditos/pdfs/proveeduria.html'
+	# 		else:
+	# 			template_name = f'creditos/pdfs/{self.receipt.receipt_type.code}.html'
+	# 		html_string = render_to_string(template_name, locals())
+	# 		html = HTML(string=html_string, base_url='https://www.admincu.com/comprobantes/')
+	# 		pdfFactura = html.render()
+	# 		enteros.append(pdfFactura)
+	# 		for p in pdfFactura.pages:
+	# 			archivo.append(p)
 
 
 
-			pdf = enteros[0].copy(archivo).write_pdf()
-			ruta = "{}_{}_{}.pdf".format(
-					str(self.consorcio.abreviatura),
-					str(self.receipt.receipt_type.code),
-					str(self.formatoAfip())
-			)
+	# 		pdf = enteros[0].copy(archivo).write_pdf()
+	# 		ruta = "{}_{}_{}.pdf".format(
+	# 				str(self.consorcio.abreviatura),
+	# 				str(self.receipt.receipt_type.code),
+	# 				str(self.formatoAfip())
+	# 		)
 
-			self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
-			self.save()
+	# 		self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
+	# 		self.save()
 
 
 	def validar_factura(self):

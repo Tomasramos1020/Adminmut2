@@ -1044,12 +1044,25 @@ class PDFLiquidacion(HeaderExeptMixin, generic.DetailView):
 
 	def get(self, request, *args, **kwargs):
 		liquidacion = self.get_object()
-		liquidacion.hacer_pdf()
-		response = HttpResponse(liquidacion.pdf, content_type='application/pdf')
+
+		# ✅ Generar PDF al vuelo
+		pdf_bytes = liquidacion.hacer_pdf_inst()
+
+		response = HttpResponse(pdf_bytes, content_type='application/pdf')
 		nombre = "Liquidacion_%s.pdf" % (liquidacion.formatoAfip())
-		content = "inline; filename=%s" % nombre
+		content = f"inline; filename={nombre}"
 		response['Content-Disposition'] = content
 		return response
+
+
+	# def get(self, request, *args, **kwargs):
+	# 	liquidacion = self.get_object()
+	# 	liquidacion.hacer_pdf()
+	# 	response = HttpResponse(liquidacion.pdf, content_type='application/pdf')
+	# 	nombre = "Liquidacion_%s.pdf" % (liquidacion.formatoAfip())
+	# 	content = "inline; filename=%s" % nombre
+	# 	response['Content-Disposition'] = content
+	# 	return response
 
 	def dispatch(self, request, *args, **kwargs):
 		disp = super().dispatch(request, *args, **kwargs)
@@ -1069,14 +1082,29 @@ class PDFFactura(HeaderExeptMixin, generic.DetailView):
 
 	def get(self, request, *args, **kwargs):
 		factura = self.get_object()
-		response = HttpResponse(factura.pdf, content_type='application/pdf')
+
+		# ✅ Generar PDF en memoria
+		pdf_bytes = factura.hacer_pdf_inst()
+
+		response = HttpResponse(pdf_bytes, content_type='application/pdf')
 		nombre = "{}_{}.pdf".format(
 			factura.receipt.receipt_type.code,
 			factura.formatoAfip(),
 		)
-		content = "inline; filename=%s" % nombre
+		content = f"inline; filename={nombre}"
 		response['Content-Disposition'] = content
 		return response
+
+	# def get(self, request, *args, **kwargs):
+	# 	factura = self.get_object()
+	# 	response = HttpResponse(factura.pdf, content_type='application/pdf')
+	# 	nombre = "{}_{}.pdf".format(
+	# 		factura.receipt.receipt_type.code,
+	# 		factura.formatoAfip(),
+	# 	)
+	# 	content = "inline; filename=%s" % nombre
+	# 	response['Content-Disposition'] = content
+	# 	return response
 
 	def dispatch(self, request, *args, **kwargs):
 		disp = super().dispatch(request, *args, **kwargs)

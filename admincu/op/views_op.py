@@ -455,14 +455,21 @@ def op_pdf(request, pk):
 	except:
 		messages.add_message(request, messages.ERROR, 'Hubo un error, debe seleccionar opciones validas en el menu')
 		return redirect(op_index)
+	pdf_bytes = op.hacer_pdf_inst()
 
-	pdf = op.hacer_pdf()
-
-	response = HttpResponse(pdf, content_type='application/pdf')
+	response = HttpResponse(pdf_bytes, content_type='application/pdf')
 	nombre = "OP_%s.pdf" % (op.formatoAfip())
-	content = "inline; filename=%s" % nombre
+	content = f"inline; filename={nombre}"
 	response['Content-Disposition'] = content
 	return response
+
+	# pdf = op.hacer_pdf()
+
+	# response = HttpResponse(pdf, content_type='application/pdf')
+	# nombre = "OP_%s.pdf" % (op.formatoAfip())
+	# content = "inline; filename=%s" % nombre
+	# response['Content-Disposition'] = content
+	# return response
 
 class HeaderExemptMixin:
 

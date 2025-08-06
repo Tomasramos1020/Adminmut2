@@ -984,10 +984,13 @@ class PDF(HeaderExeptMixin, generic.DetailView):
 
 	def get(self, request, *args, **kwargs):
 		comprobante = self.get_object()
-		if comprobante.pdf_anulado:
-			response = HttpResponse(comprobante.pdf_anulado, content_type='application/pdf')
-		else:
-			response = HttpResponse(comprobante.pdf, content_type='application/pdf')
+#		if comprobante.pdf_anulado:
+#			response = HttpResponse(comprobante.pdf_anulado, content_type='application/pdf')
+#		else:
+#			response = HttpResponse(comprobante.pdf, content_type='application/pdf')
+		# Generar PDF al vuelo, sin leer de media/
+		pdf_bytes = comprobante.hacer_pdfs_inst()
+		response = HttpResponse(pdf_bytes, content_type='application/pdf')
 		nombre = "{}_{}.pdf".format(
 			comprobante.tipo(),
 			comprobante.nombre(),

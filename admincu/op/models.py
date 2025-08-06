@@ -135,25 +135,42 @@ class OP(models.Model):
 		return nombre
 
 	def hacer_pdf(self):
-		if not self.pdf:
-			# Variables a pdf
-			op = self
-			cons = self.consorcio
-			gastos = self.gastoop_set.all()
-			deudas = self.deudaop_set.all()
-			retenciones = self.retencionop_set.all()
-			cajas = self.cajaop_set.all()
-			html_string = render_to_string('op/pdf.html', locals())
-			html = HTML(string=html_string, base_url='https://www.admincu.com/pagos/')
-			pdf = html.write_pdf()
-			ruta = "{}_{}.pdf".format(
-					str(cons.abreviatura),
-					str(self.formatoAfip())
-				)
-			self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
-			self.save()
+		pass
 
-		return self.pdf
+	def hacer_pdf_inst(self):
+		"""Genera PDF de la OP y lo devuelve como bytes sin guardarlo en media."""
+		# Variables a pdf
+		op = self
+		cons = self.consorcio
+		gastos = self.gastoop_set.all()
+		deudas = self.deudaop_set.all()
+		retenciones = self.retencionop_set.all()
+		cajas = self.cajaop_set.all()
+
+		html_string = render_to_string('op/pdf.html', locals())
+		html = HTML(string=html_string, base_url='https://www.admincu.com/pagos/')
+		pdf_bytes = html.write_pdf()
+
+		return pdf_bytes
+		# if not self.pdf:
+		# 	# Variables a pdf
+		# 	op = self
+		# 	cons = self.consorcio
+		# 	gastos = self.gastoop_set.all()
+		# 	deudas = self.deudaop_set.all()
+		# 	retenciones = self.retencionop_set.all()
+		# 	cajas = self.cajaop_set.all()
+		# 	html_string = render_to_string('op/pdf.html', locals())
+		# 	html = HTML(string=html_string, base_url='https://www.admincu.com/pagos/')
+		# 	pdf = html.write_pdf()
+		# 	ruta = "{}_{}.pdf".format(
+		# 			str(cons.abreviatura),
+		# 			str(self.formatoAfip())
+		# 		)
+		# 	self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
+		# 	self.save()
+
+		# return self.pdf
 
 	def save(self, *args, **kw):
 		if self.confirmado == True and not self.numero:

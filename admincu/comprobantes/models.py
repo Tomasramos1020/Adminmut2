@@ -141,6 +141,9 @@ class Comprobante(models.Model):
 		return self.nombre()
 
 	def hacer_pdfs(self):
+		pass
+
+	def hacer_pdfs_inst(self):
 		archivo = []
 		enteros = []
 		creditos = Credito.objects.filter(
@@ -232,18 +235,20 @@ class Comprobante(models.Model):
 			for p in pdfRCC.pages:
 				archivo.append(p)
 
-		pdf = enteros[0].copy(archivo).write_pdf()
+#		pdf = enteros[0].copy(archivo).write_pdf()				
 		ruta = "{}_{}_{}.pdf".format(
 			self.consorcio.abreviatura,
 			self.tipo(),
 			self.nombre()
 		)
+		pdf_bytes = enteros[0].copy(archivo).write_pdf()
+		return pdf_bytes
 
-		if self.anulado:
-			self.pdf_anulado = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
-		else:
-			self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
-		self.save()
+#		if self.anulado:
+#			self.pdf_anulado = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
+#		else:
+#			self.pdf = SimpleUploadedFile(ruta, pdf, content_type='application/pdf')
+#		self.save()
 
 	def enviar_mail(self):
 		if self.consorcio.mails:

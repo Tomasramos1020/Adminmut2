@@ -380,7 +380,7 @@ class ComprobanteCreator:
 		# Guardado del comprobante si se validan los receipts en AFIP
 		comprobante.save()
 		self.guardar_vinculaciones(comprobante)
-		if not masivo:
-			comprobante.hacer_pdfs()
-			comprobante.enviar_mail()
+		# if not masivo:
+			# comprobante.hacer_pdfs()
+			# comprobante.enviar_mail()
 		return comprobante
