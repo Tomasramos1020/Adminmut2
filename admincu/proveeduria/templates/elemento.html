@@ -36,10 +36,12 @@
         <div class="panel-body">
           <div class="row">
             <div class="col-xs-12">
-                <a href="{% url 'crear_proveeduria' modelo=elemento %}" class="btn btn-info pull-right">
-                  <i class="fa fa-plus"></i> Nuevo
-                </a>
-            </div>
+              {% if elemento != "Stock" %}
+              <a href="{% url 'crear_proveeduria' modelo=elemento %}" class="btn btn-info pull-right">
+                <i class="fa fa-plus"></i> Nuevo
+              </a>
+            {% endif %}
+             </div>
           </div>
           <br>
           <div class="row">

@@ -9,6 +9,12 @@
         <th width="20"></th>
         <th width="20"></th>
         <th>Nombre</th>
+        <th>Socio</th>
+        <th>Lista de Precio</th>        
+        <th>Direccion</th>
+        <th>Localidad</th>
+        <th>Provincia</th>
+        <th>Mail</th>
       </tr>
     </thead>
     <tbody>
@@ -20,7 +26,13 @@
           </a>
         </td>
         <td>{{ forloop.counter }}</td>
-        <td>{{objeto.nombre}}</td>
+        <td>{{objeto.nombre|default_if_none:""}}</td>
+        <td>{{objeto.socio|default_if_none:""}}</td>
+        <td>{{objeto.lista_precio|default_if_none:""}}</td>
+        <td>{{objeto.direccion|default_if_none:""}}</td>
+        <td>{{objeto.localidad|default_if_none:""}}</td>
+        <td>{{objeto.provincia|default_if_none:""}}</td>
+        <td>{{objeto.mail|default_if_none:""}}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -32,6 +44,22 @@
         <th width="20"></th>
         <th width="20"></th>
         <th width="20">Nombre</th>
+        <th width="20">Embalaje</th>
+        <th width="20">Unidad de Medida</th>
+        <th width="20">Lista de precio 1</th>
+        <th width="20">Lista de precio 2</th>
+        <th width="20">Lista de precio 3</th>
+        <th width="20">Lista de precio 4</th>
+        <th width="20">Retornable</th>
+        <th width="20">Calibre</th>
+        <th width="20">Activo</th>
+        <th width="20">Vencimiento</th>
+        <th width="20">Codigo Interno</th>
+        <th width="20">Rubro</th>
+        <th width="20">Stock Minimo</th>
+        <th width="20">Codigo de barra</th>
+        <th width="20">Descripcion</th>
+        <th width="20">Otra Clasificacion</th>
       </tr>
     </thead>
     <tbody>
@@ -43,13 +71,56 @@
           </a>
         </td>
         <td>{{ forloop.counter }}</td>
-        <td>{{objeto.nombre}}</td>
+        <td>{{objeto.nombre|default_if_none:""}}</td>
+        <td>{{objeto.embalaje|default_if_none:""}}</td>
+        <td>{{objeto.unidad_medida|default_if_none:""}}</td>
+        <td>{{objeto.precio_1|default_if_none:""}}</td>
+        <td>{{objeto.precio_2|default_if_none:""}}</td>
+        <td>{{objeto.precio_3|default_if_none:""}}</td>
+        <td>{{objeto.precio_4|default_if_none:""}}</td>
+        <td>{% if objeto.retornable == True %}Sí{% elif objeto.retornable == False %}No{% else %}{% endif %}</td>
+        <td>{{objeto.calibre|default_if_none:""}}</td>
+        <td>{% if objeto.activo == True %}Sí{% elif objeto.activo == False %}No{% else %}{% endif %}</td>
+        <td>{{objeto.vencimiento|default_if_none:""}}</td>
+        <td>{{objeto.codigo_inter|default_if_none:""}}</td>
+        <td>{{objeto.rubro|default_if_none:""}}</td>
+        <td>{{objeto.stock_minimo|default_if_none:""}}</td>
+        <td>{{objeto.codigo_barra|default_if_none:""}}</td>
+        <td>{{objeto.descripcion|default_if_none:""}}</td>
+        <td>{{objeto.otra_clasificacion|default_if_none:""}}</td>
 
       </tr>
-    {% endfor %}
-    </tbody>
 
-    {% elif elemento == "Deposito" %}
+    {% endfor %}
+    {% elif elemento == "Rubro" %}
+    <thead>
+      <tr>
+        <th width="20"></th>
+        <th width="20">Rubro</th>
+        <th width="20">Nombre</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for objeto in object_list %}
+      <tr>
+        <td class="text-center">
+          <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+        <td>{{ forloop.counter }}</td>
+        <td>{{objeto.nombre|default_if_none:""}}</td>
+
+      </tr>
+      
+    {% endfor %}
+
+
+
+
+  </tbody>
+
+    {% elif elemento == "Vendendor" %}
     <thead>
       <tr>
         <th width="20"></th>
@@ -66,7 +137,7 @@
           </a>
         </td>
         <td>{{ forloop.counter }}</td>
-        <td>{{objeto.nombre}}</td>
+        <td>{{objeto.nombre|default_if_none:""}}</td>
 
       </tr>          
     {% endfor %}
@@ -75,21 +146,25 @@
       {% elif elemento == "Stock" %}
       <thead>
         <tr>
-          <th width="20"></th>
-          <th width="20"></th>
-          <th width="20">Nombre</th>
+          <th width="20">Producto</th>
+          <th width="20">Cantidad</th>
+          <th width="20">Stock minimo</th>
+          <th width="20">Costo</th>
+          <th width="20">Costo total</th>
+          <th width="20">Precio de venta</th>
+          <th width="20">Precio x cantidad</th>
         </tr>
       </thead>
       <tbody>
       {% for objeto in object_list %}
         <tr>
-          <td class="text-center">
-            <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
-              <i class="fa fa-pencil"></i>
-            </a>
-          </td>
-          <td>{{ forloop.counter }}</td>
-          <td>{{objeto.nombre}}</td>
+          <td>{{objeto.nombre|default_if_none:""}}</td>
+          <td>{{objeto.cantidad|default_if_none:""}}</td>
+          <td>{{objeto.stock_minimo|default_if_none:""}}</td>
+          <td>{{objeto.precio_compra|default_if_none:""}}</td>
+          <td>{{ objeto.costo_total|default_if_none:""}}</td>
+          <td>{{objeto.precio_1|default_if_none:""}}</td>
+          <td>{{ objeto.precio_por_cantidad|default_if_none:""}}</td>
   
         </tr>          
       {% endfor %}
@@ -115,8 +190,31 @@
             <td>{{objeto.nombre}}</td>
     
           </tr>          
+          {% endfor %}
+        </tbody>
+        {% elif elemento == "Proveedor_proveeduria" %}
+        <thead>
+          <tr>
+            <th width="20"></th>
+            <th width="20"></th>
+            <th width="20">Nombre</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for objeto in object_list %}
+          <tr>
+            <td class="text-center">
+              <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+                <i class="fa fa-pencil"></i>
+              </a>
+            </td>
+            <td>{{ forloop.counter }}</td>
+            <td>{{objeto.nombre|default_if_none:""}}</td>
+    
+          </tr>          
         {% endfor %}
-      </tbody>
+  
+        </tbody>
       {% elif elemento == "Notas_Pedido" %}
       <thead>
         <tr>
@@ -134,7 +232,7 @@
             </a>
           </td>
           <td>{{ forloop.counter }}</td>
-          <td>{{objeto.nombre}}</td>
+          <td>{{objeto.nombre|default_if_none:""}}</td>
   
         </tr>          
       {% endfor %}
@@ -156,7 +254,7 @@
           </a>
         </td>
         <td>{{ forloop.counter }}</td>
-        <td>{{objeto.nombre}}</td>
+        <td>{{objeto.nombre|default_if_none:""}}</td>
 
       </tr>          
     {% endfor %}
@@ -178,7 +276,7 @@
         </a>
       </td>
       <td>{{ forloop.counter }}</td>
-      <td>{{objeto.nombre}}</td>
+      <td>{{objeto.nombre|default_if_none:""}}</td>
 
     </tr>          
   {% endfor %}
@@ -200,7 +298,7 @@
         </a>
       </td>
       <td>{{ forloop.counter }}</td>
-      <td>{{objeto.nombre}}</td>
+      <td>{{objeto.nombre|default_if_none:""}}</td>
 
     </tr>          
   {% endfor %}
@@ -222,7 +320,7 @@
       </a>
     </td>
     <td>{{ forloop.counter }}</td>
-    <td>{{objeto.nombre}}</td>
+    <td>{{objeto.nombre|default_if_none:""}}</td>
 
   </tr>          
 {% endfor %}
@@ -243,15 +341,34 @@
       </a>
     </td>
     <td>{{ forloop.counter }}</td>
-    <td>{{objeto.nombre}}</td>
+    <td>{{objeto.nombre|default_if_none:""}}</td>
 
   </tr>          
+{% endfor %}
+{% elif elemento == "Deposito" %}
+<thead>
+  <tr>
+    <th width="20"></th>
+    <th width="20"></th>
+    <th width="20">Nombre</th>
+  </tr>
+</thead>
+<tbody>
+{% for objeto in object_list %}
+  <tr>
+    <td class="text-center">
+      <a href="{% url 'instancia_proveeduria' modelo=elemento pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+        <i class="fa fa-pencil"></i>
+      </a>
+    </td>
+    <td>{{ forloop.counter }}</td>
+    <td>{{objeto.nombre|default_if_none:""}}</td>
+  </tr>
 {% endfor %}
 
 
     {% endif %}
 </table>
-
 
 
 

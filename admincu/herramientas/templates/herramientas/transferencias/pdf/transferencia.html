@@ -4,7 +4,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Transferencia entre cajas: {{transferencia.formatoAfip}}</title>
+    <title>{% if es_recibo %}Recibo por convenio:{% else %}Transferencia entre cajas:{% endif %} {{transferencia.formatoAfip}}</title>
     <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
   </head>
   <body>
@@ -24,7 +24,7 @@
 
           <div class="receipt-details">
             <div class="receipt-type-description">
-              Transferencia entre cajas
+              {% if es_recibo %}Recibo por convenio{% else %}Transferencia entre cajas{% endif %}
             </div>
             <strong>Nº</strong> {{ transferencia.formatoAfip }}<br>
             {{ transferencia.fecha|date:"d/m/Y" }}<br>
@@ -40,11 +40,11 @@
 
       </header>
 
-    <p><strong>Origenes de las transacciones:</strong></p>
+    <p><strong>{% if es_recibo %}Recibí de:{% else %}Origenes de las transacciones{% endif %}</strong></p>
     <table>
         <thead>
         <tr>
-            <th>Caja</th>
+            <th>{% if es_recibo %}Nombre{% else %}Caja{% endif %}</th>
             <th>Referencia</th>
             <th>Valor</th>
         </tr>
@@ -52,9 +52,9 @@
         <tbody>
         {% for caja in transferencia.cajatransferencia_set.all %}
             <tr>
-                <td>{{ caja.origen }}</td>
-                <td>{{ caja.referencia|default:"" }}</td>
-                <td>{{ caja.valor|intcomma }}</td>
+                <td>{% if es_recibo %}{{ caja.origen.entidad }}{% else %}{{ caja.origen }}{% endif %}</td>
+                <td>{% if es_recibo %}Cuota del periodo: {{ caja.referencia|default:"" }}{% else %}{{ caja.referencia|default:"" }}{% endif %}</td>
+                <td>{{ caja.valor|intcomma }}</td>                                                
             </tr>
         {% endfor %}
         </tbody>
@@ -64,8 +64,8 @@
         <div class="receipt-details">
           <table>
             <tr>
-              <th>Caja destino:</th>
-              <th>{{ transferencia.cajatransferencia_set.first.destino }}</th>
+              <th>{% if es_recibo %}Total recibido{% else %}Caja destino:{% endif %}</th>
+              <th>{% if es_recibo %}{% else %}{{ transferencia.cajatransferencia_set.first.destino }}{% endif %}</th>
               <th>{{ transferencia.total|intcomma }}</th>
             </tr>
           </table>

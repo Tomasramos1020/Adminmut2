@@ -42,4 +42,7 @@ urlpatterns = [
 	path('MercadoPago/Failed/<int:pk>/', MPFailed.as_view(), name='mp-failed'),
 	path('MercadoPago/Pending/<int:pk>/', MPPending.as_view(), name='mp-pending'),
 
+	path('Proveeduria/', IndexProveeduria.as_view(), name='facturacion-proveeduria'),
+
+
 ]

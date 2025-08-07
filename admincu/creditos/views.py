@@ -1476,4 +1476,28 @@ class LiquidarConcepto(generic.ListView):
 			print("Hola trolo")
 			return HttpResponseRedirect('/facturacion/conceptos')
 
-		return render(request, self.template_name, locals())		
+		return render(request, self.template_name, locals())
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class IndexProveeduria(OrderQS):
+
+	""" Index de proveeduria """
+
+	model = Liquidacion
+	filterset_class = LiquidacionFilter
+	template_name = 'creditos/proveeduria/index_proveeduria.html'
+	paginate_by = 10
+
+	def get_queryset(self):
+		qs = super().get_queryset()
+		# Filtrar solo las liquidaciones relacionadas a créditos con ingresos de proveeduría
+		return qs.filter(credito__ingreso__es_proveeduria=True).distinct()
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		# Saldo total de creditos pendientesdo total de creditos pendientes
+		saldo = ""
+		# Ultimo periodo
+		ultima_liquidacion = ""
+		context.update(locals())
+		return context

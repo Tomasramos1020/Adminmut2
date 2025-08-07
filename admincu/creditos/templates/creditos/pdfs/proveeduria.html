@@ -1,0 +1,126 @@
+{% load staticfiles %}
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{factura.receipt.receipt_type}} {{factura.formatoAfip}}</title>
+    <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <div class="receipt">
+
+      <header>
+        <div class="taxpayer-details group">
+          <address>
+              <img src="{{ factura.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+              <h3>{{ factura.consorcio.nombre_completo }}</h3>
+            {{ factura.consorcio.domicilio }} -
+            {{ factura.consorcio.provincia }}<br>
+            Matrícula INAES: {{ factura.consorcio.matricula }}            
+          </address>
+
+          <div class="receipt-details">
+            <div class="receipt-type-description">
+              COMPROBANTE
+            </div>
+            <strong>              
+              Res. Gral. Nº1415 AFIP-ANEXO I<br>
+              Apartado A-Inciso K<br>
+              </strong> 
+            <strong>Nº</strong> {{ factura.formatoAfip }}<br>
+            Fecha: {{ factura.receipt.issued_date|date:"d/m/Y" }}<br>
+            <small>
+              C.U.I.T.: {{ factura.consorcio.cuit }}<br>
+              IVA: Exento<br>
+              Inicio de actividad: {{factura.consorcio.contribuyente.active_since|date:"d/m/Y"}}
+            </small>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="client">
+
+          <div class="client-data">
+            <strong>{% if factura.consorcio.id == 10 %}CLIENTE:{% else %}ASOCIADO:{% endif %}</strong>
+            {{ factura.socio }} <br>
+            <strong>CUIT:</strong>
+            {{ factura.socio.cuit }} <br>
+            <strong>N° DE ASOCIADO:</strong>
+            {{ factura.socio.numero_asociado }} <br>
+          </div>
+        </div>
+
+        <hr>
+
+      </header>
+
+      <p><strong>Detalle de productos:</strong></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+            {% for vp in factura.liquidacion.venta_producto_set.all %}
+            <tr>
+              <td>{{ vp.producto }}</td>
+              <td>{{ vp.cantidad|intcomma }}</td>
+              <td>{{ vp.precio|intcomma }}</td>
+              <td>{{ vp.total|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      {% if factura.detalles %}
+        <p><strong>* Detalles:</strong></p>
+        <p>
+          <ul>
+            {% for detalle in factura.detalles %}
+              <li>{{detalle}}</li>
+            {% endfor %}
+          </ul>
+        </p>
+      {% endif %}
+
+      {% if factura.descuentos %}
+        <p><strong>** Descuentos:</strong></p>
+        <p>
+          <ul>
+            {% for descuento in factura.descuentos %}
+              <li>{{descuento}}</li>
+            {% endfor %}
+          </ul>
+        </p>
+      {% endif %}
+
+
+      <div class="taxpayer-details group">
+        <div class="receipt-details">
+          <table>
+            <tr>
+              <th>Subtotal Comprobante:</th>
+              <th>{{ factura.suma_capitales|intcomma }}</th>
+            </tr>
+            <tr>
+              <th>Bonificaciones:</th>
+              <th>{% if factura.suma_bonificaciones %}-{{ factura.suma_bonificaciones|intcomma }}{% else %}0{% endif %}</th>
+            </tr>
+            <tr>
+              <th>Total del Comprobante:</th>
+              <th>{{ factura.receipt.total_amount|intcomma }}</th>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+
+    </div>
+  </body>
+</html>

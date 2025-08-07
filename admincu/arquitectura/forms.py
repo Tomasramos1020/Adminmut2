@@ -80,7 +80,7 @@ class gastoForm(FormControl, forms.ModelForm):
 class cajaForm(FormControl, forms.ModelForm):
 	class Meta:
 		model = Caja
-		fields = ['nombre', 'entidad', 'saldo', 'fecha', 'cuenta_contable']
+		fields = ['nombre', 'entidad', 'saldo', 'fecha', 'cuenta_contable','convenio']
 
 		labels = {
 			'saldo' : "Saldo trasladable",
@@ -97,6 +97,15 @@ class cajaForm(FormControl, forms.ModelForm):
 		if self.instance.primario:
 			self.fields.pop('entidad')
 			self.fields.pop('cuenta_contable')
+
+		if 'convenio' in self.fields:
+			del self.fields['convenio']
+
+		if (consorcio and consorcio.convenios) or (self.instance.pk and self.instance.convenio):
+			self.fields['convenio'] = forms.BooleanField(
+		        required=False,
+				label='Convenio'
+		 )
 
 
 class dominioForm(FormControl, forms.ModelForm):

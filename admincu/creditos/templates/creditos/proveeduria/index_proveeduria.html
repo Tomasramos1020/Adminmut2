@@ -1,0 +1,101 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+{% load humanize %}
+
+{% block titulo %}
+  Recursos
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="Recursos" %}
+{% endblock %}
+
+{% block header %}
+  Modulo Ventas Proveeduria
+{% endblock %}
+
+{% block contenido %}
+  <div class="row">
+    <div class="col-md-3">
+      {% include 'creditos/proveeduria/barra_proveeduria.html' %}
+    </div>
+
+    <div class="col-md-9">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="card-box widget-box-four">
+                <div class="wigdet-four-content pull-left">
+                  <h3 class="m-b-0 m-t-0 text-overflow" title="Total Revenue">Portal ventas de proveeduria</h3>
+                  <p class="font-secondary text-muted m-b-0 m-t-20">Utiliza el portal para generar comprobantes de proveeduria para los asociados y encontrá los registros de los generados.</p>                  
+                </div>
+                <div class="clearfix"></div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+          <div class="card-box widget-box-four">
+            <div class="pull-right">
+              <img src="{% static 'assets/images/icons/sales_performance.svg' %}" height="80">
+            </div>
+              <div class="wigdet-four-content pull-left">
+                <h4 class="m-t-0 font-16 m-b-5 text-overflow" title="Total Revenue">Saldos pendientes a la fecha</h4>
+                <p class="font-secondary text-muted">{% now "d/m/Y" %}</p>
+                <h3 class="m-b-0 m-t-20">${{saldo|intcomma}}</h3>
+              </div>
+              <div class="clearfix"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="panel panel-border panel-info">
+            <div class="panel-heading">
+              <h3 class="panel-title">Ultimas liquidaciones de facturas generadas</h3>
+            </div>
+            <div class="panel-body">
+              <div class="table-responsive">
+                {% include 'creditos/registros/tabla-liquidaciones-proveeduria.html' with liquidaciones=lista  %}
+                <a href="{% url 'registro de liquidaciones' %}" class="btn btn-link btn-block">Ver mas</a>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+{% endblock %}
+
+{% block js %}
+  {% if ultima_liquidacion %}
+    <script src='{% static "plugins/jquery-sparkline/jquery.sparkline.min.js" %}'></script>
+    <script>
+
+      $( document ).ready(function() {
+
+        var DrawSparkline = function() {
+            $('#grafico').sparkline([{{ultima_liquidacion.cobrado.0|floatformat}}, {{ultima_liquidacion.cobrado.1|floatformat}}], {
+                type: 'pie',
+                width: '80',
+                height: '80',
+                sliceColors: ['#ec6794', '#5553ce']
+            });
+        }
+
+        DrawSparkline();
+
+        var resizeChart;
+
+        $(window).resize(function(e) {
+          clearTimeout(resizeChart);
+          resizeChart = setTimeout(function() {
+            DrawSparkline();
+          }, 300);
+        });
+      });
+    </script>
+  {% endif %}
+{% endblock %}

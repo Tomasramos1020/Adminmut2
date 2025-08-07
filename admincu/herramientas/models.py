@@ -106,11 +106,12 @@ class Transferencia(models.Model):
 	def hacer_pdf_inst(self):
 		"""Genera PDF de la transferencia y lo devuelve como bytes sin guardarlo en media."""
 		transferencia = self
+		es_recibo = any(caja.origen.convenio for caja in transferencia.cajatransferencia_set.all())
 		html_string_pdf = render_to_string('herramientas/transferencias/pdf/transferencia.html', locals())
 		html = HTML(string=html_string_pdf, base_url='https://www.admincu.com/herramientas/')
 		pdf_bytes = html.write_pdf()
 		return pdf_bytes
-
+ 
 	# def hacer_pdf(self):
 	# 	if not self.pdf:
 	# 		transferencia = self

@@ -4,12 +4,20 @@ from django.urls import reverse_lazy
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.forms.utils import ErrorList
+from django_afip.models import *
+from django.db import transaction
+from contabilidad.asientos.funciones import asiento_deuda
 
 
 from .models import *
 from consorcios.models import *
 from admincu.funciones import *
 from .forms import *
+from django.http import JsonResponse
+from django.views.generic import View
+from op.models import Deuda, GastoDeuda
+from arquitectura.models import Gasto, Acreedor
+
 
 
 
@@ -27,13 +35,17 @@ class Index(generic.TemplateView):
 		productos = Producto.objects.filter(consorcio=consorcio(self.request)).count()
 		depositos = Deposito.objects.filter(consorcio=consorcio(self.request)).count()
 		stock = Stock.objects.filter(consorcio=consorcio(self.request)).count()
-		transporte = Transporte.objects.filter(consorcio=consorcio(self.request)).count()
+		transportes = Transporte.objects.filter(consorcio=consorcio(self.request)).count()
 		notas_pedido = Notas_Pedido.objects.filter(consorcio=consorcio(self.request)).count()
 		comp_venta = Comp_Venta.objects.filter(consorcio=consorcio(self.request)).count()
 		consol_carga = Consol_Carga.objects.filter(consorcio=consorcio(self.request)).count()
-		guia_distri = Guia_Distri.objects.filter(consorcio=consorcio(self.request)).count()
-		informe = Informe.objects.filter(consorcio=consorcio(self.request)).count()
-		recibo_provee = Recibo_Provee.objects.filter(consorcio=consorcio(self.request)).count()
+		guias_distri = Guia_Distri.objects.filter(consorcio=consorcio(self.request)).count()
+		informes = Informe.objects.filter(consorcio=consorcio(self.request)).count()
+		recibos_provee = Recibo_Provee.objects.filter(consorcio=consorcio(self.request)).count()
+		rubros = Rubro.objects.filter(consorcio=consorcio(self.request)).count()
+		proveedores_proveeduria = Proveedor_proveeduria.objects.filter(consorcio=consorcio(self.request)).count()
+		vendedores = Vendendor.objects.filter(consorcio=consorcio(self.request)).count()
+		context.update(locals())
 		return context
 
 PIVOT = {
@@ -48,6 +60,9 @@ PIVOT = {
 	'Guia_Distri': ['Guia de Distribucion', guia_distriForm],
 	'Informe': ['Informes', informeForm],
 	'Recibo_Provee': ['Recibos de Proveedores', recibo_proveeForm],
+	'Rubro': ['Rubros de Productos', rubroForm],
+	'Proveedor_proveeduria':['Proveedor de Proveeduria', proveedor_proveeduriaForm],
+	'Vendendor':['Vendedores', vendedorForm]	
 
 
 }
@@ -61,8 +76,11 @@ class Listado(generic.ListView):
 	template_name = 'elemento.html'
 
 	def get_queryset(self, **kwargs):
-		objetos = eval(self.kwargs['modelo']).objects.filter(
-			consorcio=consorcio(self.request), nombre__isnull=False)
+		evaluacion = self.kwargs['modelo']
+		if evaluacion == 'Stock':
+			objetos = Producto.objects.filter(consorcio=consorcio(self.request), nombre__isnull=False)
+		else:
+			objetos = eval(evaluacion).objects.filter(consorcio=consorcio(self.request), nombre__isnull=False)
 		return objetos
 
 	def get_context_data(self, **kwargs):
@@ -145,3 +163,232 @@ class Instancia(HeaderExeptMixin, Crear, generic.UpdateView):
 
 
 # Create your views here.
+
+
+class CrearOperacionView(View):
+	template_name = 'crear_operacion.html'
+
+	def get_form_kwargs(self):
+		return {
+			'request': self.request,
+			**self.request.POST.dict(),
+		}
+
+	def get(self, request):
+		form = OperacionForm(request=self.request)
+		formset = VentaProductoFormSet(queryset=Venta_Producto.objects.none())
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+	def post(self, request):
+		form = OperacionForm(request.POST, request=request)
+		formset = VentaProductoFormSet(request.POST)
+
+		if form.is_valid() and formset.is_valid():
+			socio = form.cleaned_data['socio']
+			sucursal = form.cleaned_data['sucursal']
+			fecha = form.cleaned_data['fecha']
+			transporte = form.cleaned_data['transporte']
+			deposito = form.cleaned_data['deposito']
+			vendedor = form.cleaned_data['vendedor']
+			punto = form.cleaned_data['punto_venta']
+
+			cons = consorcio(request)
+
+			capital = Decimal('0.00')
+			for linea in formset:
+				if linea.cleaned_data:
+					precio = linea.cleaned_data.get('precio') or 0
+					cantidad = linea.cleaned_data.get('cantidad') or 0
+					capital += precio * cantidad
+
+			# Crear liquidación
+			liquidacion = Liquidacion.objects.create(
+				consorcio=cons,
+				punto=punto,
+				capital=capital, 
+				fecha=fecha,
+				estado='confirmado'
+			)
+
+			# Crear factura
+			receipt = Receipt.objects.create(
+				point_of_sales=punto,
+				receipt_type=ReceiptType.objects.get(code=101),
+				concept=ConceptType.objects.get(code=1),
+				document_type= socio.tipo_documento,
+				document_number=socio.numero_documento,
+				issued_date=fecha,
+				net_untaxed=0,
+				exempt_amount=0,
+				expiration_date=fecha,
+				currency=CurrencyType.objects.get(code="PES"),
+				service_start = fecha,
+				service_end = fecha,
+				total_amount = capital,
+				net_taxed = capital
+			)
+			factura = Factura.objects.create(
+				consorcio=cons,
+				receipt = receipt,
+				liquidacion = liquidacion,
+				socio=socio,
+			)
+
+			# Crear crédito
+			credito = Credito.objects.create(
+				consorcio=cons,
+				socio=socio,
+				factura=factura,
+				liquidacion=liquidacion,
+				fecha=fecha,
+				detalle='Venta Proveeduría',
+				periodo = fecha,
+				ingreso = Ingreso.objects.get(consorcio=cons, es_proveeduria=True),
+				capital = capital,
+			)
+
+			# Crear comprobante de venta
+			comp_venta = Comp_Venta.objects.create(
+				consorcio=cons,
+				sucursal=sucursal,
+				nombre="Venta Proveeduría",
+				vendedor=vendedor,
+				deposito=deposito,
+				transporte=transporte, 
+				fecha_entrega=fecha,
+				factura=factura,
+				liquidacion=liquidacion
+			)
+
+			# Crear líneas de productos
+			for linea in formset:
+				if linea.cleaned_data:
+					vp = linea.save(commit=False)
+					vp.consorcio = cons
+					vp.sucursal = sucursal
+					vp.credito = credito
+					vp.liquidacion = liquidacion
+					vp.save()
+
+					# Registrar movimiento de stock (salida)
+					ms = MovimientoStock.objects.create(
+						venta_producto = vp,
+						producto= vp.producto,
+						deposito= deposito,
+						cantidad= -vp.cantidad,
+						fecha = fecha,
+					)
+
+			factura.validar_factura()
+
+			liquidacion.hacer_asiento()
+
+			return redirect('facturacion-proveeduria')
+
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+
+
+def obtener_sucursales(request):
+	socio_id = request.GET.get('socio_id')
+	data = []
+	if socio_id:
+		sucursales = Sucursal.objects.filter(socio_id=socio_id)
+		data = [{'id': s.id, 'nombre': s.nombre} for s in sucursales]
+	return JsonResponse({'sucursales': data})
+
+def obtener_precio_producto(request):
+	producto_id = request.GET.get('producto_id')
+	try:
+		producto = Producto.objects.get(id=producto_id)
+		return JsonResponse({'precio_1': float(producto.precio_1)})
+	except Producto.DoesNotExist:
+		return JsonResponse({'precio_1': 0})
+
+
+class CrearCompraView(View):
+	template_name = 'crear_compra.html'  # deberás crear este template basado en el de operación
+
+	def get_form_kwargs(self):
+		return {
+			'request': self.request,
+			**self.request.POST.dict(),
+		}
+
+	def get(self, request):
+		form = CompraForm(request=self.request)
+		formset = CompraProductoFormSet(queryset=Compra_Producto.objects.none())
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+	@transaction.atomic
+	def post(self, request):
+		form = CompraForm(request.POST, request=request)
+		formset = CompraProductoFormSet(request.POST)
+
+		if form.is_valid() and formset.is_valid():
+			cons = consorcio(request)
+			acreedor = form.cleaned_data['acreedor']
+			fecha = form.cleaned_data['fecha']
+			numero = form.cleaned_data['numero']
+			observacion = form.cleaned_data.get('observacion')
+			deposito = form.cleaned_data['deposito']
+
+			total = Decimal('0.00')
+			compras_creadas = []
+
+			for linea in formset:
+				if linea.cleaned_data:
+					precio = linea.cleaned_data.get('precio') or 0
+					cantidad = linea.cleaned_data.get('cantidad') or 0
+					total += precio * cantidad
+
+			# Validar deuda repetida
+			if Deuda.objects.filter(numero=numero, acreedor=acreedor).exists():
+				messages.error(request, "Ya existe una deuda con ese número y acreedor.")
+				return redirect('deudas')
+
+			# Crear deuda
+			deuda = Deuda.objects.create(
+				consorcio=cons,
+				acreedor=acreedor,
+				numero=numero,
+				fecha=fecha,
+				total=total,
+				observacion=observacion,
+				confirmado=True  # o False, si querés confirmación manual
+			)
+
+			for linea in formset:
+				if linea.cleaned_data:
+					compra = linea.save(commit=False)
+					compra.consorcio = cons
+					compra.save()
+					compras_creadas.append(compra)
+
+					# MovimientoStock (entrada)
+					MovimientoStock.objects.create(
+						producto=compra.producto,
+						deposito=deposito,
+						cantidad=compra.cantidad,
+						compra_producto=compra,
+						fecha=fecha
+					)
+
+					# GastoDeuda
+					gasto_default = Gasto.objects.get(consorcio=cons, es_proveeduria=True)
+					if not gasto_default:
+						messages.error(request, f"No hay gastos de proveeduria asociados a la mutual {acreedor}.")
+						raise Exception("Gasto faltante")
+
+					GastoDeuda.objects.create(
+						deuda=deuda,
+						gasto=gasto_default,
+						valor=compra.total,
+						fecha = fecha
+					)
+			asiento = asiento_deuda(deuda)
+			
+			messages.success(request, "Compra y deuda creadas correctamente.")
+			return redirect('deudas')
+
+		return render(request, self.template_name, {'form': form, 'formset': formset})
