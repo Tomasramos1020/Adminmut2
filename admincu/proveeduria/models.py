@@ -157,16 +157,20 @@ class Comp_Venta(models.Model):
 	transporte = models.ForeignKey(Transporte, on_delete=models.CASCADE, blank=True, null=True)
 	fecha_entrega = models.DateField(blank=True, null=True)
 	factura = models.ForeignKey(Factura, on_delete=models.CASCADE, blank=True, null=True)
-	liquidacion = models.ForeignKey(Liquidacion, blank=True, null=True, on_delete=models.CASCADE)		
+	liquidacion = models.ForeignKey(Liquidacion, blank=True, null=True, on_delete=models.CASCADE)
+	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.CASCADE)
+
 
 class Venta_Producto(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
-	sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+	sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, blank=True, null=True)
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
 	precio = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)
 	cantidad = models.IntegerField(blank=True, null=True)
 	credito = models.ForeignKey(Credito, on_delete=models.CASCADE)
 	liquidacion = models.ForeignKey(Liquidacion, blank=True, null=True, on_delete=models.CASCADE)
+	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.CASCADE)
+
 
 	@property
 	def total(self):

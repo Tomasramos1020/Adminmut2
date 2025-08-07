@@ -206,7 +206,7 @@ class vendedorForm(FormControl, forms.ModelForm):
 
 class OperacionForm(forms.Form):
 	socio = forms.ModelChoiceField(queryset=None)
-	sucursal = forms.ModelChoiceField(queryset=None)
+	sucursal = forms.ModelChoiceField(queryset=None, required=False)
 	fecha = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
 	transporte = forms.ModelChoiceField(queryset=None)
 	deposito = forms.ModelChoiceField(queryset=None)

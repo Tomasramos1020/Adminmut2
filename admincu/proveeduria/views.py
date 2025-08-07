@@ -250,6 +250,7 @@ class CrearOperacionView(View):
 			# Crear comprobante de venta
 			comp_venta = Comp_Venta.objects.create(
 				consorcio=cons,
+				socio=socio,
 				sucursal=sucursal,
 				nombre="Venta Proveeduría",
 				vendedor=vendedor,
@@ -265,6 +266,7 @@ class CrearOperacionView(View):
 				if linea.cleaned_data:
 					vp = linea.save(commit=False)
 					vp.consorcio = cons
+					vp.socio = socio
 					vp.sucursal = sucursal
 					vp.credito = credito
 					vp.liquidacion = liquidacion
