@@ -85,6 +85,7 @@ class Caja(models.Model):
 	fecha = models.DateField(blank=True, null=True)
 	saldo = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
 	cuenta_contable = models.ForeignKey(Cuenta, on_delete=models.CASCADE)
+	convenio = models.BooleanField(default=False)
 
 	def __str__(self):
 		nombre = self.nombre
@@ -258,6 +259,8 @@ class Gasto(models.Model):
 	primario = models.BooleanField(default=False)
 	nombre = models.CharField(max_length=50)
 	cuenta_contable = models.ForeignKey(Cuenta, on_delete=models.CASCADE)
+	es_proveeduria = models.BooleanField(default=False)
+
 
 	def __str__(self):
 		return self.nombre
