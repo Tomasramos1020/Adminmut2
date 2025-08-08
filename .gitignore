@@ -1,5 +1,45 @@
-database/
-*.pyc
-media/
+
+# Archivos de configuración local
 .env
+*.env
+admincu/admincu/settings_local.py
+
+# Archivos y carpetas de medios
+media/
+database/
+
+# Python cache
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
+
+# Entornos virtuales
 env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Archivos temporales
+*.log
+*.pot
+*.py[cod]
+*.swp
+*~
+
+# Archivos de compilación
+build/
+dist/
+
+# Configuración de IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
