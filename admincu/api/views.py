@@ -85,7 +85,7 @@ class EstadoCuentaViewSet(viewsets.ModelViewSet):
 
 class SocioViewSet(viewsets.ModelViewSet):
 	"""
-		Ver socios (Consulta OpenKey)
+		Ver socios (SoyMutual)
 	"""
 	http_method_names = ['get']
 #	permission_classes = [TokenValidationPermission]  # Aplica el permiso de validación del token
@@ -95,6 +95,26 @@ class SocioViewSet(viewsets.ModelViewSet):
 			
 	def list(self, request):
 		queryset = Socio.objects.filter(consorcio__id=9)
+		serializer = SocioSerializer(queryset, many=True)
+		return Response(serializer.data)
+
+
+	def get_queryset(self, **kwargs):
+		return []
+
+
+class SocioSolidariaViewSet(viewsets.ModelViewSet):
+	"""
+		Ver socios (solidaria)
+	"""
+	http_method_names = ['get']
+#	permission_classes = [TokenValidationPermission]  # Aplica el permiso de validación del token
+
+
+
+			
+	def list(self, request):
+		queryset = Socio.objects.filter(consorcio__id=7)
 		serializer = SocioSerializer(queryset, many=True)
 		return Response(serializer.data)
 
