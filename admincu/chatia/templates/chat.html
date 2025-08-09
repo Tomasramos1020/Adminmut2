@@ -5,142 +5,67 @@
   <meta charset="UTF-8">
   <title>Chat con IA</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
     body {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       font-family: "Segoe UI", sans-serif;
       background-color: #efeae2;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+      display: flex; flex-direction: column; height: 100vh;
     }
-
-    .robot-flotante {
-      position: fixed;
-      top: 20px;
-      left: 20px;
-      width: 60px;
-      z-index: 1000;
-    }
-
-    /* Header fijo tipo WhatsApp */
     .encabezado-chat {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background-color: #128c7e;
-      padding: 10px 16px;
-      color: white;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      display: flex; align-items: center; gap: 12px;
+      background-color: #128c7e; padding: 10px 16px;
+      color: white; position: sticky; top: 0; z-index: 10;
+      box-shadow: 0 1px 2px rgba(0,0,0,.2);
     }
-
-    .avatar {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      object-fit: cover;
+    .avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
+    .info-usuario { display: flex; flex-direction: column; line-height: 1.2; }
+    .nombre { font-size: 1rem; font-weight: 500; }
+    .estado { font-size: .85rem; color: #d0f4ea; }
+    .tts-btn {
+      margin-left: auto; background: transparent; border: none;
+      font-size: 1.2rem; cursor: pointer; color: #fff; opacity: .9;
     }
-
-    .info-usuario {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-start;
-      line-height: 1.2;
-    }
-
-    .nombre {
-      font-size: 1rem;
-      font-weight: 500;
-    }
-
-    .estado {
-      font-size: 0.85rem;
-      font-weight: normal;
-      color: #d0f4ea;
-    }
+    .tts-btn:hover { opacity: 1; }
+    .tts-btn[aria-pressed="true"] { color: #d0f4ea; }
 
     #chat {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+      flex: 1; padding: 16px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 10px;
     }
-
     .mensaje {
-      max-width: 75%;
-      padding: 10px 14px;
-      border-radius: 7.5px;
-      font-size: 0.95rem;
-      line-height: 1.4;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      box-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+      max-width: 75%; padding: 10px 14px; border-radius: 7.5px;
+      font-size: .95rem; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word;
+      box-shadow: 0 1px 1px rgba(0,0,0,.1);
     }
-
-    .usuario {
-      align-self: flex-end;
-      background-color: #dcf8c6;
-      border-bottom-right-radius: 0;
-    }
-
-    .ia {
-      align-self: flex-start;
-      background-color: #ffffff;
-      border-bottom-left-radius: 0;
-    }
+    .usuario { align-self: flex-end; background: #dcf8c6; border-bottom-right-radius: 0; }
+    .ia { align-self: flex-start; background: #fff; border-bottom-left-radius: 0; }
 
     #input-area {
-      display: flex;
-      padding: 12px 16px;
-      background-color: #f0f0f0;
-      border-top: 1px solid #ccc;
+      display: flex; padding: 12px 16px; background: #f0f0f0; border-top: 1px solid #ccc;
     }
-
     #mensaje {
-      flex: 1;
-      resize: none;
-      padding: 10px 14px;
-      font-size: 1rem;
-      border: 1px solid #ccc;
-      border-radius: 20px;
-      outline: none;
+      flex: 1; resize: none; padding: 10px 14px; font-size: 1rem;
+      border: 1px solid #ccc; border-radius: 20px; outline: none;
     }
-
     button {
-      margin-left: 10px;
-      padding: 10px 18px;
-      font-size: 1rem;
-      background-color: #128c7e;
-      color: white;
-      border: none;
-      border-radius: 20px;
-      cursor: pointer;
-      transition: background-color 0.2s;
+      margin-left: 10px; padding: 10px 18px; font-size: 1rem;
+      background: #128c7e; color: #fff; border: none; border-radius: 20px; cursor: pointer;
+      transition: background-color .2s;
     }
-
-    button:hover {
-      background-color: #0c6f61;
-    }
+    button:hover { background: #0c6f61; }
   </style>
-</head> 
+</head>
 <body>
 
-  <!-- Encabezado tipo WhatsApp -->
+  <!-- Encabezado -->
   <header class="encabezado-chat">
     <img class="avatar" src="{% static 'assets/images/icons/robot.svg' %}" alt="Avatar">
     <div class="info-usuario">
       <div class="nombre">SolidarIA</div>
       <div class="estado">en línea</div>
     </div>
+    <button id="tts-toggle" class="tts-btn" title="Leer respuestas (TTS)" aria-pressed="false">🔇</button>
   </header>
 
   <!-- Chat -->
@@ -153,36 +78,176 @@
   </div>
 
   <script>
+    // ===== CSRF helper =====
     function getCookie(name) {
       let cookieValue = null;
       if (document.cookie && document.cookie !== '') {
         const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
+        for (let c of cookies) {
+          c = c.trim();
+          if (c.substring(0, name.length + 1) === (name + '=')) {
+            cookieValue = decodeURIComponent(c.substring(name.length + 1)); break;
           }
         }
       }
       return cookieValue;
     }
-
     const csrftoken = getCookie('csrftoken');
 
+    // ===== UI helpers =====
+    function appendBubble(texto, clase) {
+      const chat = document.getElementById('chat');
+      const burbuja = document.createElement('div');
+      burbuja.className = 'mensaje ' + clase;
+      burbuja.textContent = texto;
+      chat.appendChild(burbuja);
+      chat.scrollTop = chat.scrollHeight;
+    }
+    function appendTurno(item) {
+      if (item && typeof item === 'object') {
+        if ('from' in item && 'text' in item) {
+          appendBubble(item.text, item.from === 'user' ? 'usuario' : 'ia'); return;
+        }
+        if (item.user) appendBubble(item.user, 'usuario');
+        if (item.agent) appendBubble(item.agent, 'ia');
+      }
+    }
+    async function cargarHistorial() {
+      try {
+        const resp = await fetch('/chatia/history/', { method: 'GET' });
+        const data = await resp.json();
+        const lista = Array.isArray(data.history) ? data.history
+                    : Array.isArray(data.messages) ? data.messages : [];
+        document.getElementById('chat').innerHTML = '';
+        lista.forEach(appendTurno);
+      } catch (e) {
+        console.error('Error al cargar historial', e);
+      }
+    }
+
+    // ===== TTS: Google es-US, troceo y anti-cortes simple =====
+    let ttsEnabled = false;
+    let ttsVoice = null;
+    let queue = [];
+    let speaking = false;
+    let utterRefs = []; // evitar GC
+    const supportsTTS = ('speechSynthesis' in window) && ('SpeechSynthesisUtterance' in window);
+
+    function chooseVoice() {
+      const voices = window.speechSynthesis.getVoices() || [];
+      if (!voices.length) { setTimeout(chooseVoice, 200); return; }
+      // 1) Nombre exacto
+      let v = voices.find(v => v.name === 'Google español de Estados Unidos');
+      // 2) Idioma exacto es-US
+      if (!v) v = voices.find(v => (v.lang || '').toLowerCase() === 'es-us');
+      // 3) Cualquier español
+      if (!v) v = voices.find(v => /^es([-_]|$)/i.test(v.lang));
+      // 4) Primera disponible
+      ttsVoice = v || voices[0] || null;
+    }
+
+    if (supportsTTS) {
+      try { window.speechSynthesis.addEventListener('voiceschanged', chooseVoice); }
+      catch { window.speechSynthesis.onvoiceschanged = chooseVoice; }
+      chooseVoice();
+    }
+
+    function stopSpeak() {
+      try { window.speechSynthesis.cancel(); } catch {}
+      queue = [];
+      speaking = false;
+      utterRefs = [];
+    }
+
+    // Trocea a ~150 chars para minimizar cortes
+    function chunkText(text, maxLen = 150) {
+      const parts = [];
+      const sentences = text.replace(/\s+/g, ' ').split(/([\.!?¡¿…]+)\s+/);
+      let buf = '';
+      for (let i = 0; i < sentences.length; i += 2) {
+        const body = sentences[i] || '';
+        const end = sentences[i+1] || '';
+        const s = (body + (end ? end + ' ' : '')).trim();
+        if (!s) continue;
+
+        if ((buf + ' ' + s).trim().length <= maxLen) {
+          buf = (buf ? buf + ' ' : '') + s;
+        } else {
+          if (buf) parts.push(buf);
+          if (s.length <= maxLen) {
+            buf = s;
+          } else {
+            // cortar por palabras
+            let seg = '';
+            s.split(' ').forEach(w => {
+              if ((seg + ' ' + w).trim().length > maxLen) { parts.push(seg); seg = w; }
+              else { seg = (seg ? seg + ' ' : '') + w; }
+            });
+            buf = seg;
+          }
+        }
+      }
+      if (buf) parts.push(buf);
+      return parts;
+    }
+
+    function speakNext() {
+      if (!ttsEnabled || speaking) return;
+      const text = queue.shift();
+      if (!text) { speaking = false; return; }
+
+      const u = new SpeechSynthesisUtterance(text);
+      if (ttsVoice) u.voice = ttsVoice;
+      u.lang = (ttsVoice && ttsVoice.lang) || 'es-US';
+      u.rate = 0.98;
+      u.pitch = 1.05;
+      u.volume = 1;
+
+      // Mantener la referencia
+      utterRefs.push(u);
+
+      speaking = true;
+      u.onend = () => { speaking = false; utterRefs = utterRefs.filter(x => x !== u); speakNext(); };
+      u.onerror = () => { speaking = false; utterRefs = utterRefs.filter(x => x !== u); speakNext(); };
+
+      try { window.speechSynthesis.speak(u); }
+      catch { speaking = false; speakNext(); }
+    }
+
+    // “Keep-alive” simple para Chrome mobile (reanuda si pausa solo)
+    setInterval(() => {
+      if (!supportsTTS || !ttsEnabled) return;
+      try { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch {}
+      if (!window.speechSynthesis.speaking && queue.length && !speaking) speakNext();
+    }, 1000);
+
+    function speakText(text) {
+      if (!supportsTTS || !ttsEnabled || !text) return;
+      stopSpeak();                // cortar lo anterior
+      queue = chunkText(text, 150);
+      speakNext();
+    }
+
+    // Botón 🔊/🔇
+    (function () {
+      const btn = document.getElementById('tts-toggle');
+      if (!btn) return;
+      if (!supportsTTS) { btn.title = 'Tu navegador no soporta TTS'; btn.disabled = true; return; }
+      btn.addEventListener('click', () => {
+        ttsEnabled = !ttsEnabled;
+        btn.setAttribute('aria-pressed', String(ttsEnabled));
+        btn.textContent = ttsEnabled ? '🔊' : '🔇';
+        if (!ttsEnabled) stopSpeak();
+      });
+    })();
+
+    // ===== Envío de mensajes =====
     function enviarMensaje() {
       const textarea = document.getElementById('mensaje');
       const mensaje = textarea.value.trim();
       if (!mensaje) return;
 
-      const chat = document.getElementById('chat');
-
-      const userMessage = document.createElement('div');
-      userMessage.className = 'mensaje usuario';
-      userMessage.textContent = mensaje;
-      chat.appendChild(userMessage);
-      chat.scrollTop = chat.scrollHeight;
-
+      appendBubble(mensaje, 'usuario');
       textarea.value = '';
 
       fetch('/chatia/ajax/', {
@@ -193,30 +258,36 @@
         },
         body: 'mensaje=' + encodeURIComponent(mensaje)
       })
-      .then(response => response.json())
+      .then(r => r.json())
       .then(data => {
         if (data.respuesta) {
-          const iaMessage = document.createElement('div');
-          iaMessage.className = 'mensaje ia';
-          iaMessage.textContent = data.respuesta;
-          chat.appendChild(iaMessage);
-          chat.scrollTop = chat.scrollHeight;
+          appendBubble(data.respuesta, 'ia');
+          speakText(data.respuesta); // lectura con es-US si está
         } else if (data.error) {
-          alert("Error: " + data.error);
+          appendBubble('Error: ' + data.error, 'ia');
         }
       })
-      .catch(error => {
-        alert("Error al enviar mensaje");
-        console.error(error);
+      .catch(err => {
+        appendBubble('Error al enviar mensaje', 'ia');
+        console.error(err);
       });
     }
 
-    document.getElementById("mensaje").addEventListener("keydown", function (event) {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
+    document.getElementById('mensaje').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
         enviarMensaje();
       }
     });
+
+    document.addEventListener('visibilitychange', () => {
+      // Reanudar si el navegador pausó al cambiar de pestaña
+      if (document.visibilityState === 'visible' && supportsTTS && ttsEnabled) {
+        try { window.speechSynthesis.resume(); } catch {}
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', cargarHistorial);
   </script>
 
 </body>

@@ -1,9 +1,96 @@
 <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
 
-<li class="has-submenu">
-  <a href="#" onclick="window.open('{% url 'chatia' %}', 'chatiaWindow', 'width=500,height=600'); return false;">
+<li class="has-submenu chatia-item">
+  <a href="#" class="chatia-toggle" aria-haspopup="true" aria-expanded="false">
     <i class="bx bx-bot"></i> SolidarIA
   </a>
+
+  <!-- Submenú -->
+  <ul class="chatia-submenu" role="menu" aria-label="Opciones de SolidarIA">
+    <li role="none">
+      <a role="menuitem"
+         href="#"
+         onclick="window.open('{% url 'chatia' %}', 'chatiaWindow', 'width=500,height=600'); return false;">
+        <i class="bx bx-message-alt-detail"></i> Celebrar nuestra asamblea
+      </a>
+    </li>
+    <li role="none">
+      <a role="menuitem"
+         href="#"
+         onclick="window.open('{% url 'chatia' %}', 'chatiaWindow', 'width=500,height=600'); return false;">
+        <i class="bx bx-message-alt-detail"></i> Saber de nuestra historia mutual
+      </a>
+    </li>
+  </ul>
+  
 </li>
 
+<style>
+  /* Estilos mínimos y aislados para el submenú */
+  .chatia-item { position: relative; }
+  .chatia-toggle { display: flex; align-items: center; gap: 6px; }
+  .chatia-caret { font-size: 1rem; opacity: .8; }
 
+  .chatia-submenu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 220px;
+    margin: 6px 0 0;
+    padding: 8px;
+    list-style: none;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    border: 1px solid rgba(0,0,0,.06);
+    display: none;
+    z-index: 1000;
+  }
+  .chatia-submenu a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    color: inherit;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .chatia-submenu a:hover { background: #f5f7f9; }
+  .chatia-item.open > .chatia-submenu { display: block; }
+</style>
+
+<script>
+  (function () {
+    const menuItem = document.querySelector('.chatia-item');
+    if (!menuItem) return;
+
+    const toggle = menuItem.querySelector('.chatia-toggle');
+    const submenu = menuItem.querySelector('.chatia-submenu');
+
+    function openMenu() {
+      menuItem.classList.add('open');
+      toggle.setAttribute('aria-expanded', 'true');
+    }
+    function closeMenu() {
+      menuItem.classList.remove('open');
+      toggle.setAttribute('aria-expanded', 'false');
+    }
+    function toggleMenu(e) {
+      e.preventDefault();
+      menuItem.classList.contains('open') ? closeMenu() : openMenu();
+    }
+
+    toggle.addEventListener('click', toggleMenu);
+
+    // Cerrar al hacer click afuera
+    document.addEventListener('click', (e) => {
+      if (!menuItem.contains(e.target)) closeMenu();
+    });
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
+  })();
+</script>
