@@ -29,6 +29,11 @@
               <div class="col-md-3">
                 {% include 'resumenes/parametros/socios.html' %}
               </div>
+              {% if consorcio.convenios %}
+              <div class="col-md-3">
+                {% include 'resumenes/parametros/convenios.html' %}
+              </div>
+              {% endif %}
               <div class="col-md-3">
                 {% include 'resumenes/parametros/ingresos.html' %}
               </div>

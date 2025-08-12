@@ -35,7 +35,16 @@ def res_sp(request):
 
 	resumen = Resumen.objects.get(slug='saldos-pendientes-de-socios')
 	ingresos = Ingreso.objects.filter(id__in=request.POST.getlist('ingresos'))
-	socios = Socio.objects.filter(id__in=request.POST.getlist('socios'))
+
+	convenios_seleccionados = request.POST.getlist('convenios')
+	socios_ids = request.POST.getlist('socios')
+
+	if tiene_convenios and convenios_seleccionados:
+		# Tiene convenios y eligió al menos uno
+		socios = Socio.objects.filter(id__in=socios_ids, convenio__in=convenios_seleccionados)
+	else:
+		# No tiene convenios o no eligió ninguno
+		socios = Socio.objects.filter(id__in=socios_ids)
 
 
 	intereses = request.POST.get('intereses')
@@ -517,11 +526,11 @@ def res_edd(request):
 	total_saldo = sum(credito.saldo for credito in creditos)
 
 	return render(request, 'resumenes/estado-de-deuda/index.html', {
-    'resumen': resumen,
-    'socio': socio,
-    'fecha': fecha,
-    'creditos': creditos,
-    'context_type': 'estado_deuda',  # Nueva variable de contexto
+	'resumen': resumen,
+	'socio': socio,
+	'fecha': fecha,
+	'creditos': creditos,
+	'context_type': 'estado_deuda',  # Nueva variable de contexto
 	'total_saldo': total_saldo,
 	'consorcio': consorcio,
 	})

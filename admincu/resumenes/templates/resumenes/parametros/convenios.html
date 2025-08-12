@@ -1,0 +1,10 @@
+<label for="id_convenios">Convenios: </label>
+<select id="id_convenios" name="convenios" multiple=""  class="selector form-control">
+  {% spaceless %}
+    {% for s in consorcio.convenio.all %}
+        <option value="{{s.id}}">
+            {{s}}
+        </option>
+    {% endfor %}
+  {% endspaceless %}
+</select>
