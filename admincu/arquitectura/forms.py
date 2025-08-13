@@ -516,6 +516,104 @@ class clienteForm(FormControl, forms.ModelForm):
 		super().__init__(*args, **kwargs)
 		self.fields['tipo_documento'].required = True
 
+class ZonasPorCultivoForm(FormControl, forms.ModelForm):
+	class Meta:
+		model = ZonasPorCultivo
+		fields = [
+			'zona',
+			'cultivo',
+			'aporte_sin_siniestro',
+			'aporte_con_siniestro',
+			'franquicia',
+			'subsidio_maximo'
+			]
+		labels = {'zona':"Zona",
+			'cultivo':'Cultivo',
+			'aporte_sin_siniestro':'% Aporte sin siniestro',
+			'aporte_con_siniestro':'% Aporte con siniestro',
+			'franquicia':'Franquicia',
+			'subsidio_maximo':'Subsidio máximo'
+		}
+
+	def __init__(self, consorcio=None, *args, **kwargs):
+		self.consorcio = consorcio
+		super().__init__(*args, **kwargs)
+		self.fields['zona'].required = True
+		self.fields['cultivo'].required = True
+
+class CotizacionForm(FormControl, forms.ModelForm):
+	class Meta:
+		model = Cotizacion
+		fields = [
+			'fecha',
+			'producto',
+			'cotizacion',
+			'precio_flete',
+			'comision'
+		]
+		labels = {
+			'fecha':"Fecha",
+			'producto':'Producto',
+			'cotizacion':'Cotizacion',
+			'precio_flete':'Precio del flete',
+			'comision':'Comision'
+			}
+
+	def __init__(self, consorcio=None, *args, **kwargs):
+		self.consorcio = consorcio
+		super().__init__(*args, **kwargs)
+		self.fields['fecha'].required = True
+
+class EstablecimientoForm(FormControl, forms.ModelForm):
+	socio_1 = forms.ModelChoiceField(queryset=Socio.objects.none(), required=False, label="Dueño 1")
+	socio_2 = forms.ModelChoiceField(queryset=Socio.objects.none(), required=False, label="Dueño 2")
+	socio_3 = forms.ModelChoiceField(queryset=Socio.objects.none(), required=False, label="Dueño 3")
+	socio_4 = forms.ModelChoiceField(queryset=Socio.objects.none(), required=False, label="Dueño 4")
+	socio_5 = forms.ModelChoiceField(queryset=Socio.objects.none(), required=False, label="Dueño 5")
+
+	class Meta:
+		model = Establecimiento
+		fields = [
+			'nombre',
+			'dpto',
+			'gps',
+			'zona'
+			]
+		labels = {
+			'nombre':'Nombre',
+			'dpto':'Departamento',
+			'gps':'GPS',
+			'zona':'Zona'
+			}
+
+	def __init__(self, consorcio=None, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.consorcio = consorcio
+		if consorcio:
+			socios_qs = Socio.objects.filter(consorcio=consorcio)
+			for i in range(1, 6):
+				self.fields[f'socio_{i}'].queryset = socios_qs
+		if self.instance and self.instance.pk:
+			socios = list(self.instance.socio.all())
+			for i in range(min(5, len(socios))):
+				self.initial[f'socio_{i+1}'] = socios[i]
+	def save(self, commit=True):
+		instance = super().save(commit=False)
+		if commit:
+			instance.save()
+		socios = []
+		for i in range(1, 6):
+			socio = self.cleaned_data.get(f'socio_{i}')
+			if socio:
+				socios.append(socio)
+		if commit:
+			instance.socio.set(socios)
+		else:
+			self._pending_socios = socios
+		return instance
+	def save_m2m(self):
+		if hasattr(self, '_pending_socios'):
+			self.instance.socio.set(self._pending_socios)
 
 
 class hiddenForm(forms.ModelForm):

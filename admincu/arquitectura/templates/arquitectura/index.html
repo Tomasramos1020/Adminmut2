@@ -85,6 +85,23 @@
               </div>
             </a>
           </div>
+          {% if cons.fosea %}
+          <div class="col-md-6">
+            <a href="{% url 'parametro' modelo='Establecimiento' %}">
+              <div class="card-box widget-box-three ribbon-box">
+                <div class="bg-icon pull-left">
+                  <img src="{% static 'assets/images/icons/reading.svg' %}">
+                </div>
+                <div class="text-right">
+                  <p class="m-t-5 text-uppercase font-14 font-600">ESTABLECIMIENTOS</p>
+                  <h2 class="m-b-10"><span data-plugin="counterup">{{ establecimientos }}</span></h2>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
+
           {% if cons.convenios %}
           <div class="col-md-6">
             <a href="{% url 'parametro' modelo='Convenio' %}">
@@ -198,6 +215,37 @@
               </div>
             </a>
           </div>
+          {% if cons.fosea %}
+          <div class="col-md-6">
+            <a href="{% url 'parametro' modelo='Cotizacion' %}">
+              <div class="card-box widget-box-three ribbon-box">
+                <div class="bg-icon pull-left">
+                  <img src="{% static 'assets/images/icons/reading.svg' %}">
+                </div>
+                <div class="text-right">
+                  <p class="m-t-5 text-uppercase font-14 font-600">COTIZACIONES</p>
+                  <h2 class="m-b-10"><span data-plugin="counterup">{{ cotizaciones }}</span></h2>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+          {% if cons.fosea %}
+          <div class="col-md-6">
+            <a href="{% url 'parametro' modelo='ZonasPorCultivo' %}">
+              <div class="card-box widget-box-three ribbon-box">
+                <div class="bg-icon pull-left">
+                  <img src="{% static 'assets/images/icons/reading.svg' %}">
+                </div>
+                <div class="text-right">
+                  <p class="m-t-5 text-uppercase font-14 font-600">ZONAS POR CULTIVO</p>
+                  <h2 class="m-b-10"><span data-plugin="counterup">{{ zonas_cultivo }}</span></h2>
+                </div>
+              </div>
+            </a>
+          </div>
+          {% endif %}
+
 
         </div>
 

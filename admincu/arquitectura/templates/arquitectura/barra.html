@@ -7,6 +7,10 @@
   {% if consorcio.convenios %}
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Convenio' %}">Convenios</a>
   {% endif %}
+  {% if consorcio.fosea %}
+  <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Establecimiento' %}">Establecimientos</a>
+  {% endif %}
+
   <a class="btn btn-block btn-bordered btn-default m-b-25" href="{% url 'parametro' modelo='Tipo_asociado' %}">Categorias de Asociados</a>
 
 </div>
@@ -17,6 +21,10 @@
 
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Gasto' %}" >Gastos</a>
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Ingreso' %}">Recursos</a>
+  {% if consorcio.fosea %}
+  <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='ZonasPorCultivo' %}">Zonas por cultivo</a>
+  <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Cotizacion' %}">Cotizacion</a>
+  {% endif %}
   <a class="btn btn-block btn-bordered btn-default m-b-25" href="{% url 'parametro' modelo='Punto' %}">Puntos de Gestion</a>
   
 </div>

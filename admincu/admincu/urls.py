@@ -35,6 +35,7 @@ urlpatterns = [
     path('herramientas/', include('herramientas.urls')),
     path('proveeduria/', include('proveeduria.urls')),
     path('chatia/', include('chatia.urls')),
+    path('fosea/', include('fosea.urls')),
     path('api/', include('api.urls'))
 
 ]

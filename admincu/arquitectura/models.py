@@ -17,6 +17,8 @@ from weasyprint import HTML
 from consorcios.models import *
 from contabilidad.models import *
 from datetime import datetime
+from decimal import Decimal
+
 
 
 
@@ -766,4 +768,71 @@ class Servicio_mutual(models.Model):
 	def __str__(self):
 		return self.nombre
 
+class Zona(models.Model):
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	nombre = models.CharField(max_length=300)
 
+	def __str__(self):
+		return self.nombre
+
+class Cultivo(models.Model):
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	nombre = models.CharField(max_length=300)
+
+	def __str__(self):
+		return self.nombre
+
+class ZonasPorCultivo(models.Model):
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	zona = models.ForeignKey('Zona', on_delete=models.CASCADE)
+	cultivo = models.ForeignKey('Cultivo', on_delete=models.CASCADE)
+	aporte_sin_siniestro = models.DecimalField("Aporte sin siniestro (%)", max_digits=5, decimal_places=2, default=Decimal('0.00'))
+	aporte_con_siniestro = models.DecimalField("Aporte con siniestro (%)", max_digits=5, decimal_places=2, default=Decimal('0.00'))
+	franquicia = models.DecimalField("Franquicia (%)", max_digits=5, decimal_places=2, default=Decimal('0.00'))
+	subsidio_maximo = models.DecimalField("Subsidio máximo", max_digits=10, decimal_places=2, default=Decimal('0.00'))
+
+	class Meta:
+		verbose_name = "Zona por Cultivo"
+		verbose_name_plural = "Zonas por Cultivo"
+		unique_together = ('zona', 'cultivo')  # Para evitar duplicados
+
+	def __str__(self):
+		return f"{self.zona} - {self.cultivo}"
+
+class Cotizacion(models.Model):
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)	
+	fecha = models.DateField("Fecha")
+	producto = models.ForeignKey('Cultivo', on_delete=models.CASCADE)
+	cotizacion = models.DecimalField("Cotización", max_digits=10, decimal_places=2, default=Decimal('0.00'))
+	precio_flete = models.DecimalField("Precio Flete", max_digits=10, decimal_places=2, default=Decimal('0.00'))
+	comision = models.DecimalField("Comisión (%)", max_digits=5, decimal_places=2, default=Decimal('0.00'))
+
+	class Meta:
+		verbose_name = "Cotización"
+		verbose_name_plural = "Cotizaciones"
+		ordering = ['-fecha']
+
+	def __str__(self):
+		return f"{self.producto} - {self.fecha}"
+
+class Establecimiento(models.Model):
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	socio = models.ManyToManyField('Socio', related_name='establecimientos')
+	nombre = models.CharField("Nombre", max_length=255)
+	dpto = models.CharField("Departamento", max_length=100)
+	gps = models.CharField("Ubicación GPS", max_length=100, blank=True, null=True)
+	zona = models.ForeignKey('Zona', on_delete=models.CASCADE)
+
+	class Meta:
+		verbose_name = "Establecimiento"
+		verbose_name_plural = "Establecimientos"
+
+	def __str__(self):
+		return f"{self.nombre} - {self.socio}"
+
+class Campaña(models.Model):
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	nombre = models.CharField(max_length=300)
+
+	def __str__(self):
+		return self.nombre

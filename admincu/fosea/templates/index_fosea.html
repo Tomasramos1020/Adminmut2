@@ -1,0 +1,85 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+{% load humanize %}
+
+{% block titulo %}
+  Fosea
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="cobranzas" %}
+{% endblock %}
+
+{% block header %}
+  Modulo Fosea  
+{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-md-3">
+    {% include 'barra_fosea.html' %}
+  </div>
+
+  <div class="col-md-9">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card-box widget-box-four">
+          <div class="wigdet-four-content pull-left">
+            <h3 class="m-b-0 m-t-0 text-overflow" title="Portal Fosea">Portal de Fosea</h3>
+            <p class="font-secondary text-muted m-b-0 m-t-20">
+              Utiliza el portal para generar cotizaciones y para crear solicitudes y siniestros para los asociados y encontrá los registros de los generados.
+            </p>                  
+          </div>
+          <div class="clearfix"></div>
+        </div>
+      </div>
+
+      <div class="col-md-6">
+        <div class="card-box widget-box-four">
+          {% with filter.qs|first as sol %}
+            {% if sol %}
+              <div class="pull-right">
+                <img src="{% static 'assets/images/icons/document.svg' %}" height="80" alt="doc">
+              </div>
+              <div class="wigdet-four-content pull-left">
+                <h4 class="m-t-0 font-16 m-b-5 text-overflow" title="Última solicitud">Última solicitud</h4>
+                <p class="font-secondary text-muted">
+                  <strong>Socio: </strong>{{ sol.socio }} <br>
+                  <strong>Fecha: </strong>{{ sol.fecha|date:"d/m/Y" }} <br>
+                  <strong>Líneas: </strong>{{ sol.lineas.count }}
+                </p>
+                <h3 class="m-b-0">
+                  <a href="{% url 'solicitud_editar' sol.pk %}">
+                    Solicitud #{{ sol.id }}
+                  </a>
+                </h3>
+              </div>
+              <div class="clearfix"></div>
+            {% else %}
+              <p>Aún no hay solicitudes.</p>
+            {% endif %}
+          {% endwith %}
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-12">
+        <div class="panel panel-border panel-info">
+          <div class="panel-heading">
+            <h3 class="panel-title">Últimas solicitudes generadas</h3>
+          </div>
+          <div class="panel-body">
+            <div class="table-responsive">
+              {% include 'registros/tabla-solicitudes.html' with solicitudes=lista %}
+              <a href="{% url 'registro' %}" class="btn btn-link btn-block">Ver más</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

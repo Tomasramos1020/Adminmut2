@@ -1,0 +1,104 @@
+{% load static %}
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Solicitud {{ solicitud.id }}</title>
+  {# Usá tu CSS si querés replicar el estilo de factura #}
+  <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+  <style>
+    /* Estilos mínimos por si no cargás el CSS externo */
+    body { font-family: sans-serif; font-size: 12px; }
+    .receipt { padding: 12px; }
+    header { margin-bottom: 10px; }
+    .group { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    address { font-style: normal; line-height: 1.3; }
+    .receipt-type { text-align: center; min-width: 80px; }
+    .receipt-type .identifier { font-size: 22px; border: 2px solid #000; padding: 6px 10px; display: inline-block; }
+    .receipt-details { text-align: right; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #999; padding: 6px; vertical-align: top; }
+    th { background: #f0f0f0; }
+    .muted { color: #666; font-size: 11px; }
+    footer { margin-top: 14px; font-size: 11px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="receipt">
+
+    <header>
+      <div class="taxpayer-details group">
+        <address>
+          {% if solicitud.consorcio.contribuyente.extras %}
+            <img src="{{ solicitud.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+          {% else %}
+            <h3>{{ solicitud.consorcio.nombre_completo }}</h3>
+          {% endif %}
+          {{ solicitud.consorcio.domicilio }}<br>
+          {{ solicitud.consorcio.provincia }}
+        </address>
+
+        <div class="receipt-type">
+          <div class="identifier">S</div>
+          <div class="code">Solicitud</div>
+        </div>
+
+        <div class="receipt-details">
+          <div class="receipt-type-description">SOLICITUD</div>
+          <strong>Nº</strong> {{ solicitud.id }}<br>
+          {{ solicitud.fecha|date:"d/m/Y" }}<br>
+          <small>
+            C.U.I.T.: {{ solicitud.consorcio.cuit }}<br>
+            Ingresos Brutos: Exento<br>
+            Inicio de actividad: {{ solicitud.consorcio.contribuyente.active_since|date:"d/m/Y" }}
+          </small>
+        </div>
+      </div>
+
+      <hr>
+
+      <div class="client">
+        <div class="client-data">
+          <strong>ASOCIADO:</strong> {{ solicitud.socio }}<br>
+          <strong>Documento:</strong> {{ solicitud.socio.tipo_documento }} {{ solicitud.socio.numero_documento }}<br>
+          <strong>N° de Asociado:</strong> {{ solicitud.socio.numero_asociado }}<br>
+          <strong>Campaña:</strong> {{ solicitud.campaña }}<br>
+          <strong>Suscripción por hectárea:</strong> $ {{ solicitud.suscripcion|floatformat:2|intcomma }}
+        </div>
+      </div>
+
+      <hr>
+    </header>
+
+    <p><strong>Detalle de líneas:</strong></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Establecimiento</th>
+          <th>Cultivo</th>
+          <th>Hectáreas</th>
+          <th>Participación %</th>
+          <th>Subsidio máx.</th>
+          <th>Aporte máx. %</th>
+          <th>Aporte total (QQ)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lineas %}
+          <tr>
+            <td>{{ l.establecimiento.nombre }}</td>
+            <td>{{ l.cultivo }}</td>
+            <td style="text-align:right">{{ l.hectarea|floatformat:2 }}</td>
+            <td style="text-align:right">{{ l.participacion|floatformat:2 }}</td>
+            <td style="text-align:right">{{ l.subsidio_max|floatformat:2 }}</td>
+            <td style="text-align:right">{{ l.aporte_max|floatformat:2 }}</td>
+            <td style="text-align:right">{{ l.aporte_total_qq|floatformat:2 }}</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7">Sin líneas.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="taxpayer-details group" style="margin-top:10px;">

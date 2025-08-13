@@ -43,6 +43,9 @@ class Consorcio(models.Model):
 	matricula = models.CharField(max_length=50, blank=True, null=True)
 	es_federacion = models.BooleanField(default=False)
 	convenios = models.BooleanField(default=False)
+	chatia = models.BooleanField(default=False)
+	fosea = models.BooleanField(default=False)
+
 
 
 	def __str__(self):
@@ -64,14 +67,14 @@ class Consorcio(models.Model):
 			return self.dominio_set.all().count()
 
 	def cuit(self):
-	    numero = str(self.contribuyente.cuit)
-	    if len(numero) != 11:
-	        return numero
-	    return '{}-{}-{}'.format(
-	        numero[0:2],
-	        numero[2:10],
-	        numero[10:11]
-	    )
+		numero = str(self.contribuyente.cuit)
+		if len(numero) != 11:
+			return numero
+		return '{}-{}-{}'.format(
+			numero[0:2],
+			numero[2:10],
+			numero[10:11]
+		)
 
 
 class Tipo_Ocupante(models.Model):

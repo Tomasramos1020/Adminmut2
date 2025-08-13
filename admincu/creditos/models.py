@@ -454,14 +454,15 @@ class Factura(models.Model):
 				).aggregate(Max('receipt_number'))['receipt_number__max'] or 0
 				self.receipt.receipt_number = last + 1
 				self.receipt.save()	
-				self.hacer_pdf()
+#				self.hacer_pdf()
 		else:
 			error = self.receipt.validate()
 			if error:
 				self.observacion = error
 				self.save()
 			else:
-				self.hacer_pdf()
+				pass
+				# self.hacer_pdf()
 
 	@property
 	def suma_capitales(self):

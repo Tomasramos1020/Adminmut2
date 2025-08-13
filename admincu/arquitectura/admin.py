@@ -84,12 +84,42 @@ class GrupoAdmin(admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
 	list_filter = ['consorcio']
 
+class ZonaAdmin(admin.ModelAdmin):
+	list_display = ['__str__', 'consorcio']
+	list_filter = ['consorcio']
+
+class CultivoAdmin(admin.ModelAdmin):
+	list_display = ['__str__', 'consorcio']
+	list_filter = ['consorcio']
+
+class ZonasPorCultivoAdmin(admin.ModelAdmin):
+	list_display = ['__str__', 'consorcio']
+	list_filter = ['consorcio']
+
+class CotizacionAdmin(admin.ModelAdmin):
+	list_display = ['__str__', 'consorcio']
+	list_filter = ['consorcio']
+
+class EstablecimientoAdmin(admin.ModelAdmin):
+	list_display = ['__str__', 'consorcio']
+	list_filter = ['consorcio']
+
+class CampañaAdmin(admin.ModelAdmin):
+	list_display = ['__str__', 'consorcio']
+	list_filter = ['consorcio']
+
 
 admin.site.register(Acreedor, AcreedorAdmin)
 admin.site.register(Caja, CajaAdmin)
 admin.site.register(Gasto, GastoAdmin)
 admin.site.register(Ingreso, IngresoAdmin)
 admin.site.register(Grupo, GrupoAdmin)
+admin.site.register(Zona, ZonaAdmin)
+admin.site.register(Cultivo, CultivoAdmin)
+admin.site.register(ZonasPorCultivo, ZonasPorCultivoAdmin)
+admin.site.register(Cotizacion, CotizacionAdmin)
+admin.site.register(Establecimiento, EstablecimientoAdmin)
+admin.site.register(Campaña, CampañaAdmin)
 admin.site.register(Relacion)
 admin.site.register(Accesorio)
 

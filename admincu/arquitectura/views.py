@@ -67,6 +67,14 @@ class Index(generic.TemplateView):
 			consorcio=consorcio(self.request), baja__isnull=True).count()
 		clientes = Socio.objects.filter(
 			consorcio=consorcio(self.request), es_socio=False, baja__isnull=True).count()
+		zonas_cultivo = ZonasPorCultivo.objects.filter(
+			consorcio=consorcio(self.request)).count()
+		cotizaciones = Cotizacion.objects.filter(
+			consorcio=consorcio(self.request)).count()
+		establecimientos = Establecimiento.objects.filter(
+			consorcio=consorcio(self.request)).count()
+		
+		
 		context.update(locals())
 		return context
 
@@ -82,6 +90,9 @@ PIVOT = {
 	'Servicio_mutual': ['Servicios Mutuales', servicioForm],
 	'Convenio': ['Convenios', convenioForm],
 	'Cliente':['No asociados', clienteForm],
+	'ZonasPorCultivo':['Zonas por cultivo', ZonasPorCultivoForm],
+	'Cotizacion':['Cotizaciones', CotizacionForm],
+	'Establecimiento':['Establecimientos', EstablecimientoForm],
 
 }
 
@@ -101,7 +112,7 @@ class Listado(generic.ListView):
 			objetos = Socio.objects.filter(consorcio=consorcio(self.request), es_socio=False)
 		else:
 			objetos = eval(self.kwargs['modelo']).objects.filter(
-				consorcio=consorcio(self.request), nombre__isnull=False)
+				consorcio=consorcio(self.request))
 			if self.kwargs['modelo'] == "Socio":
 				objetos = objetos.filter(Q(baja__isnull=True) | Q(
 					nombre_servicio_mutual__isnull=True) | Q(es_socio=True))
