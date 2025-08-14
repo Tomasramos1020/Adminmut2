@@ -122,29 +122,32 @@
         <th width="20"></th>
         <th width="20"></th>
         <th>Nombre</th>
-        {% if object_list.first.consorcio.es_federacion %}
+    
+        {% if cons.es_federacion %}
           <th>Matricula</th>
-          <th>Presidente</th> 
-        {% else %}  
-        <th>Apellido</th>
-        <th>Numero</th>        
+          <th>Presidente</th>
+          <th>Tipo</th>
+        {% else %}
+          <th>Apellido</th>
+          <th>Numero</th>
+          <th>Categoria</th>
         {% endif %}
-        {% if object_list.first.consorcio.es_federacion %}
-        <th>Tipo</th>
-        {% else %}  
-        <th>Categoria</th>
-        {% endif %}
+    
         <th>Cuit</th>
-        {% if object_list.first.consorcio.fosea %}
+    
+        {% if cons.fosea %}
           <th>Establecimientos</th>
         {% endif %}
-        {% if not object_list.first.consorcio.es_federacion %}
-        <th>Genero</th>
-        <th>Edad</th>
+    
+        {% if not cons.es_federacion %}
+          <th>Genero</th>
+          <th>Edad</th>
         {% endif %}
-        {% if object_list.first.consorcio.convenios %}
-        <th>Convenio</th>
+    
+        {% if cons.convenios %}
+          <th>Convenio</th>
         {% endif %}
+    
         <th>Domicilio</th>
         <th>Numero</th>
         <th>Piso</th>
@@ -153,147 +156,134 @@
         <th>Provincia</th>
         <th>Codigo postal</th>
         <th>Fecha de baja</th>
-        {% if object_list.first.consorcio.es_federacion %}
-        <th>Fecha constitucion</th>
-        {% else %}  
-        <th>Fecha de Nacimiento</th>
-        {% endif %}  
+    
+        {% if cons.es_federacion %}
+          <th>Fecha constitucion</th>
+        {% else %}
+          <th>Fecha de Nacimiento</th>
+        {% endif %}
+    
         <th>Telefono</th>
         <th>Email</th>
-        {% if object_list.first.consorcio.es_federacion %}
-        <th>Delegados</th>
+    
+        {% if cons.es_federacion %}
+          <th>Delegados</th>
         {% else %}
-        <th>Profesion</th>  
+          <th>Profesion</th>
         {% endif %}
-        {% if object_list.first.consorcio.es_federacion %}
-        <th>Fecha de alta</th>
-        {% else %}  
-        <th>Fecha de Ingreso</th>
-        {% endif %}  
-        {% if object_list.first.consorcio.es_federacion %} 
-        <th>Gerente</th> 
-        <th>Secretario</th>          
-        <th>Tesorero</th>
-        <th>Cantidad de socios</th>          
-        <th>Activos</th>          
-        <th>Adherentes</th>          
-        <th>Participantes</th>          
-        <th>Honorarios</th>
-        <th>Mail de contacto</th>
-        <th>Telefono de contacto</th>
-        <th>Observacion</th>
+    
+        {% if cons.es_federacion %}
+          <th>Fecha de alta</th>
+          <th>Gerente</th>
+          <th>Secretario</th>
+          <th>Tesorero</th>
+          <th>Cantidad de socios</th>
+          <th>Activos</th>
+          <th>Adherentes</th>
+          <th>Participantes</th>
+          <th>Honorarios</th>
+          <th>Mail de contacto</th>
+          <th>Telefono de contacto</th>
+          <th>Observacion</th>
         {% else %}
-        <th>Notificaciones</th>  
+          <th>Fecha de Ingreso</th>
+          <th>Notificaciones</th>
         {% endif %}
-        <th>Estado</th>              
+    
+        <th>Estado</th>
       </tr>
     </thead>
+    
     <tbody>
     {% for objeto in object_list %}
-      
       <tr>
         <td class="text-center">
-          {% if not objeto.baja %}
-            {% if not objeto.nombre_servicio_mutual %}
-            <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-warning btn-xs">
+          {% if not objeto.baja and not objeto.nombre_servicio_mutual %}
+            <a href="{% url 'instancia' modelo=parametro pk=objeto.pk %}" class="btn btn-icon btn-bordered btn-warning btn-xs">
               <i class="fa fa-pencil"></i>
             </a>
-            {% endif %}
           {% endif %}
         </td>
+    
         <td class="text-center">
-          {% if not objeto.baja %}
-          {% if not objeto.nombre_servicio_mutual %}
-          <a href="{% url 'finalizar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-danger btn-xs">
-          <i class="fa fa-user-times"></i>
-          </a>
-          {% endif %}
-          {% else %}
-          <a href="{% url 'reactivar-parametro' modelo=parametro pk=objeto.pk %}" id="envio" class="btn btn-icon btn-bordered btn-success btn-xs">
-            <i class="fa fa-user-plus"></i>
-          </a>
+          {% if not objeto.baja and not objeto.nombre_servicio_mutual %}
+            <a href="{% url 'finalizar-parametro' modelo=parametro pk=objeto.pk %}" class="btn btn-icon btn-bordered btn-danger btn-xs">
+              <i class="fa fa-user-times"></i>
+            </a>
+          {% elif objeto.baja %}
+            <a href="{% url 'reactivar-parametro' modelo=parametro pk=objeto.pk %}" class="btn btn-icon btn-bordered btn-success btn-xs">
+              <i class="fa fa-user-plus"></i>
+            </a>
           {% endif %}
         </td>
-        <td>{{objeto.nombre}}</td>      
-        <td>{{objeto.apellido}}</td>
-        {% if object_list.first.consorcio.es_federacion %}
-        <td>{{objeto.presidente|default:""}}</td>
+    
+        <td>{{ objeto.nombre }}</td>
+    
+        {% if cons.es_federacion %}
+          <td>{{ objeto.apellido|default:"" }}</td>
+          <td>{{ objeto.presidente|default:"" }}</td>
+          <td>{{ objeto.tipo_asociado|default:"" }}</td>
         {% else %}
-        <td>          
-          {% if not objeto.nombre_servicio_mutual %}
-           {{objeto.numero_asociado|default:""}}
-          {% endif %}
-          {% endif %}
-        </td>
-        <td>{{objeto.tipo_asociado|default:""}}</td>        
-        <td>
-          {{objeto.cuit|default:""}}     
-        </td>
-        <td>
-          {% for est in objeto.establecimientos.all %}
-            {{ est.nombre }}{% if not forloop.last %}<br>{% endif %}
-          {% empty %}
-          -
-          {% endfor %}    
-        </td>
-        {% if not object_list.first.consorcio.es_federacion %}
-        <td>
-          {{objeto.genero|default:""}}     
-        </td>
-        <td>
-          {{objeto.edad|default:""}}     
-        </td>
-
+          <td>{{ objeto.apellido|default:"" }}</td>
+          <td>{% if not objeto.nombre_servicio_mutual %}{{ objeto.numero_asociado|default:"" }}{% endif %}</td>
+          <td>{{ objeto.tipo_asociado|default:"" }}</td>
         {% endif %}
-        {% if object_list.first.consorcio.convenios %}
-        <td>
-          {{objeto.convenio|default:""}}     
-        </td>
-        {% endif %}        
-      
-        <td>{% if objeto.domicilio %}{{objeto.domicilio}}{% endif %}</td>
-        <td>{{objeto.numero_calle|default:""}}</td>
-        <td>{{objeto.piso|default:""}}</td>
-        <td>{{objeto.departamento|default:""}}</td>
-
-        <td>{{objeto.localidad|default:""}}</td>
-        <td>{{objeto.provincia|default:""}}</td>
-        <td>{{objeto.codigo_postal|default:""}}</td>
-        <td>{{objeto.baja|default:""}}</td>
-
-        <td>
-          {{objeto.fecha_nacimiento|default:""}}
-        </td> 
-        <td>{% if objeto.telefono %}{{objeto.telefono}}{% endif %}</td>
-          <td>{{objeto.mail|default:""}}</td>
-        <td>{{objeto.profesion|default:""}}</td>
-        <td>{{objeto.fecha_alta|default:""}}</td>
-        {% if object_list.first.consorcio.es_federacion %}
-        <td>{{objeto.gerente|default:""}}</td>
-        <td>{{objeto.secretario|default:""}}</td>
-        <td>{{objeto.tesorero|default:""}}</td>
-        <td>{{objeto.cant_socios|default:""}}</td>
-        <td>{{objeto.activos|default:""}}</td>
-        <td>{{objeto.adherentes|default:""}}</td>
-        <td>{{objeto.participantes|default:""}}</td>
-        <td>{{objeto.honorarios|default:""}}</td>
-        <td>{{objeto.causa_baja|default:""}}</td>
-        <td>{{objeto.medida_disciplinaria|default:""}}</td>
-        <td>{{objeto.observacion|default:""}}</td>
-
+    
+        <td>{{ objeto.cuit|default:"" }}</td>
+    
+        {% if cons.fosea %}
+          <td>
+            {% for est in objeto.establecimientos.all %}
+              {{ est.nombre }}{% if not forloop.last %}<br>{% endif %}
+            {% empty %}-{% endfor %}
+          </td>
+        {% endif %}
+    
+        {% if not cons.es_federacion %}
+          <td>{{ objeto.genero|default:"" }}</td>
+          <td>{{ objeto.edad|default:"" }}</td>
+        {% endif %}
+    
+        {% if cons.convenios %}
+          <td>{{ objeto.convenio|default:"" }}</td>
+        {% endif %}
+    
+        <td>{{ objeto.domicilio|default:"" }}</td>
+        <td>{{ objeto.numero_calle|default:"" }}</td>
+        <td>{{ objeto.piso|default:"" }}</td>
+        <td>{{ objeto.departamento|default:"" }}</td>
+        <td>{{ objeto.localidad|default:"" }}</td>
+        <td>{{ objeto.provincia|default:"" }}</td>
+        <td>{{ objeto.codigo_postal|default:"" }}</td>
+        <td>{{ objeto.baja|default:"" }}</td>    
+        <td>{{ objeto.fecha_nacimiento|default:"" }}</td>    
+        <td>{{ objeto.telefono|default:"" }}</td>
+        <td>{{ objeto.mail|default:"" }}</td>    
+        <td>{{ objeto.profesion|default:"" }}</td>
+    
+        {% if cons.es_federacion %}
+          <td>{{ objeto.fecha_alta|default:"" }}</td>
+          <td>{{ objeto.gerente|default:"" }}</td>
+          <td>{{ objeto.secretario|default:"" }}</td>
+          <td>{{ objeto.tesorero|default:"" }}</td>
+          <td>{{ objeto.cant_socios|default:"" }}</td>
+          <td>{{ objeto.activos|default:"" }}</td>
+          <td>{{ objeto.adherentes|default:"" }}</td>
+          <td>{{ objeto.participantes|default:"" }}</td>
+          <td>{{ objeto.honorarios|default:"" }}</td>
+          <td>{{ objeto.causa_baja|default:"" }}</td>
+          <td>{{ objeto.medida_disciplinaria|default:"" }}</td>
+          <td>{{ objeto.observacion|default:"" }}</td>
         {% else %}
-        {% if objeto.notificaciones %}
-        <td>Si</td>
-        {% else %}
-        <td>No</td>
+          <td>{{ objeto.fecha_alta|default:"" }}</td>
+          <td>{% if objeto.notificaciones %}Si{% else %}No{% endif %}</td>
         {% endif %}
-        {% endif %}
-        <td>{{objeto.estado|default:""}}</td> 
-
+    
+        <td>{{ objeto.estado|default:"" }}</td>
       </tr>
     {% endfor %}
     </tbody>
-
+    
 
   {% elif parametro == "Acreedor" %}
     <thead>
