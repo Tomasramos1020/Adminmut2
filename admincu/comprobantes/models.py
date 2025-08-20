@@ -156,11 +156,11 @@ class Comprobante(models.Model):
 				).filter(
 					# no tienen fecha de fin o siguen vigentes a esa fecha
 					models.Q(fin__isnull=True) | models.Q(fin__gt=fecha_ref)
-					)
+					).prefetch_related('hijos')
 		total_deudas = sum([c.saldo_en_fecha(fecha_operacion=fecha_ref) for c in creditos])
 #		total_deudas += sum([c.saldo for c in factura.credito_set.all()])
 
-		saldos = self.socio.get_saldos(fecha=fecha_ref)	
+		saldos = self.socio.get_saldos(fecha_ref)
 		total_saldos = sum([s.saldo() for s in saldos])
 
 		total_adeudado = total_deudas - total_saldos

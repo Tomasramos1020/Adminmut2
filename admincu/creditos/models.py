@@ -653,7 +653,15 @@ class Credito(models.Model):
 		if self.hijos.all():
 			return self.hijos.last()
 		return
-
+	
+	def ultimo_hijo_hasta(self, fecha_operacion):
+		# Último hijo con fecha <= corte
+		return (
+			self.hijos
+			.filter(fecha__lte=fecha_operacion)
+			.order_by('fecha', 'id')   # orden estable por fecha y luego id
+			.last()
+		)
 	@property
 	def actual(self):
 		if self.ultimo_hijo:
@@ -671,13 +679,16 @@ class Credito(models.Model):
 				return self.subtotal(fecha_operacion=fecha_operacion, condonacion=condonacion)
 	
 	def saldo_en_fecha(self, fecha_operacion, condonacion=False):
-		if self.ultimo_hijo:
-			return self.ultimo_hijo.saldo_en_fecha(fecha_operacion, condonacion)
-		else:
-			if self.fin:
-				return Decimal("0.00")
-			else:
-				return self.subtotal(fecha_operacion=fecha_operacion, condonacion=condonacion)
+		# si el crédito ya estaba finalizado a esa fecha → saldo 0
+		if self.fin and self.fin <= fecha_operacion:
+			return Decimal('0.00')
+
+		hijo = self.ultimo_hijo_hasta(fecha_operacion)
+		if hijo:
+			return hijo.saldo_en_fecha(fecha_operacion, condonacion)
+
+		# sin hijos hasta esa fecha → calcular base al corte
+		return self.subtotal(fecha_operacion=fecha_operacion, condonacion=condonacion)
 
 	@property
 	def saldo_socio(self):
