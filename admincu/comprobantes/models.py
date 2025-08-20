@@ -421,13 +421,12 @@ class Comprobante(models.Model):
 					point_of_sales=receipt.point_of_sales,
 				).aggregate(Max('receipt_number'))['receipt_number__max'] or 0
 				receipt.receipt_number = last + 1
-				print("aiuda")
 				receipt.save()	
 		else:
 			validacion = receipt.validate()
 			if validacion: # Si no la valida retorna el error
 				receipt.delete()
-				return validacion		
+				return validacion
 
 	def anular(self):
 

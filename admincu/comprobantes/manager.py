@@ -349,12 +349,8 @@ class ComprobanteCreator:
 			related_receipt = factura.receipt
 			nota_credito.related_receipts.add(related_receipt)
 			if not masivo:
-				if self.tipo == "Nota de Credito C":
-					validacion = None #establecemos validacion = none durante el desarrollo por error de afip, que solo valida nc en produccion
-					print("validado!!")
+				validacion = comprobante.validar_receipt(nota_credito) #establecemos validacion = none durante el desarrollo por error de afip, que solo valida nc en produccion
 				#validacion = comprobante.validar_receipt(nota_credito)
-				if self.tipo == "Nota de Credito RG 1415":
-					validacion = comprobante.validar_receipt(nota_credito)
 				if validacion:
 					return validacion
 			comprobante.nota_credito = nota_credito	

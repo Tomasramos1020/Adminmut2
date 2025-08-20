@@ -90,7 +90,6 @@
                 <i class="fa fa-indent"></i>
               </a>
               {% endif %}
-              {% if comprobante.pdf %}
                 {% if not user.groups.all.0.name == "socio" %}
                   <a href="{% url 'ver-comprobante' pk=comprobante.pk %}" class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light">
                     <i class="fa fa-list"></i>
@@ -99,11 +98,6 @@
                 <a href="{% url 'pdf-comprobante' pk=comprobante.pk %}" target="_blank" class="btn btn-icon btn-xs btn-purple btn-bordered waves-efect waves-light">
                   <i class="fa fa-print"></i>
                 </a>
-              {% else %}
-              <a href="#"  class="btn btn-icon btn-xs btn-warning btn-bordered waves-efect waves-light">
-                <i class="fa fa-spin fa-spinner"></i>
-              </a>
-              {% endif %}
             </td>
           </tr>
         {% endif %}
