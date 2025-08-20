@@ -669,6 +669,15 @@ class Credito(models.Model):
 				return Decimal("%.2f" % 0.00)
 			else:
 				return self.subtotal(fecha_operacion=fecha_operacion, condonacion=condonacion)
+	
+	def saldo_en_fecha(self, fecha_operacion, condonacion=False):
+		if self.ultimo_hijo:
+			return self.ultimo_hijo.saldo_en_fecha(fecha_operacion, condonacion)
+		else:
+			if self.fin:
+				return Decimal("0.00")
+			else:
+				return self.subtotal(fecha_operacion=fecha_operacion, condonacion=condonacion)
 
 	@property
 	def saldo_socio(self):
