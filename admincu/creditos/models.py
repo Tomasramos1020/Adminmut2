@@ -341,8 +341,8 @@ class Factura(models.Model):
 
 		if self.receipt.receipt_type.code == "11":
 			generator = ReceiptBarcodeGenerator(self.receipt)
-			codigo = generator.full_number
-			barcode = codigo
+			barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
+		
 
 		if es_proveeduria:
 			template_name = 'creditos/pdfs/proveeduria.html'
