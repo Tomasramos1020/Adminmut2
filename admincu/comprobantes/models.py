@@ -155,7 +155,7 @@ class Comprobante(models.Model):
 				fecha__lte=fecha_ref,
 				).filter(
 					# no tienen fecha de fin o siguen vigentes a esa fecha
-					models.Q(fin__isnull=True) | models.Q(fin__gte=fecha_ref)
+					models.Q(fin__isnull=True) | models.Q(fin__gt=fecha_ref)
 					)
 		total_deudas = sum([c.saldo_en_fecha(fecha_operacion=fecha_ref) for c in creditos])
 #		total_deudas += sum([c.saldo for c in factura.credito_set.all()])
