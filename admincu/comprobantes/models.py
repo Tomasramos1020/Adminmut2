@@ -185,8 +185,8 @@ class Comprobante(models.Model):
 			if self.nota_credito:
 				comprobante = self
 				if not self.nota_credito.receipt_type.code in ["102", "103","105"]:
-					#generator = ReceiptBarcodeGenerator(self.nota_credito)
-					#barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
+					generator = ReceiptBarcodeGenerator(self.nota_credito)
+					barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
 					a=1
 				html_string = render_to_string('comprobantes/pdfs/{}.html'.format(self.nota_credito.receipt_type.code), locals())
 				html = HTML(string=html_string, base_url='https://www.admincu.com/comprobantes/')
