@@ -538,8 +538,11 @@ class ZonasPorCultivoForm(FormControl, forms.ModelForm):
 	def __init__(self, consorcio=None, *args, **kwargs):
 		self.consorcio = consorcio
 		super().__init__(*args, **kwargs)
+		self.fields['zona'].queryset = Zona.objects.filter(consorcio=consorcio)
+		self.fields['cultivo'].queryset = Cultivo.objects.filter(consorcio=consorcio)
 		self.fields['zona'].required = True
 		self.fields['cultivo'].required = True
+
 
 class CotizacionForm(FormControl, forms.ModelForm):
 	class Meta:
@@ -561,8 +564,10 @@ class CotizacionForm(FormControl, forms.ModelForm):
 
 	def __init__(self, consorcio=None, *args, **kwargs):
 		self.consorcio = consorcio
+
 		super().__init__(*args, **kwargs)
 		self.fields['fecha'].required = True
+		self.fields['producto'].queryset = Cultivo.objects.filter(consorcio=consorcio)
 
 class EstablecimientoForm(FormControl, forms.ModelForm):
 	socio_1 = forms.ModelChoiceField(queryset=Socio.objects.none(), required=False, label="Dueño 1")
