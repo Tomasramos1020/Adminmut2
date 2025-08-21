@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import IndexSolicitud, CrearSolicitudView, EditarSolicitudView, obtener_establecimientos, datos_establecimiento, cotizacion_por_cultivo, aporte_por_zona_cultivo, obtener_subsidio_max
+from .views import *
 
 urlpatterns = [
     path('', IndexSolicitud.as_view(), name='fosea'),
@@ -10,5 +10,11 @@ urlpatterns = [
     path('ajax/aporte_por_zona_cultivo/', aporte_por_zona_cultivo, name='aporte_por_zona_cultivo'),
     path('ajax/obtener_subsidio_max/', obtener_subsidio_max, name='obtener_subsidio_max'),
     path('editar-solicitud/<int:pk>', EditarSolicitudView.as_view(), name='solicitud_editar'),
+    path('solicitud/<int:pk>/pagare/', PagareSolicitudPDFView.as_view(), name='pagare_solicitud'),
+    path('crear-cotizacion/', CrearCotizacionView.as_view(), name='crear_cotizacion'),
+    path('parametros-zona-cultivo/', parametros_zona_cultivo, name='parametros_zona_cultivo'),
+    path('establecimientos/nuevo/', establecimiento_modal, name='establecimiento_modal'),
+    path('solicitud/<int:pk>/pdf/', solicitud_pdf, name='solicitud_pdf'),
+    path('registro/', Registro.as_view(), name='registro-solicitudes'),
 
 ]

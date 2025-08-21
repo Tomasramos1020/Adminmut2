@@ -1,0 +1,83 @@
+<style>
+    .tabs { display:flex; gap:8px; margin-bottom:12px; }
+    .tab-btn { padding:8px 12px; border:1px solid #e5e7eb; border-radius:8px; background:#f8fafc; cursor:pointer; }
+    .tab-btn.active { background:#e0e7ff; border-color:#c7d2fe; }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+    table.tabla { width:100%; border-collapse:separate; border-spacing:0; border:1px solid #e7e7e7; border-radius:12px; overflow:hidden; }
+    table.tabla thead th{ background:#f1f5f9; text-align:left; padding:8px 10px; }
+    table.tabla tbody td{ padding:8px 10px; border-top:1px solid #f3f4f6; }
+  </style>
+  
+  <div class="tabs">
+    <button type="button" class="tab-btn active" data-tab="existentes">Elegir existente</button>
+    <button type="button" class="tab-btn" data-tab="nuevo">Crear nuevo</button>
+  </div>
+  
+  <div id="tab-existentes" class="tab-panel active">
+    {% if existentes %}
+    <table class="tabla">
+      <thead>
+        <tr>
+          <th>Nombre</th><th>Departamento</th><th>GPS</th><th>Zona</th><th></th>
+        </tr>
+      </thead>
+        <tbody>
+            {% for e in existentes %}
+            <tr data-id="{{ e.id }}"
+                data-nombre="{{ e.nombre|escape }}"
+                data-departamento="{{ e.dpto|default_if_none:''|escape }}"
+                data-gps="{{ e.gps|default_if_none:''|escape }}"
+                data-zona="{{ e.zona.nombre|default:''|escape }}">
+                <td>{{ e.nombre }}</td>
+                <td>{{ e.dpto }}</td>
+                <td>{{ e.gps }}</td>
+                <td>{% if e.zona %}{{ e.zona.nombre }}{% endif %}</td>
+                <td>
+                <button type="button" class="btn btn-guardar seleccionar-est">Seleccionar</button>
+                </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          
+    </table>
+    {% else %}
+      <div class="muted" style="padding:8px 0;">Este socio no tiene establecimientos cargados.</div>
+    {% endif %}
+  </div>
+  
+  <div id="tab-nuevo" class="tab-panel">
+    <form id="form-nuevo-est" method="post">
+        <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+        <div class="form-row">
+          <div class="form-group">{{ form.nombre.label_tag }}{{ form.nombre }}</div>
+          <div class="form-group">{{ form.dpto.label_tag }}{{ form.dpto }}</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">{{ form.gps.label_tag }}{{ form.gps }}</div>
+          <div class="form-group">{{ form.zona.label_tag }}{{ form.zona }}</div>
+        </div>
+  
+        <div class="botones" style="justify-content:flex-end; gap:10px;">
+          <button type="button" class="btn btn-cancelar" id="cancelar-modal">Cancelar</button>
+          <button type="submit" class="btn btn-guardar">Guardar</button>
+        </div>
+    </form>
+  </div>
+  
+  <script>
+    // Tabs
+    (function(){
+      const $tabs = $("#modal-est-content .tab-btn");
+      $tabs.on("click", function(){
+        $tabs.removeClass("active");
+        $(this).addClass("active");
+        const tab = $(this).data("tab");
+        $("#modal-est-content .tab-panel").removeClass("active");
+        $("#tab-" + tab).addClass("active");
+      });
+    })();
+  </script>
+  
+  
+  

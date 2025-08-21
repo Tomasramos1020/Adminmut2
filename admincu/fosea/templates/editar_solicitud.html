@@ -20,40 +20,32 @@
       width:100%; padding:8px 10px; border:1px solid #dcdcdc; border-radius:8px; background:#fff;
     }
   
-    /* Línea del formset: 2 filas + columna fija para el tacho */
+    /* Contenedor de cada línea del formset */
     .formset-linea{
       display:grid;
-      grid-template-columns: repeat(8, 1fr) 48px; /* 8 columnas de igual ancho + 1 fija para el tacho */
+      grid-template-columns: repeat(8, 1fr) 48px; /* 8 columnas iguales + 1 para el tachito */
       grid-auto-rows:auto;
-      gap:12px;
-      padding:16px;
+      gap:12px; padding:16px;
       border:1px dashed #e6e6e6; border-radius:10px; background:#fafafa;
       align-items:start;
     }
   
-    /* Renglón 1: 4 campos iguales */
-    .formset-linea .form-group:has(> select[name$="establecimiento"]) { grid-column:1 / span 2; grid-row:1; }
-    .formset-linea .info-establecimiento:has(.zona)                   { grid-column:3 / span 2; grid-row:1; }
-    .formset-linea .info-establecimiento:has(.gps)                    { grid-column:5 / span 2; grid-row:1; }
-    .formset-linea .info-establecimiento:has(.departamento)           { grid-column:7 / span 2; grid-row:1; }
+    /* ===== Fila 1 (4 campos iguales): Establecimiento, Zona, GPS, Departamento ===== */
+    .formset-linea .form-group:has(> [name$="establecimiento"]) { grid-column:1 / span 2; grid-row:1; }
+    .formset-linea .info-establecimiento:has(.zona)             { grid-column:3 / span 2; grid-row:1; }
+    .formset-linea .info-establecimiento:has(.gps)              { grid-column:5 / span 2; grid-row:1; }
+    .formset-linea .info-establecimiento:has(.departamento)     { grid-column:7 / span 2; grid-row:1; }
   
-    /* Renglón 2: 7 campos iguales */
-    .formset-linea .form-group:has(> select[name$="cultivo"])         { grid-column:1 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="hectarea"])         { grid-column:2 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="participacion"])    { grid-column:3 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="subsidio_max"])     { grid-column:4 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="franquicia"])       { grid-column:5 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="aporte_max"])       { grid-column:6 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="aporte_total_qq"])  { grid-column:7 / span 1; grid-row:2; }
+    /* ===== Fila 2 (7 campos): Cultivo (x2) + 5 campos de 1 columna */
+    .formset-linea .form-group:has(> [name$="cultivo"])         { grid-column:1 / span 2; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="hectarea"])        { grid-column:3 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="participacion"])   { grid-column:4 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="subsidio_max"])    { grid-column:5 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="franquicia"])      { grid-column:6 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="aporte_max"])      { grid-column:7 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="aporte_total_qq"]) { grid-column:8 / span 1; grid-row:2; }
   
-    /* Info de establecimiento (cajas grises) */
-    .info-establecimiento{
-      font-size:.92em; background:#f4f6f8; padding:8px 10px; border-radius:8px;
-      border:1px solid #e8eaed;
-    }
-    .info-establecimiento label{margin:0 0 4px 0; font-weight:600; color:#555;}
-  
-    /* Tacho: columna fija, centrado en altura */
+    /* Tacho, centrado verticalmente entre las 2 filas */
     .eliminar-wrapper{
       grid-column:9; grid-row:1 / span 2;
       justify-self:center; align-self:center;
@@ -66,6 +58,8 @@
     .icon-btn:hover{ background:#ffd5d1; transform:translateY(-1px); }
     .icon-btn:active{ transform:translateY(0); }
     .icon-trash{ width:18px; height:18px; fill:#e74c3c; }
+  
+    /* Ocultar checkbox de borrado */
     input[name$="-DELETE"]{ display:none; }
   
     /* Botonera */
@@ -76,7 +70,7 @@
     .btn-cancelar{ background:#95a5a6; color:#fff; }
     .btn-imprimir{ background:#8e44ad; color:#fff; }
   
-    /* Tabla bonita */
+    /* Tabla */
     .tabla{ width:100%; border-collapse:separate; border-spacing:0; margin-top:10px;
             border:1px solid #e7e7e7; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.04); }
     .tabla thead th{ background:linear-gradient(180deg,#f8fafc,#f1f5f9); color:#334155; text-align:left; padding:10px 12px; font-weight:700; border-bottom:1px solid #e7e7e7; }
@@ -84,20 +78,23 @@
     .tabla tbody tr:nth-child(odd){ background:#fcfcfc; }
     .tabla tfoot td{ padding:12px; background:#fafafa; font-weight:700; }
   
-    /* Responsive */
+    /* Responsive: 1 columna + tachito */
     @media (max-width: 900px){
       .formset-linea{ grid-template-columns: 1fr 48px; }
       .formset-linea > *:not(.eliminar-wrapper){ grid-column:1 / 2 !important; }
       .eliminar-wrapper{ grid-column:2; grid-row:auto; align-self:start; }
     }
+  
+    /* Utilidades impresión */
+    .no-print { margin-bottom: 8px; }
+    .no-print .btn {
+      display:inline-block; padding:8px 12px; border:1px solid #222; border-radius:6px;
+      text-decoration:none; font-weight:600; background:#f9f9f9;
+    }
+    @media print { .no-print { display:none !important; } }
   </style>
   
   
-  
-  
-  
-  
-
 <div class="contenido-interno">
     <form method="post">
         {% csrf_token %}
@@ -216,11 +213,20 @@
             </tbody>
         </table>
 
-        <div class="botones">
+        <<div class="botones">
             <a href="{% url 'fosea' %}" class="btn btn-cancelar">Cancelar</a>
             <button type="submit" class="btn btn-guardar">Guardar</button>
-            <button type="submit" class="btn btn-imprimir" name="accion" value="imprimir" formtarget="_blank">Imprimir</button>
-        </div>
+          
+            <button type="submit" class="btn btn-imprimir" name="accion" value="imprimir" formtarget="_blank">
+              Imprimir
+            </button>
+          
+            <!-- Este envía el form, guarda, y luego abre el pagaré recalculado -->
+            <button type="submit" class="btn" name="accion" value="pagare" formtarget="_blank">
+              Imprimir pagaré
+            </button>
+          </div>
+          
     </form>
 </div>
 {% endblock %}

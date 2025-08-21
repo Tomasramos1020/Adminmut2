@@ -22,3 +22,4 @@ class SolicitudLinea(models.Model):
     subsidio_max = models.DecimalField("Subsidio max QQ", max_digits=10, decimal_places=2, default=Decimal('0.00'))
     aporte_max = models.DecimalField("% Aporte max", max_digits=10, decimal_places=2, default=Decimal('0.00'))
     aporte_total_qq = models.DecimalField("Aporte total QQ", max_digits=10, decimal_places=2, default=Decimal('0.00'))
+    franquicia = models.DecimalField("Franquicia", max_digits=10, decimal_places=2, default=Decimal('0.00'))

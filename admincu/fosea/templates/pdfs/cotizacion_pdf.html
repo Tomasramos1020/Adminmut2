@@ -1,0 +1,334 @@
+{% load static %}
+{% load humanize %}
+{% load personal_tags %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Cotización</title>
+  <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+  <style>
+    @page { size: A4; margin: 18mm 14mm; }
+    body { font-family: sans-serif; font-size: 12px; color: #111; }
+    .receipt { padding: 0; }
+    h1, h2, h3 { margin: 0; }
+    hr { border: 0; border-top: 1px solid #999; margin: 10px 0; }
+
+    .grid { display: grid; gap: 8px; }
+    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .col { flex: 1; }
+    .small { font-size: 11px; color: #555; }
+
+    .box { border: 1px solid #000; padding: 8px; border-radius: 2px; }
+    .tag { display: inline-block; border: 2px solid #000; padding: 6px 10px; font-size: 20px; font-weight: 700; }
+    .center { text-align: center; }
+    .right { text-align: right; }
+    .muted { color: #666; font-size: 11px; }
+    .bold { font-weight: 700; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #000; padding: 6px; vertical-align: top; }
+    th { background: #f0f0f0; }
+
+    .t0 th, .t0 td { font-size: 11.5px; }
+    .t-num { text-align: right; white-space: nowrap; }
+    .t-center { text-align: center; }
+
+    .section-title { font-weight: 700; margin: 8px 0 4px; }
+
+    .sign-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 18px; }
+    .sign { height: 64px; border-bottom: 1px dashed #333; }
+    .sign-label { text-align: center; margin-top: 6px; font-size: 11px; color: #444; }
+
+    .footnote { margin-top: 10px; font-size: 11px; color: #333; line-height: 1.35; }
+
+    .subtotal { background: #fafafa; font-weight: 700; }
+
+    /* Fecha y localidad previo a firmas */
+    .pre-sign{
+      display:grid;
+      grid-template-columns: 100px 1fr;
+      column-gap:12px;
+      row-gap:6px;
+      margin:16px 0 6px;
+      font-size:12px;
+    }
+    .pre-sign .label{ font-weight:600; }
+    .pre-sign .value{ letter-spacing:.3px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="taxpayer-details group">
+      <address>
+        {% if consorcio.contribuyente.extras %}
+          <img src="{{ consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+        {% else %}
+          <h3>{{ consorcio.nombre_completo }}</h3>
+        {% endif %}
+        {{ consorcio.domicilio }}<br>
+        {{ consorcio.provincia }}
+      </address>
+
+      <div class="receipt-type">
+        <div class="identifier">C</div>
+        <div class="code">Cotización</div>
+      </div>
+
+      <div class="receipt-details">
+        <div class="receipt-type-description">FoSEA</div>
+        <strong>Cotización</strong><br>
+        {{ fecha|date:"d/m/Y" }}<br>
+        C.U.I.T.:{{ consorcio.cuit }}<br>
+        Ingresos Brutos: Exento<br>
+        Inicio de actividad: {{ consorcio.contribuyente.active_since|date:"d/m/Y" }}
+      </div>
+    </div>
+  </header>
+
+  <hr>
+
+  <!-- Datos del Socio / Cabecera -->
+  <div class="box">
+    <div class="row">
+      <div class="col">
+        <div><span class="bold">Socio:</span> {{ socio_texto }}</div>
+      </div>
+      <div class="col">
+        <div><span class="bold">Campaña:</span> {{ campaña }}</div>
+        <div><span class="bold">Fecha:</span> {{ fecha|date:"d/m/Y" }}</div>
+        <div><span class="bold">Kg de Soja:</span>{{ suscripcion|floatformat:2|intcomma }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Establecimientos -->
+  <div class="section-title">ESTABLECIMIENTOS</div>
+  <table class="t0">
+    <thead>
+      <tr>
+        <th>Ubicación (Establecimiento)</th>
+        <th>Referencia</th>
+        <th>Zona</th>
+        <th>GPS</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lineas %}
+      <tr>
+        <td>{{ l.establecimiento }}</td>
+        <td>{{ l.departamento }}</td>
+        <td>{{ l.zona }}</td>
+        <td>{{ l.gps }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4">Sin establecimientos.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Cultivos -->
+  <div class="section-title" style="margin-top:10px;">CULTIVOS</div>
+  <table class="t0">
+    <thead>
+      <tr>
+        <th>Campo</th>
+        <th>Cultivo</th>
+        <th class="t-num">Hectáreas</th>
+        <th class="t-num">Participación %</th>
+        <th class="t-num">Base</th>
+        <th class="t-num">Subs. Máx.</th>
+        <th class="t-num">Aporte Máx. %</th>
+        <th class="t-num">Aporte total (QQ)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in lineas %}
+      <tr>
+        <td>{{ l.establecimiento }}</td>
+        <td>{{ l.cultivo }}</td>
+        <td class="t-num">{{ l.hectarea|floatformat:2 }}</td>
+        <td class="t-num">{{ l.participacion|floatformat:2 }}</td>
+        <td class="t-num">{{ l.franquicia|floatformat:2 }}</td>
+        <td class="t-num">{{ l.subsidio_max|floatformat:2 }}</td>
+        <td class="t-num">{{ l.aporte_max|floatformat:2 }}</td>
+        <td class="t-num">{{ l.aporte_total_qq|floatformat:2 }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="8">Sin líneas.</td></tr>
+      {% endfor %}
+
+      {# Fila de totales #}
+      <tr class="subtotal">
+        <td colspan="2" class="right">Totales:</td>
+        <td class="t-num">{{ total_hectareas_brutas|floatformat:2 }}</td>
+        <td colspan="4"></td>
+        <td class="t-num">{{ suma_aporte_total_qq|floatformat:2 }}</td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <!-- RESUMEN (por cultivo) -->
+  <div class="section-title" style="margin-top:10px;">RESUMEN</div>
+  <table class="t0">
+    <thead>
+      <tr>
+        <th>Cultivo</th>
+        <th class="t-num">Hectáreas</th>
+        <th class="t-num">Aporte en QQ</th>
+        <th class="t-num">Valor Cereal $</th>
+        <th class="t-num">Garantía $</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if resumen and resumen|length %}
+        {% for r in resumen %}
+        <tr>
+          <td>{{ r.cultivo }}</td>
+          <td class="t-num">{{ r.hectareas|floatformat:2 }}</td>
+          <td class="t-num">{{ r.aporte_qq|floatformat:2 }}</td>
+          <td class="t-num">{% if r.valor_cereal is not None %}$ {{ r.valor_cereal|floatformat:2|intcomma }}{% endif %}</td>
+          <td class="t-num">{% if r.garantia is not None %}$ {{ r.garantia|floatformat:2|intcomma }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+        <tr class="subtotal">
+          <td class="right">Totales:</td>
+          <td class="t-num">{{ total_hectareas_brutas|floatformat:2 }}</td>
+          <td class="t-num">{{ suma_aporte_total_qq|floatformat:2 }}</td>
+          <td></td>
+          <td class="t-num">{% if total_garantia %}$ {{ total_garantia|floatformat:2|intcomma }}{% endif %}</td>
+        </tr>
+      {% else %}
+        <tr>
+          <td colspan="4" class="right bold">Total Aporte QQ</td>
+          <td class="t-num">{{ suma_aporte_total_qq|floatformat:2 }}</td>
+        </tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <!-- Leyenda Garantía -->
+  <div class="box">
+    EL SOCIO SUBSCRIPTOR DECLARA CONOCER EL REGLAMENTO EL FoSEA DE MUTUAL SOBERANIA, COMPROMETIENDOSE A ABONAR EL IMPORTE
+    CORRESPONDIENTE AL PRESENTE, DEJANDO UN CHEQUE DE GARANTIA O PAGARE POR DICHO IMPORTE, ABONANDO ADEMAS EL GASTO DE
+    SUSCRIPCION.
+  </div>
+
+  <!-- Cálculo de Suscripción -->
+  <div class="section-title" style="margin-top:10px;">Cálculo de Suscripción</div>
+  <table class="t0">
+    <thead>
+      <tr>
+        <th>Hectáreas reales</th>
+        <th>Kg de Soja</th>
+        <th>Cotización soja ($/qq)</th>
+        <th>Total Suscripción ($)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="t-num">{{ hectareas_reales|floatformat:2 }}</td>
+        <td class="t-num">{{ suscripcion|floatformat:2|intcomma }}</td>
+        <td class="t-num">{% if valor_soja %}$ {{ valor_soja|floatformat:2|intcomma }}{% endif %}</td>
+        <td class="t-num">$ {{ total_suscripcion|floatformat:2|intcomma }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Cheque / Efectivo por Suscripción -->
+  <table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:12px;">
+    <tr>
+      <td style="border:1px solid #000; width:200px; padding:4px;">Cheque Nº / Efectivo</td>
+      <td style="border:1px solid #000; padding:4px;"></td>
+      <td style="border:1px solid #000; width:120px; text-align:right;">
+        $ {{ total_suscripcion|floatformat:2|intcomma }}
+      </td>
+    </tr>
+  </table>
+
+  <div style="font-weight:bold; margin-top:6px;">GARANTIA</div>
+
+  <!-- Cheque / Pagaré por Garantía -->
+  <table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:12px;">
+    <tr>
+      <td style="border:1px solid #000; width:200px; padding:4px;">Cheque Nº / Pagare</td>
+      <td style="border:1px solid #000; padding:4px;"></td>
+      <td style="border:1px solid #000; width:120px; text-align:right;">
+        {% if total_garantia %}$ {{ total_garantia|floatformat:2|intcomma }}{% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <!-- Pagaré en letras -->
+  <div class="box">
+    El dia 10/06/2026 pagare/mos sin protesto a la {{ consorcio.nombre_completo }}, sito en '{{ consorcio.domicilio }}',
+    {{ consorcio.provincia }}, o a su orden la cantidad de pesos:
+    {% if total_garantia %}{{ total_garantia|num_to_words }}{% endif %}.
+  </div>
+
+  <!-- Seguros sobre la sementera -->
+  <div style="font-size:12px; margin-top:10px;">
+    Posee Seguros sobre la Sementera:
+  </div>
+  <table style="width:100%; border-collapse: collapse; font-size:12px; margin-top:4px;">
+    <thead>
+      <tr>
+        <th style="border:1px solid #000; padding:4px;">Cultivo</th>
+        <th style="border:1px solid #000; padding:4px;">Hectareas</th>
+        <th style="border:1px solid #000; padding:4px;">Valor por Hectarea</th>
+        <th style="border:1px solid #000; padding:4px;">Poliza Nº</th>
+        <th style="border:1px solid #000; padding:4px;">Compañía</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+      </tr>
+      <tr>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+        <td style="border:1px solid #000; padding:10px;"></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Fecha y Localidad (antes de firmas) -->
+  <div class="pre-sign">
+    <div class="label">Fecha:</div>
+    <div class="value">{{ fecha|date:"d-m-Y" }}</div>
+
+    <div class="label">Localidad:</div>
+    <div class="value">
+      {# Usamos solo provincia del consorcio por no tener socio.localidad en cotización #}
+      {% if consorcio.provincia %}{{ consorcio.provincia|upper }}{% endif %}
+    </div>
+  </div>
+
+  <!-- Firmas -->
+  <div class="sign-row">
+    <div>
+      <div class="sign"></div>
+      <div class="sign-label">ASOCIACIÓN MUTUAL SOBERANÍA</div>
+    </div>
+    <div>
+      <div class="sign"></div>
+      <div class="sign-label">ASOCIADO</div>
+    </div>
+  </div>
+
+  <!-- Leyenda Siniestros -->
+  <div class="footnote center">
+    <strong>DENUNCIAS DE SINIESTROS:</strong> DENTRO DE LAS 72 HS (DÍAS HÁBILES) VÍA WHATSAPP A LOS TELÉFONOS
+    (0358) 156002440 - (0358) 156024208 O AL E-MAIL agruprod@hotmail.com
+  </div>
+</body>
+</html>
+
+

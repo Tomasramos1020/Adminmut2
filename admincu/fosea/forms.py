@@ -1,6 +1,6 @@
 from django import forms
 from django.forms import inlineformset_factory
-from django.forms import formset_factory
+from django.forms import formset_factory, BaseFormSet
 from .models import Solicitud, SolicitudLinea
 from arquitectura.models import Establecimiento, Socio, ZonasPorCultivo
 from admincu.funciones import consorcio
@@ -9,6 +9,7 @@ from django.forms import modelformset_factory, inlineformset_factory
 from decimal import Decimal, ROUND_HALF_UP
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet
+from arquitectura.models import Campaña, Zona, Cultivo
 
 # forms.py
 class SolicitudForm(forms.ModelForm):
@@ -81,6 +82,9 @@ class SolicitudLineaForm(forms.ModelForm):
         aporte_max = cleaned.get('aporte_max') or Decimal('0')
         hectarea = cleaned.get('hectarea') or Decimal('0')
 
+        if not (est and cultivo and hectarea):
+            return cleaned
+
         # Validación contra subsidio máximo por zona/cultivo
         if est and est.zona_id and cultivo:
             try:
@@ -101,42 +105,44 @@ class SolicitudLineaForm(forms.ModelForm):
 class LineasBaseFormSet(BaseInlineFormSet):
     def clean(self):
         super().clean()
-
         lineas_validas = 0
 
+        # Campos núcleo que definen si la fila es "real"
+        CORE_FIELDS = ('establecimiento', 'cultivo', 'hectarea')
+
         for form in self.forms:
-            # 1) Si el form ya tiene errores de campo, no hay cleaned_data
             if getattr(form, "cleaned_data", None) is None:
                 continue
 
             cd = form.cleaned_data
 
-            # 2) Si está marcado para borrar, saltealo
             if self.can_delete and cd.get("DELETE"):
                 continue
 
-            # 3) Si es una fila “vacía” permitida, salteala
-            # (cuando todos los campos —salvo id/DELETE— están vacíos)
-            if form.empty_permitted:
-                hay_algo = any(
-                    v not in (None, "", 0, Decimal("0"))
-                    for k, v in cd.items()
-                    if k not in ("id", "DELETE")
-                )
-                if not hay_algo:
-                    continue
+            # ▶ Solo consideramos "hay algo" si tocó un campo núcleo
+            def _hay_nucleo(cd):
+                return any(cd.get(k) not in (None, "", 0, Decimal("0")) for k in CORE_FIELDS)
 
-            # Llegamos a una línea “real”
+            # Si Django permite fila vacía, descartá filas sin núcleo
+            if form.empty_permitted and not _hay_nucleo(cd):
+                # Si cambió algo pero no completó núcleo => error (opcional)
+                if form.has_changed():
+                    form.add_error(None, "Complete Establecimiento, Cultivo y Hectáreas o elimine la fila.")
+                else:
+                    cd['DELETE'] = True
+                continue
+
+            # Llegamos a una línea real
             lineas_validas += 1
 
-            # 4) Regla: aporte_total_qq > 0
+            # Regla: aporte_total_qq > 0
             aporte_total = cd.get("aporte_total_qq")
             if aporte_total is None or aporte_total <= 0:
                 form.add_error("aporte_total_qq", "Debe ser mayor a 0.")
 
-        # 5) Al menos una línea válida
         if lineas_validas == 0:
             raise ValidationError("Debés cargar al menos una línea de solicitud.")
+
 
 
 
@@ -148,6 +154,148 @@ SolicitudLineaFormSet = inlineformset_factory(
     form=SolicitudLineaForm,
     formset=LineasBaseFormSet,   # 👈 importante
     extra=0,
-    can_delete=True
+    can_delete=True,
+    min_num=1,
+    validate_min=True,
 )
 
+
+class CotizacionForm(forms.Form):
+    campaña = forms.ModelChoiceField(queryset=Campaña.objects.none())
+    fecha = forms.DateField(
+        widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+        input_formats=['%Y-%m-%d', '%d/%m/%Y']
+    )
+    suscripcion = forms.DecimalField(max_digits=10, decimal_places=2)
+    socio = forms.CharField(label="Socio", max_length=255)
+
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        if request:
+            self.fields['campaña'].queryset = Campaña.objects.filter(consorcio=consorcio(request))
+        for name in self.fields:
+            self.fields[name].widget.attrs.setdefault('class', 'form-control')
+
+    def clean(self):
+        cleaned = super().clean()
+        faltantes = []
+        for campo in ('campaña', 'fecha', 'suscripcion', 'socio'):
+            if not cleaned.get(campo):
+                faltantes.append(campo)
+        if faltantes:
+            raise ValidationError('Completá todos los campos: campaña, fecha, suscripción y socio.')
+        return cleaned
+
+
+class CotizacionLineaForm(forms.Form):
+    establecimiento = forms.CharField(max_length=255, required=False)
+    departamento = forms.CharField(max_length=100, required=False)
+    gps = forms.CharField(max_length=100, required=False)
+    zona = forms.ModelChoiceField(queryset=Zona.objects.none(), required=False)
+    cultivo = forms.ModelChoiceField(queryset=Cultivo.objects.none(), required=False)
+    hectarea = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
+    participacion = forms.DecimalField(max_digits=5, decimal_places=2, required=False)
+    subsidio_max = forms.DecimalField(max_digits=10, decimal_places=2, required=False)
+    franquicia = forms.DecimalField(max_digits=5, decimal_places=2, required=False)
+    aporte_max = forms.DecimalField(max_digits=5, decimal_places=2, required=False)
+    aporte_total_qq = forms.DecimalField(max_digits=12, decimal_places=2, required=False,
+                                         widget=forms.NumberInput(attrs={'readonly': 'readonly'}))
+
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        if request:
+            self.fields['zona'].queryset = Zona.objects.filter(consorcio=consorcio(request))
+            self.fields['cultivo'].queryset = Cultivo.objects.filter(consorcio=consorcio(request))
+        for name in self.fields:
+            self.fields[name].widget.attrs.setdefault('class', 'form-control')
+
+        # 👇 Hacerlos solo lectura (se envían en POST)
+        self.fields['franquicia'  ].widget.attrs['readonly'] = 'readonly'
+        self.fields['aporte_max'  ].widget.attrs['readonly'] = 'readonly'
+
+    def clean(self):
+        cleaned = super().clean()
+
+        # Detectar fila vacía (todo vacío) => permitimos
+        vacios = all(
+            (cleaned.get(k) in (None, '', 0, Decimal('0')) or k in ('subsidio_max', 'franquicia', 'aporte_max', 'aporte_total_qq'))
+            for k in cleaned.keys()
+        )
+        if vacios:
+            return cleaned
+
+        # Si hay datos: zona y cultivo requeridos
+        if not cleaned.get('zona'):
+            self.add_error('zona', 'Seleccioná una zona.')
+        if not cleaned.get('cultivo'):
+            self.add_error('cultivo', 'Seleccioná un cultivo.')
+
+        # Recalcular aporte_total_qq si hay datos numéricos
+        hect = cleaned.get('hectarea') or Decimal('0')
+        subsidio = cleaned.get('subsidio_max') or Decimal('0')
+        aporte_max = cleaned.get('aporte_max') or Decimal('0')
+        aporte_total = hect * subsidio * (aporte_max / Decimal('100'))
+        cleaned['aporte_total_qq'] = aporte_total
+
+        # Reglas simples
+        if aporte_total <= 0:
+            self.add_error('aporte_total_qq', 'El aporte total debe ser mayor a 0.')
+
+        return cleaned
+
+
+class _BaseCotizacionLineaFormSet(BaseFormSet):
+    def clean(self):
+        super().clean()
+        lineas_validas = 0
+        for form in self.forms:
+            if getattr(form, 'cleaned_data', None) is None:
+                continue
+            if self.can_delete and form.cleaned_data.get('DELETE'):
+                continue
+
+            # considerar vacía
+            cd = form.cleaned_data
+            hay_algo = any(
+                v not in (None, '', 0, Decimal('0'))
+                for k, v in cd.items()
+                if k not in ('DELETE',)
+            )
+            if not hay_algo:
+                continue
+
+            lineas_validas += 1
+
+            if cd.get('aporte_total_qq') in (None, '') or Decimal(cd.get('aporte_total_qq')) <= 0:
+                form.add_error('aporte_total_qq', 'Debe ser mayor a 0.')
+
+        if lineas_validas == 0:
+            raise ValidationError('Debés cargar al menos una línea.')
+
+CotizacionLineaFormSet = formset_factory(
+    CotizacionLineaForm,
+    formset=_BaseCotizacionLineaFormSet,
+    extra=1,
+    can_delete=True,
+    validate_min=False,
+)
+# forms.py
+class EstablecimientoModalForm(forms.ModelForm):
+    class Meta:
+        model = Establecimiento
+        fields = ['nombre', 'dpto', 'gps', 'zona']   # 👈 sin socio_1..5
+        labels = {
+            'nombre': 'Nombre',
+            'dpto': 'Departamento',
+            'gps': 'GPS',
+            'zona': 'Zona',
+        }
+
+    def __init__(self, consorcio=None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.consorcio = consorcio
+        if self.fields.get('zona') is not None and consorcio is not None:
+            self.fields['zona'].queryset = Zona.objects.filter(consorcio=consorcio)
+        # si necesitás filtrar zona por consorcio, podés hacerlo acá

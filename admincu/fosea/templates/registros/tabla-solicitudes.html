@@ -29,11 +29,30 @@
           {% endwith %}
         </td>
         <td class="text-right">
-          <a href="{% url 'solicitud_editar' solicitud.pk %}" class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light" title="Editar">
+          <!-- Editar -->
+          <a href="{% url 'solicitud_editar' solicitud.pk %}"
+             class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light"
+             title="Editar">
             <i class="fa fa-pencil"></i>
           </a>
+        
+          <!-- Imprimir PDF de la solicitud -->
+          <a href="{% url 'solicitud_pdf' solicitud.pk %}"
+             class="btn btn-icon btn-xs btn-success btn-bordered waves-efect waves-light"
+             title="Imprimir solicitud (PDF)"
+             target="_blank" rel="noopener">
+            <i class="fa fa-file-pdf-o"></i>
+          </a>
+        
+          <!-- Imprimir Pagaré -->
+          <a href="{% url 'pagare_solicitud' solicitud.pk %}"
+             class="btn btn-icon btn-xs btn-primary btn-bordered waves-efect waves-light"
+             title="Imprimir pagaré"
+             target="_blank" rel="noopener">
+            <i class="fa fa-file-text-o"></i>
+          </a>
         </td>
-      </tr>
+              </tr>
     {% endfor %}
   </tbody>
 </table>

@@ -1,0 +1,452 @@
+{% extends 'raiz.html' %}
+{% load static %}
+
+{% block titulo %}Nueva Cotización{% endblock %}
+{% block header %}Nueva Cotización{% endblock %}
+
+{% block contenido %}
+<style>
+    .contenido-interno{
+      background:#fff; padding:20px; border-radius:12px; max-width:1500px; margin:20px auto;
+      box-shadow:0 6px 22px rgba(0,0,0,.08);
+    }
+    .form-row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:15px;}
+    .form-row .form-group{flex:1; min-width:220px;}
+    .form-group{margin-bottom:15px;}
+    label{display:block; font-weight:600; margin-bottom:6px; color:#333;}
+    select, input[type="text"], input[type="date"], input[type="number"]{
+      width:100%; padding:8px 10px; border:1px solid #dcdcdc; border-radius:8px; background:#fff;
+    }
+
+    /* Contenedor de cada línea del formset */
+    .formset-linea{
+      display:grid;
+      grid-template-columns: repeat(8, 1fr) 48px; /* 8 columnas iguales + 1 para el tachito */
+      grid-auto-rows:auto;
+      gap:12px; padding:16px;
+      border:1px dashed #e6e6e6; border-radius:10px; background:#fafafa;
+      align-items:start;
+    }
+  
+    /* ===== Fila 1 (4 campos iguales): Establecimiento, Zona, GPS, Departamento ===== */
+    .formset-linea .form-group:has(> [name$="establecimiento"]) { grid-column:1 / span 2; grid-row:1; }
+    .formset-linea .form-group:has(> [name$="zona"])           { grid-column:3 / span 2; grid-row:1; }
+    .formset-linea .form-group:has(> [name$="gps"])            { grid-column:5 / span 2; grid-row:1; }
+    .formset-linea .form-group:has(> [name$="departamento"])   { grid-column:7 / span 2; grid-row:1; }
+  
+    /* ===== Fila 2 (7 campos): Cultivo (x2), y seis campos de 1 columna ===== */
+    .formset-linea .form-group:has(> [name$="cultivo"])        { grid-column:1 / span 2; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="hectarea"])       { grid-column:3 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="participacion"])  { grid-column:4 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="subsidio_max"])   { grid-column:5 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="franquicia"])     { grid-column:6 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="aporte_max"])     { grid-column:7 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="aporte_total_qq"]){ grid-column:8 / span 1; grid-row:2; }
+  
+    /* Tachito, centrado verticalmente entre las 2 filas */
+    .eliminar-wrapper{
+      grid-column:9; grid-row:1 / span 2;
+      justify-self:center; align-self:center;
+    }
+    .icon-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:36px; height:36px; border:none; border-radius:10px; cursor:pointer;
+      background:#ffe8e6; transition:transform .08s ease, background .15s ease;
+    }
+    .icon-btn:hover{ background:#ffd5d1; transform:translateY(-1px); }
+    .icon-btn:active{ transform:translateY(0); }
+    .icon-trash{ width:18px; height:18px; fill:#e74c3c; }
+
+    /* Ocultar checkbox de borrado */
+    input[name$="-DELETE"]{ display:none; }
+
+    .botones{ margin-top:22px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+    .btn{ padding:10px 18px; border:none; border-radius:10px; cursor:pointer; font-weight:600; }
+    .btn-imprimir{ background:#8e44ad; color:#fff; }
+    .btn-cancelar{ background:#95a5a6; color:#fff; }
+
+    .tabla{ width:100%; border-collapse:separate; border-spacing:0; margin-top:10px;
+            border:1px solid #e7e7e7; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.04); }
+    .tabla thead th{ background:linear-gradient(180deg,#f8fafc,#f1f5f9); color:#334155; text-align:left; padding:10px 12px; font-weight:700; border-bottom:1px solid #e7e7e7; }
+    .tabla tbody td{ padding:10px 12px; border-bottom:1px solid #f0f0f0; }
+    .tabla tbody tr:nth-child(odd){ background:#fcfcfc; }
+    .tabla tfoot td{ padding:12px; background:#fafafa; font-weight:700; }
+
+    /* Responsive: 1 columna + tachito */
+    @media (max-width: 900px){
+    .formset-linea{ grid-template-columns: 1fr 48px; }
+    .formset-linea > *:not(.eliminar-wrapper){ grid-column:1 / 2 !important; }
+    .eliminar-wrapper{ grid-column:2; grid-row:auto; align-self:start; }
+  }
+</style>
+
+<div class="contenido-interno">
+  <form method="post" id="form-cotizacion">
+    {% csrf_token %}
+
+    <div class="form-row">
+      <div class="form-group">{{ form.campaña.label_tag }}{{ form.campaña }}</div>
+      <div class="form-group">{{ form.fecha.label_tag }}{{ form.fecha }}</div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">{{ form.suscripcion.label_tag }}{{ form.suscripcion }}</div>
+      <div class="form-group">{{ form.socio.label_tag }}{{ form.socio }}</div>
+    </div>
+
+    <hr>
+    <h3>Líneas</h3>
+
+    {{ form.non_field_errors }}
+  {% if formset.is_bound %}
+  {{ formset.non_form_errors }}
+  {% for f in formset %}{{ f.non_field_errors }}{% endfor %}
+  {% endif %}
+
+
+    <div id="formset">
+      {{ formset.management_form }}
+      {% for f in formset %}
+      <div class="formset-linea">
+        <!-- Fila 1 -->
+        <div class="form-group">{{ f.establecimiento.label_tag }}{{ f.establecimiento }}</div>
+        <div class="form-group">{{ f.zona.label_tag }}{{ f.zona }}</div>
+        <div class="form-group">{{ f.gps.label_tag }}{{ f.gps }}</div>
+        <div class="form-group">{{ f.departamento.label_tag }}{{ f.departamento }}</div>
+      
+        <!-- Fila 2 -->
+        <div class="form-group">{{ f.cultivo.label_tag }}{{ f.cultivo }}</div>
+        <div class="form-group">{{ f.hectarea.label_tag }}{{ f.hectarea }}</div>
+        <div class="form-group">{{ f.participacion.label_tag }}{{ f.participacion }}</div>
+        <<div class="form-group">
+          <label>Subsidio máx (QQ) <small class="text-muted max-sub" style="font-weight:400"></small></label>
+          {{ f.subsidio_max }}
+        </div>
+        <div class="form-group">
+          <label>Franquicia (%)</label>{{ f.franquicia }}
+        </div>
+        <div class="form-group">
+          <label>Aporte máx (%)</label>{{ f.aporte_max }}
+        </div>
+        <div class="form-group">
+          <label>Aporte total (QQ)</label>{{ f.aporte_total_qq }}
+        </div>
+      
+        {{ f.DELETE }}
+        <div class="eliminar-wrapper">
+          <button type="button" class="icon-btn eliminar" title="Eliminar línea" aria-label="Eliminar línea">
+            <svg class="icon-trash" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 3h6a1 1 0 0 1 1 1v1h4v2h-1v12a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V7H4V5h4V4a1 1 0 0 1 1-1zm1 4H7v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7h-3H10zm1 3h2v8h-2V10zm-4 0h2v8H7v-8zm8 0h2v8h-2v-8zM10 5v0h4V4h-4v1z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div id="formset-empty" style="display:none;">
+      <div class="formset-linea">
+        <!-- Fila 1 -->
+        <div class="form-group">{{ formset.empty_form.establecimiento.label_tag }}{{ formset.empty_form.establecimiento }}</div>
+        <div class="form-group">{{ formset.empty_form.zona.label_tag }}{{ formset.empty_form.zona }}</div>
+        <div class="form-group">{{ formset.empty_form.gps.label_tag }}{{ formset.empty_form.gps }}</div>
+        <div class="form-group">{{ formset.empty_form.departamento.label_tag }}{{ formset.empty_form.departamento }}</div>
+    
+        <!-- Fila 2 -->
+        <div class="form-group">{{ formset.empty_form.cultivo.label_tag }}{{ formset.empty_form.cultivo }}</div>
+        <div class="form-group">{{ formset.empty_form.hectarea.label_tag }}{{ formset.empty_form.hectarea }}</div>
+        <div class="form-group">{{ formset.empty_form.participacion.label_tag }}{{ formset.empty_form.participacion }}</div>
+        <div class="form-group">
+          <label>Subsidio máx (QQ) <small class="text-muted max-sub" style="font-weight:400"></small></label>
+          {{ formset.empty_form.subsidio_max }}
+        </div>
+        <div class="form-group"><label>Franquicia (%)</label>{{ formset.empty_form.franquicia }}</div>
+        <div class="form-group"><label>Aporte máx (%)</label>{{ formset.empty_form.aporte_max }}</div>
+        <div class="form-group"><label>Aporte total (QQ)</label>{{ formset.empty_form.aporte_total_qq }}</div>
+    
+        {{ formset.empty_form.DELETE }}
+        <div class="eliminar-wrapper">
+          <button type="button" class="icon-btn eliminar" title="Eliminar línea" aria-label="Eliminar línea">
+            <svg class="icon-trash" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 3h6a1 1 0 0 1 1 1v1h4v2h-1v12a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V7H4V5h4V4a1 1 0 0 1 1-1zm1 4H7v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7h-3H10zm1 3h2v8h-2V10zm-4 0h2v8H7v-8zm8 0h2v8h-2v-8zM10 5v0h4V4h-4v1z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <button type="button" id="agregar-linea" class="btn" style="background:#2ecc71;color:#fff;margin-bottom:10px;">Agregar línea</button>
+
+    <hr>
+    <h3>Resumen por Cultivo</h3>
+    <table class="tabla" id="tabla-resumen-cultivo">
+      <thead>
+        <tr>
+          <th>Cultivo</th>
+          <th>Hectáreas</th>
+          <th>Aporte en QQ</th>
+          <th>Valor Cereal</th>
+          <th>Garantía</th>
+        </tr>
+      </thead>
+      <tbody id="resumen-body"></tbody>
+    </table>
+
+    <h3>Resumen Final</h3>
+    <table class="tabla" id="tabla-resumen-final">
+      <thead>
+        <tr>
+          <th>Hectáreas reales</th>
+          <th>Suscripción por hectárea</th>
+          <th>Total Suscripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td id="hectareas-reales">0,00</td>
+          <td id="valor-soja-final" data-valor-soja="0">$ 0,00</td>
+          <td id="total-soja">$ 0,00</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="botones">
+      <a href="{% url 'fosea' %}" class="btn btn-cancelar">Cancelar</a>
+      <button type="submit" class="btn btn-imprimir" name="accion" value="imprimir" formtarget="_blank">Imprimir</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+const fmtNum = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtARS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2 });
+
+function parametrosZonaCultivo($linea){
+  const zonaId = $linea.find("select[name$='zona']").val();
+  const cultivoId = $linea.find("select[name$='cultivo']").val();
+  const $sub = $linea.find("input[name$='subsidio_max']");
+  const $apo = $linea.find("input[name$='aporte_max']");
+  const $fra = $linea.find("input[name$='franquicia']");
+
+  if(zonaId && cultivoId){
+    $.ajax({
+      url: "{% url 'parametros_zona_cultivo' %}",
+      data: { zona_id: zonaId, cultivo_id: cultivoId },
+      success: function(data){
+        // Subsidio máximo al estilo del primer template
+        if (data.subsidio_max !== undefined && data.subsidio_max !== null){
+          const maxStr = Number(data.subsidio_max).toFixed(2);
+          $sub.attr("max", maxStr);
+          $sub.attr("placeholder", `Máximo: ${maxStr}`);
+          if(!$sub.val()){ $sub.val(maxStr); }
+        } else {
+          $sub.removeAttr("max").attr("placeholder", "Subsidio máximo");
+        }
+
+        // Los otros dos campos igual que ahora
+        if(data.aporte_max !== null){ $apo.val(Number(data.aporte_max).toFixed(2)); } else { $apo.val(''); }
+        if(data.franquicia !== null){ $fra.val(Number(data.franquicia).toFixed(2)); } else { $fra.val(''); }
+
+        actualizarAporteTotal($linea); generarResumen(); calcularResumenFinal();
+      },
+      error: function(){
+        $sub.removeAttr("max").attr("placeholder", "Error al cargar máximo");
+        $apo.val(''); $fra.val('');
+        actualizarAporteTotal($linea); generarResumen(); calcularResumenFinal();
+      }
+    });
+  } else {
+    $sub.removeAttr("max").attr("placeholder", "Subsidio máximo");
+    $apo.val(''); $fra.val('');
+    actualizarAporteTotal($linea); generarResumen(); calcularResumenFinal();
+  }
+}
+
+
+
+function actualizarAporteTotal($linea){
+  const hect = parseFloat($linea.find("input[name$='hectarea']").val()) || 0;
+  const sub = parseFloat($linea.find("input[name$='subsidio_max']").val()) || 0;
+  const apo = parseFloat($linea.find("input[name$='aporte_max']").val()) || 0;
+  const total = hect * sub * (apo/100);
+  $linea.find("input[name$='aporte_total_qq']").val(total.toFixed(2));
+}
+
+function generarResumen(){
+  const resumen = {};
+  const ids = {};
+
+  $("#formset .formset-linea").each(function(){
+    const $l = $(this);
+    if($l.find("input[name$='-DELETE']").is(":checked") || !$l.is(":visible")) return;
+    const cultSel = $l.find("select[name$='cultivo']");
+    const cid = cultSel.val(); const ctext = cultSel.find(":selected").text().trim();
+    if(!cid) return;
+    const hect = parseFloat($l.find("input[name$='hectarea']").val()) || 0;
+    const aporte = parseFloat($l.find("input[name$='aporte_total_qq']").val()) || 0;
+
+    if(!resumen[ctext]){ resumen[ctext] = {hectareas:0, aporte:0}; ids[ctext]=cid; }
+    resumen[ctext].hectareas += hect;
+    resumen[ctext].aporte += aporte;
+  });
+
+  const $body = $("#resumen-body").empty();
+  for (const cult in resumen){
+    const cid = ids[cult];
+    const aporteTotal = resumen[cult].aporte;
+    const $row = $(`
+      <tr>
+        <td>${cult}</td>
+        <td class="hect">${fmtNum.format(resumen[cult].hectareas)}</td>
+        <td class="aporte">${fmtNum.format(aporteTotal)}</td>
+        <td class="valor-cereal" data-cultivo-id="${cid}">Cargando…</td>
+        <td class="garantia">Calculando…</td>
+      </tr>`);
+    $body.append($row);
+
+    $.ajax({
+      url: "{% url 'cotizacion_por_cultivo' %}",
+      data: { cultivo_id: cid },
+      success: function (data) {
+        const cot = (data.cotizacion !== null) ? Number(data.cotizacion) : null;
+        const $vc = $row.find(".valor-cereal");
+        const $gar = $row.find(".garantia");
+        if (cot !== null){
+          $vc.text(fmtARS.format(cot));
+          $gar.text(fmtARS.format(aporteTotal * cot));
+        } else { $vc.text("No disponible"); $gar.text("No disponible"); }
+      },
+      error: function(){ $row.find(".valor-cereal,.garantia").text("Error"); }
+    });
+  }
+}
+
+function calcularResumenFinal(){
+  let hectareasReales = 0;
+  const total = parseInt($("#id_form-TOTAL_FORMS").val(), 10) || 0;
+
+  for(let i=0;i<total;i++){
+    const $del = $(`#id_form-${i}-DELETE`);
+    const $hec = $(`#id_form-${i}-hectarea`);
+    const $par = $(`#id_form-${i}-participacion`);
+    if(!$hec.length || !$par.length) continue;
+    if($del.length && $del.is(":checked")) continue;
+
+    const h = parseFloat(String($hec.val()||"0").replace(',','.'))||0;
+    const p = parseFloat(String($par.val()||"0").replace(',','.'))||0;
+    hectareasReales += h * (p/100);
+  }
+
+  $("#hectareas-reales").text(fmtNum.format(hectareasReales));
+  const valorSuscripcion = parseFloat(String($("#id_suscripcion").val()).replace(',','.'))||0;
+  const valorSojaCrudo = parseFloat($("#valor-soja-final").data("valor-soja"))||0;
+  const valorSojaCalculado = (valorSojaCrudo/100) * valorSuscripcion;
+  const total$ = hectareasReales * valorSojaCalculado;
+  $("#valor-soja-final").text(fmtARS.format(valorSojaCalculado));
+  $("#total-soja").text(fmtARS.format(total$));
+}
+
+$(function(){
+  let totalForms = parseInt($('#id_form-TOTAL_FORMS').val(), 10) || 0;
+  if (totalForms === 0){
+    // fuerza una fila inicial
+    $("#agregar-linea").trigger('click');
+  }
+
+  // Agregar línea
+  $("#agregar-linea").click(function(){
+    const html = $("#formset-empty").html().replace(/__prefix__/g, totalForms);
+    $("#formset").append($(html));
+    totalForms++;
+    $("#id_form-TOTAL_FORMS").val(totalForms);
+    generarResumen(); calcularResumenFinal();
+  });
+
+  // Eliminar
+  $("#formset").on("click", ".eliminar", function(){
+    const $fila = $(this).closest(".formset-linea");
+    const $del = $fila.find("input[name$='-DELETE']");
+    if($del.length){ $del.prop('checked', true).trigger('change'); $fila.hide(); }
+    else { $fila.remove(); }
+    generarResumen(); calcularResumenFinal();
+  });
+
+  // Reacciones
+  $("#formset").on("change", "select[name$='zona'], select[name$='cultivo']", function(){
+    const $linea = $(this).closest(".formset-linea");
+    parametrosZonaCultivo($linea);
+  });
+
+  $("#formset").on("input", "input[name$='hectarea'], input[name$='participacion']", function(){
+    const $linea = $(this).closest(".formset-linea");
+    actualizarAporteTotal($linea); generarResumen(); calcularResumenFinal();
+  });
+
+  $("#id_suscripcion").on("input", calcularResumenFinal);
+
+  // Valor soja para resumen final (cultivo_id=1 si lo usás así)
+  function obtenerValorSoja(){
+    $.ajax({
+      url: "{% url 'cotizacion_por_cultivo' %}",
+      data: { cultivo_id: 1 },
+      success: function(data){
+        if(data.cotizacion !== null){
+          $("#valor-soja-final").data("valor-soja", data.cotizacion).text("Cargando…");
+          calcularResumenFinal();
+        } else { $("#valor-soja-final").text("No disponible"); }
+      },
+      error: function(){ $("#valor-soja-final").text("Error"); }
+    });
+  }
+  obtenerValorSoja();
+
+  generarResumen(); calcularResumenFinal();
+  $("#form-cotizacion").on("submit", function(e){
+    let ok = true;
+
+    $("#formset .formset-linea").each(function(){
+      const $l = $(this);
+      const $del = $l.find("input[name$='-DELETE']");
+      if($del.length && $del.is(":checked")) return;
+
+      const val = parseFloat(($l.find("input[name$='subsidio_max']").val()||"").replace(',','.'));
+      const max = parseFloat(($l.find("input[name$='subsidio_max']").attr("data-max")||"").replace(',','.'));
+
+      if(!isNaN(val) && !isNaN(max) && val > max){
+        ok = false;
+        // marcar visualmente
+        $l.find("input[name$='subsidio_max']").addClass("is-invalid");
+        // podés poner un mensajito inline si querés:
+        if(!$l.find(".subsidio-error").length){
+          $l.find("input[name$='subsidio_max']").after(
+            '<div class="subsidio-error" style="color:#c0392b;font-size:12px;margin-top:4px;">' +
+            `El valor supera el máximo permitido (${fmtNum.format(max)}).` +
+            '</div>'
+          );
+        }
+      } else {
+        $l.find("input[name$='subsidio_max']").removeClass("is-invalid");
+        $l.find(".subsidio-error").remove();
+      }
+    });
+
+    if(!ok){
+      e.preventDefault();  // bloquea “Imprimir”
+      // opcional: scrollear al primer error
+      const $firstErr = $(".is-invalid").first();
+      if($firstErr.length){ window.scrollTo({ top: $firstErr.offset().top - 120, behavior: 'smooth' }); }
+    }
+  });
+
+  // limpiar mensajito cuando el usuario corrige
+  $("#formset").on("input", "input[name$='subsidio_max']", function(){
+    $(this).removeClass("is-invalid");
+    $(this).siblings(".subsidio-error").remove();
+    const $linea = $(this).closest(".formset-linea");
+    actualizarAporteTotal($linea); generarResumen(); calcularResumenFinal();
+  });
+});
+</script>
+{% endblock %}

@@ -10,8 +10,6 @@
       background:#fff; padding:20px; border-radius:12px; max-width:1500px; margin:20px auto;
       box-shadow:0 6px 22px rgba(0,0,0,.08);
     }
-  
-    /* Campos base */
     .form-row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:15px;}
     .form-row .form-group{flex:1; min-width:220px;}
     .form-group{margin-bottom:15px;}
@@ -20,40 +18,32 @@
       width:100%; padding:8px 10px; border:1px solid #dcdcdc; border-radius:8px; background:#fff;
     }
   
-    /* Línea del formset: 2 filas + columna fija para el tacho */
+    /* Contenedor de cada línea del formset */
     .formset-linea{
       display:grid;
-      grid-template-columns: repeat(8, 1fr) 48px; /* 8 columnas de igual ancho + 1 fija para el tacho */
+      grid-template-columns: repeat(8, 1fr) 48px; /* 8 columnas iguales + 1 para el tachito */
       grid-auto-rows:auto;
-      gap:12px;
-      padding:16px;
+      gap:12px; padding:16px;
       border:1px dashed #e6e6e6; border-radius:10px; background:#fafafa;
       align-items:start;
     }
   
-    /* Renglón 1: 4 campos iguales */
-    .formset-linea .form-group:has(> select[name$="establecimiento"]) { grid-column:1 / span 2; grid-row:1; }
-    .formset-linea .info-establecimiento:has(.zona)                   { grid-column:3 / span 2; grid-row:1; }
-    .formset-linea .info-establecimiento:has(.gps)                    { grid-column:5 / span 2; grid-row:1; }
-    .formset-linea .info-establecimiento:has(.departamento)           { grid-column:7 / span 2; grid-row:1; }
+    /* ===== Fila 1 (4 campos iguales): Establecimiento, Zona, GPS, Departamento ===== */
+    .formset-linea .form-group:has(> [name$="establecimiento"]) { grid-column:1 / span 2; grid-row:1; }
+    .formset-linea .info-establecimiento:has(.zona)             { grid-column:3 / span 2; grid-row:1; }
+    .formset-linea .info-establecimiento:has(.gps)              { grid-column:5 / span 2; grid-row:1; }
+    .formset-linea .info-establecimiento:has(.departamento)     { grid-column:7 / span 2; grid-row:1; }
   
-    /* Renglón 2: 7 campos iguales */
-    .formset-linea .form-group:has(> select[name$="cultivo"])         { grid-column:1 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="hectarea"])         { grid-column:2 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="participacion"])    { grid-column:3 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="subsidio_max"])     { grid-column:4 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="franquicia"])       { grid-column:5 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="aporte_max"])       { grid-column:6 / span 1; grid-row:2; }
-    .formset-linea .form-group:has(> input[name$="aporte_total_qq"])  { grid-column:7 / span 1; grid-row:2; }
+    /* ===== Fila 2 (7 campos): Cultivo (x2), y seis campos de 1 columna ===== */
+    .formset-linea .form-group:has(> [name$="cultivo"])         { grid-column:1 / span 2; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="hectarea"])        { grid-column:3 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="participacion"])   { grid-column:4 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="subsidio_max"])    { grid-column:5 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="franquicia"])      { grid-column:6 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="aporte_max"])      { grid-column:7 / span 1; grid-row:2; }
+    .formset-linea .form-group:has(> [name$="aporte_total_qq"]) { grid-column:8 / span 1; grid-row:2; }
   
-    /* Info de establecimiento (cajas grises) */
-    .info-establecimiento{
-      font-size:.92em; background:#f4f6f8; padding:8px 10px; border-radius:8px;
-      border:1px solid #e8eaed;
-    }
-    .info-establecimiento label{margin:0 0 4px 0; font-weight:600; color:#555;}
-  
-    /* Tacho: columna fija, centrado en altura */
+    /* Tachito, centrado verticalmente entre las 2 filas */
     .eliminar-wrapper{
       grid-column:9; grid-row:1 / span 2;
       justify-self:center; align-self:center;
@@ -66,17 +56,22 @@
     .icon-btn:hover{ background:#ffd5d1; transform:translateY(-1px); }
     .icon-btn:active{ transform:translateY(0); }
     .icon-trash{ width:18px; height:18px; fill:#e74c3c; }
+  
+    /* Ocultar checkbox de borrado */
     input[name$="-DELETE"]{ display:none; }
   
-    /* Botonera */
     .botones{ margin-top:22px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
     .btn{ padding:10px 18px; border:none; border-radius:10px; cursor:pointer; font-weight:600; }
-    .btn-guardar{ background:#3498db; color:#fff; }
-    .btn-agregar{ background:#2ecc71; color:#fff; margin-bottom:10px; }
-    .btn-cancelar{ background:#95a5a6; color:#fff; }
     .btn-imprimir{ background:#8e44ad; color:#fff; }
+    .btn-cancelar{ background:#95a5a6; color:#fff; }
+    .btn-guardar {
+        background:#3498db; /* azul */
+        color:#fff;
+      }
+      .btn-guardar:hover {
+        background:#2980b9; /* azul más oscuro al pasar el mouse */
+      }
   
-    /* Tabla bonita */
     .tabla{ width:100%; border-collapse:separate; border-spacing:0; margin-top:10px;
             border:1px solid #e7e7e7; border-radius:12px; overflow:hidden; box-shadow:0 4px 16px rgba(0,0,0,.04); }
     .tabla thead th{ background:linear-gradient(180deg,#f8fafc,#f1f5f9); color:#334155; text-align:left; padding:10px 12px; font-weight:700; border-bottom:1px solid #e7e7e7; }
@@ -84,13 +79,14 @@
     .tabla tbody tr:nth-child(odd){ background:#fcfcfc; }
     .tabla tfoot td{ padding:12px; background:#fafafa; font-weight:700; }
   
-    /* Responsive */
+    /* Responsive: 1 columna + tachito */
     @media (max-width: 900px){
       .formset-linea{ grid-template-columns: 1fr 48px; }
       .formset-linea > *:not(.eliminar-wrapper){ grid-column:1 / 2 !important; }
       .eliminar-wrapper{ grid-column:2; grid-row:auto; align-self:start; }
     }
   </style>
+  
 
 <div class="contenido-interno">
     <form method="post">
@@ -117,8 +113,28 @@
             {% for form in formset %}
                 <div class="formset-linea">
                     {{ form.id }}
-                    <div class="form-group">{{ form.establecimiento.label_tag }}{{ form.establecimiento }}</div>
-
+                    <div class="form-group">
+                        <label>Establecimiento</label>
+                        <!-- ocultamos el select nativo para no romper el form -->
+                        <div style="display:none;">
+                          {{ form.establecimiento }}
+                        </div>
+                      
+                        <!-- hidden controlado por JS (refleja el select oculto) -->
+                        <input type="hidden" name="{{ form.establecimiento.name }}" value="{{ form.establecimiento.value|default:'' }}"/>
+                      
+                        <div style="display:flex; gap:8px; align-items:center;">
+                          <span class="est-nombre" style="padding:6px 10px; background:#eef2ff; border-radius:8px; min-width:200px; display:inline-block;">
+                            {% if form.instance and form.instance.establecimiento %}{{ form.instance.establecimiento.nombre }}{% else %}— Sin seleccionar —{% endif %}
+                          </span>
+                          <button type="button" class="btn"
+                                  style="background:#16a085;color:#fff;white-space:nowrap;"
+                                  data-accion="elegir-est"
+                                  title="Elegir o crear establecimiento">
+                            Elegir / Crear
+                          </button>
+                        </div>
+                      </div>
                     <div class="info-establecimiento">
                         <label>Departamento</label><div class="departamento"></div>
                     </div>
@@ -153,7 +169,26 @@
         <div id="formset-empty" style="display:none;">
             <div class="formset-linea">
                 {{ formset.empty_form.id }}
-                <div class="form-group">{{ formset.empty_form.establecimiento.label_tag }}{{ formset.empty_form.establecimiento }}</div>
+                <div class="form-group">
+                    <label>Establecimiento</label>
+                    <div style="display:none;">
+                      {{ formset.empty_form.establecimiento }}
+                    </div>
+                    <input type="hidden" name="{{ formset.empty_form.establecimiento.name }}" value=""/>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                      <span class="est-nombre" style="padding:6px 10px; background:#eef2ff; border-radius:8px; min-width:200px; display:inline-block;">
+                        — Sin seleccionar —
+                      </span>
+                      <button type="button" class="btn"
+                              style="background:#16a085;color:#fff;white-space:nowrap;"
+                              data-accion="elegir-est"
+                              title="Elegir o crear establecimiento">
+                        Elegir / Crear
+                      </button>
+                    </div>
+                  </div>
+                  
+                  
                 <div class="info-establecimiento"><label>Departamento</label><div class="departamento"></div></div>
                 <div class="info-establecimiento"><label>GPS</label><div class="gps"></div></div>
                 <div class="info-establecimiento"><label>Zona</label><div class="zona"></div></div>
@@ -175,8 +210,17 @@
             </div>
         </div>
 
-        <button type="button" id="agregar-linea" class="btn btn-agregar">Agregar línea</button>
-
+        <button type="button" id="agregar-linea" class="btn" style="background:#2ecc71;color:#fff;margin-bottom:10px;">Agregar línea</button>
+        <div id="modal-est" style="position:fixed; inset:0; display:none; z-index:9999;">
+            <div style="position:absolute; inset:0; background:rgba(0,0,0,.35);"></div>
+            <div id="modal-est-content" style="
+                position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+                background:#fff; width:min(720px, 96vw); max-height:90vh; overflow:auto;
+                border-radius:12px; box-shadow:0 18px 60px rgba(0,0,0,.2); padding:18px;">
+              <!-- aquí se inyecta el form -->
+            </div>
+          </div>
+          
         <hr>
         <h3>Resumen por Cultivo</h3>
         <div id="cuadro-resumen">
@@ -215,7 +259,6 @@
         <div class="botones">
             <a href="{% url 'fosea' %}" class="btn btn-cancelar">Cancelar</a>
             <button type="submit" class="btn btn-guardar">Guardar</button>
-            <button type="submit" class="btn btn-imprimir" name="accion" value="imprimir" formtarget="_blank">Imprimir</button>
         </div>
     </form>
 </div>
@@ -275,32 +318,37 @@
     }
 
     function cargarAportePorZonaYCultivo($linea) {
-        const cultivoId = $linea.find("select[name$='cultivo']").val();
-        const establecimientoId = $linea.find("select[name$='establecimiento']").val();
+        const $selCult = $linea.find("select[name$='cultivo']");
+        const $selEst  = $linea.find("select[name$='establecimiento']");
+        const cultivoId = $selCult.val();
+        const establecimientoId = $selEst.val() || $linea.find("input[name$='establecimiento']").val(); // fallback
+      
         const $aporteInput = $linea.find("input[name$='aporte_max']");
         const $franquiciaInput = $linea.find("input[name$='franquicia']");
+      
         if (cultivoId && establecimientoId) {
-            $.ajax({
-                url: "{% url 'aporte_por_zona_cultivo' %}",
-                data: { cultivo_id: cultivoId, establecimiento_id: establecimientoId },
-                success: function (data) {
-                    if (data.aporte !== null) {
-                        $aporteInput.val(Number(data.aporte).toFixed(2)).prop('readonly', true);
-                    } else { $aporteInput.val('').prop('readonly', true); }
-                    if (data.franquicia !== null) {
-                        $franquiciaInput.val(Number(data.franquicia).toFixed(2)).prop('readonly', true);
-                    } else { $franquiciaInput.val('').prop('readonly', true); }
-                },
-                error: function () {
-                    $aporteInput.val('').prop('readonly', true);
-                    $franquiciaInput.val('').prop('readonly', true);
-                }
-            });
+          $.ajax({
+            url: "{% url 'aporte_por_zona_cultivo' %}",
+            data: { cultivo_id: cultivoId, establecimiento_id: establecimientoId },
+            success: function (data) {
+              if (data.aporte !== null) $aporteInput.val(Number(data.aporte).toFixed(2));
+              else $aporteInput.val('');
+              if (data.franquicia !== null) $franquiciaInput.val(Number(data.franquicia).toFixed(2));
+              else $franquiciaInput.val('');
+              $aporteInput.prop('readonly', true);
+              $franquiciaInput.prop('readonly', true);
+            },
+            error: function () {
+              $aporteInput.val('').prop('readonly', true);
+              $franquiciaInput.val('').prop('readonly', true);
+            }
+          });
         } else {
-            $aporteInput.val('').prop('readonly', true);
-            $franquiciaInput.val('').prop('readonly', true);
+          $aporteInput.val('').prop('readonly', true);
+          $franquiciaInput.val('').prop('readonly', true);
         }
-    }
+      }
+      
 
     function generarResumen() {
         const resumen = {};
@@ -541,6 +589,132 @@
         // Inicial
         generarResumen();
         obtenerValorSoja();
+                // --- MODAL ESTABLECIMIENTO (bloque limpio) ---
+        const $modal = $("#modal-est");
+        const $modalContent = $("#modal-est-content");
+        let $lineaObjetivo = null;   // línea que abrió el modal
+
+        function abrirModal(html){
+        $modalContent.html(html);
+        $modal.show();
+        }
+        function cerrarModal(){
+        $modal.hide();
+        $modalContent.html("");
+        }
+
+        // Abrir modal al click en "Elegir / Crear"
+        $("#formset").on("click", "button[data-accion='elegir-est']", function(e){
+        e.preventDefault();
+        const socioId = $("#id_socio").val();
+        if (!socioId) {
+            alert("Primero seleccioná un socio para poder crear el establecimiento.");
+            return;
+        }
+        $lineaObjetivo = $(this).closest(".formset-linea");
+
+        $.ajax({
+            url: "{% url 'establecimiento_modal' %}",
+            data: { socio_id: socioId },
+            success: function(html){
+            abrirModal(html);
+            },
+            error: function(xhr){
+            alert("No se pudo abrir el formulario de Establecimiento.");
+            console.error(xhr.responseText || xhr.statusText);
+            }
+        });
+        });
+
+        // Cerrar modal
+        $("#modal-est").on("click", "#cancelar-modal", cerrarModal);
+        $("#modal-est").on("click", function(e){
+        if (e.target === e.currentTarget) cerrarModal();
+        });
+
+        // Seleccionar existente
+        $("#modal-est").on("click", ".seleccionar-est", function(){
+        if (!$lineaObjetivo) return;
+        const $tr = $(this).closest("tr");
+        const id  = $tr.data("id");
+        const nom = $tr.data("nombre") || "";
+        const depto = $tr.data("departamento") || "";
+        const gps   = $tr.data("gps") || "";
+        const zona  = $tr.data("zona") || "";
+
+        // setear hidden + select oculto
+        const $sel = $lineaObjetivo.find("select[name$='establecimiento']");
+        $lineaObjetivo.find("input[name$='establecimiento']").val(id);
+
+        // si no existe la opción, agregarla
+        if ($sel.find(`option[value="${id}"]`).length === 0) {
+            $sel.append($("<option>").val(id).text(nom));
+        }
+        $sel.val(id).trigger("change"); // 👈 dispara handlers dependientes
+
+        // mostrar nombre e info
+        $lineaObjetivo.find(".est-nombre").text(nom || "— Sin seleccionar —");
+        $lineaObjetivo.find(".departamento").text(depto);
+        $lineaObjetivo.find(".gps").text(gps);
+        $lineaObjetivo.find(".zona").text(zona);
+
+        // recalcular dependencias
+        cargarAportePorZonaYCultivo($lineaObjetivo);
+        actualizarSubsidioMaximo($lineaObjetivo);
+        recalcularTodo();
+
+        cerrarModal();
+        });
+
+        // Guardar “nuevo”
+        $("#modal-est").on("submit", "#form-nuevo-est", function(e){
+            e.preventDefault();
+            if (!$lineaObjetivo) return;
+        
+            const $form = $(this);
+            const socioId = $("#id_socio").val() || "";
+            const data = $form.serialize() + "&socio_id=" + encodeURIComponent(socioId);
+        
+            $.ajax({
+            url: "{% url 'establecimiento_modal' %}",
+            method: "POST",
+            data: data,
+            success: function(resp){
+                if (resp && resp.ok){
+                const id  = String(resp.id);
+                const nom = resp.nombre || "";
+        
+                // hidden + select
+                const $sel = $lineaObjetivo.find("select[name$='establecimiento']");
+                $lineaObjetivo.find("input[name$='establecimiento']").val(id);
+        
+                // 🚩 clave: asegurar que exista la opción en el select
+                if ($sel.find(`option[value="${id}"]`).length === 0) {
+                    $sel.append($("<option>").val(id).text(nom));
+                }
+                $sel.val(id).trigger("change");  // 👈 dispara cargarAporte/actualizarSubsidio
+        
+                // pintar info visible
+                $lineaObjetivo.find(".est-nombre").text(nom || "— Sin seleccionar —");
+                $lineaObjetivo.find(".departamento").text(resp.departamento || '');
+                $lineaObjetivo.find(".gps").text(resp.gps || '');
+                $lineaObjetivo.find(".zona").text(resp.zona || '');
+        
+                cerrarModal();
+                } else {
+                alert("Respuesta inesperada del servidor.");
+                }
+            },
+            error: function(xhr){
+                if (xhr.status === 422){
+                $("#modal-est-content").html(xhr.responseText);
+                } else {
+                alert("No se pudo guardar el Establecimiento.");
+                console.error(xhr.status, xhr.responseText || xhr.statusText);
+                }
+            }
+        });
+        });        
     });
 </script>
 {% endblock %}

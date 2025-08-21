@@ -1,0 +1,87 @@
+{% load humanize %}
+{% load personal_tags %}
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Pagaré Solicitud {{ solicitud.id }}</title>
+  <style>
+    @page { size: A4; margin: 18mm 14mm; }
+    body { font-family: sans-serif; font-size: 12px; color: #111; }
+    h1,h2,h3,p { margin: 0; }
+    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .mb-2 { margin-bottom: 8px; } .mb-3 { margin-bottom: 12px; } .mb-4 { margin-bottom: 16px; }
+    .box { border:1px solid #000; padding:10px; border-radius:2px; }
+    .muted { color:#666; }
+    .bold { font-weight:700; }
+    .right { text-align:right; }
+    .center { text-align:center; }
+
+    .amount { font-size: 18px; font-weight: 700; }
+    .sign-line { height: 72px; border-bottom: 1px dashed #333; margin-top: 28px; }
+    .label { font-size: 11px; color:#444; text-align:center; margin-top:6px; }
+  </style>
+</head>
+<body>
+
+  <div class="row mb-4">
+    <div>
+      <div class="bold" style="font-size:18px;">PAGARÉ SIN PROTESTO</div>
+      <div>
+        {{ lugar_emision }},
+        {{ fecha_emision|date:"d" }} de {{ fecha_emision|date:"F" }} de {{ fecha_emision|date:"Y" }}
+      </div>
+      
+    </div>
+    <div class="right">
+      <div class="muted">Solicitud N° {{ solicitud.id }}</div>
+      <div class="amount">$ {{ monto|floatformat:2|intcomma }}</div>
+    </div>
+  </div>
+
+  <div class="box mb-3">
+    <p>
+      Yo/Nosotros <span class="bold">{{ deudor_nombre }}</span>,
+      DNI/CUIT: <span class="bold">{{ deudor_doc }}{% if deudor_cuit %} / {{ deudor_cuit }}{% endif %}</span>,
+      con domicilio en <span class="bold">{{ deudor_domicilio }}</span>,
+      pagaré/pagaremos incondicionalmente a la orden de
+      <span class="bold">{{ acreedor_nombre }}</span> (CUIT {{ acreedor_cuit }}),
+      <span class="bold">A LA VISTA</span>, la suma de
+      <span class="bold">$ {{ monto|floatformat:2|intcomma }}</span>
+      (pesos {{ monto|num_to_words }}).
+    </p>
+  </div>
+
+  <p class="mb-2">
+    El pago se realizará el día de presentación del presente pagaré al deudor, en {{ lugar_emision }} o en el domicilio que oportunamente indique el acreedor.
+    En los términos del art. 36 del decreto-ley 5965/63, se amplía el plazo de presentación a cinco (5) años.
+  </p>
+
+  <p class="mb-2">
+    En caso de falta de pago al momento de su presentación, el presente devengará un interés compensatorio del
+    <span class="bold">42% anual</span> más un interés punitorio del <span class="bold">22% anual</span>, más los impuestos que correspondan; los intereses
+    podrán capitalizarse semestralmente conforme art. 770 inc. a) del Código Civil y Comercial de la Nación.
+  </p>
+
+  <p class="mb-2">
+    Todos los importes serán pagados sin deducciones por impuestos, tasas, gastos, derechos y/o retenciones de cualquier naturaleza.
+  </p>
+
+  <p class="mb-2">
+    Para toda controversia, las partes se someten a la jurisdicción de los Tribunales Civiles y Comerciales con asiento en la Ciudad de Río Cuarto.
+    El presente se rige por las leyes de la República Argentina y el decreto-ley 5965/63.
+  </p>
+
+  <div class="row" style="gap:40px; margin-top:20px;">
+    <div style="flex:1;">
+      <div class="sign-line"></div>
+      <div class="label">Firma del Deudor — Aclaración — DNI/CUIT</div>
+    </div>
+    <div style="flex:1;">
+      <div class="sign-line"></div>
+      <div class="label">Asociación Mutual Soberanía — Sello y Firma</div>
+    </div>
+  </div>
+
+</body>
+</html>
