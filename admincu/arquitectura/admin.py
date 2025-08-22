@@ -98,7 +98,7 @@ class ZonasPorCultivoResource(ModelResource):
         model = ZonasPorCultivo
 
     def for_delete(self, row, instance):
-        return self.fields['nombre'].clean(row) == ''
+        return self.fields['zona'].clean(row) == ''
 
 class ZonasPorCultivoAdmin(ImportExportMixin, admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
