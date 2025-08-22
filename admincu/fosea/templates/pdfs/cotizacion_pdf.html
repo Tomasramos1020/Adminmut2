@@ -267,39 +267,8 @@
     {% if total_garantia %}{{ total_garantia|num_to_words }}{% endif %}.
   </div>
 
-  <!-- Seguros sobre la sementera -->
-  <div style="font-size:12px; margin-top:10px;">
-    Posee Seguros sobre la Sementera:
-  </div>
-  <table style="width:100%; border-collapse: collapse; font-size:12px; margin-top:4px;">
-    <thead>
-      <tr>
-        <th style="border:1px solid #000; padding:4px;">Cultivo</th>
-        <th style="border:1px solid #000; padding:4px;">Hectareas</th>
-        <th style="border:1px solid #000; padding:4px;">Valor por Hectarea</th>
-        <th style="border:1px solid #000; padding:4px;">Poliza Nº</th>
-        <th style="border:1px solid #000; padding:4px;">Compañía</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-      </tr>
-      <tr>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-        <td style="border:1px solid #000; padding:10px;"></td>
-      </tr>
-    </tbody>
-  </table>
-
   <!-- Fecha y Localidad (antes de firmas) -->
+  <br>
   <div class="pre-sign">
     <div class="label">Fecha:</div>
     <div class="value">{{ fecha|date:"d-m-Y" }}</div>

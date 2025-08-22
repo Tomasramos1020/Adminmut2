@@ -10,7 +10,6 @@
       {% if not user.groups.all.0.name == "socio" %}
         <th>Socio</th>
       {% endif %}
-      <th class="text-right">Valor</th>
       <th></th>
     </tr>
   </thead>
@@ -23,11 +22,6 @@
         {% if not user.groups.all.0.name == "socio" %}
           <td style="white-space: nowrap;" title="{{ solicitud.socio }}">{{ solicitud.socio|truncatechars:70 }}</td>
         {% endif %}
-        <td class="text-right">
-          {% with solicitud.total as val %}
-            {% if val %}{{ val|intcomma }}{% else %}-{% endif %}
-          {% endwith %}
-        </td>
         <td class="text-right">
           <!-- Editar -->
           <a href="{% url 'solicitud_editar' solicitud.pk %}"

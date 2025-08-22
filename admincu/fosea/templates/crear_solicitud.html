@@ -250,7 +250,7 @@
             <tbody>
                 <tr>
                     <td id="hectareas-reales">0,00</td>
-                    <td id="valor-soja-final" data-valor-soja="0">$ 0,00</td>
+                    <td id="valor-soja-final" data-valor-soja="0" data-soja-id="{{ soja_id|default:'' }}">$ 0,00</td>
                     <td id="total-soja">$ 0,00</td>
                 </tr>
             </tbody>
@@ -573,16 +573,27 @@
 
         // Valor soja para resumen final
         function obtenerValorSoja() {
+            const sojaId = $("#valor-soja-final").data("soja-id");
+
+            if (!sojaId) {
+                $("#valor-soja-final").text("No disponible").data("valor-soja", 0);
+                calcularResumenFinal();
+                return;
+              }
+            
             $.ajax({
                 url: "{% url 'cotizacion_por_cultivo' %}",
-                data: { cultivo_id: 1 },
+                data: { cultivo_id: sojaId},
                 success: function (data) {
-                    if (data.cotizacion !== null) {
-                        $("#valor-soja-final").data("valor-soja", data.cotizacion).text("Cargando…");
-                        calcularResumenFinal();
-                    } else { $("#valor-soja-final").text("No disponible"); }
+                    const val = (data.cotizacion !== null) ? data.cotizacion : 0;
+                    $("#valor-soja-final").data("valor-soja", val)
+                                          .text(val ? "Cargando…" : "No disponible");
+                    calcularResumenFinal();
                 },
-                error: function () { $("#valor-soja-final").text("Error"); }
+                error: function () { 
+                    $("#valor-soja-final").text("Error").data("valor-soja", 0);
+                    calcularResumenFinal(); 
+                }
             });
         }
 

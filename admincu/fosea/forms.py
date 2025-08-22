@@ -37,6 +37,7 @@ class SolicitudForm(forms.ModelForm):
                 .filter(consorcio=cons, es_socio=True, baja__isnull=True)
                 .exclude(nombre_servicio_mutual__isnull=False)
             )
+            self.fields['campaña'].queryset = self.fields['campaña'].queryset.filter(consorcio=cons)
     def clean(self):
         cleaned = super().clean()
         faltantes = []
