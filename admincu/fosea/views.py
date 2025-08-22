@@ -54,7 +54,7 @@ class IndexSolicitud(OrderQS):
 
 def get_soja_id_por_consorcio(cons):
 	return (Cultivo.objects
-			.filter(consorcio=cons, nombre__iexact="soja")
+			.filter(consorcio=cons, nombre__iexact="Soja")
 			.values_list("id", flat=True)
 			.first())
 
@@ -403,11 +403,14 @@ class CrearCotizacionView(View):
 
 
 	def get(self, request):
+		cons = consorcio(request)
 		form = CotizacionForm(request=request)
 		formset = self._build_formset(bind=False, request=request)
-		return render(request, self.template_name, {'form': form, 'formset': formset})
+		ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
+		return render(request, self.template_name, ctx)
 
 	def post(self, request):
+		cons = consorcio(request)
 		accion = request.POST.get('accion', 'imprimir')
 		form = CotizacionForm(request.POST, request=request)
 		formset = self._build_formset(bind=True, request=request, post_data=request.POST)
@@ -601,10 +604,14 @@ class CrearCotizacionView(View):
 			if accion == 'imprimir':
 				return cotizacion_pdf_response(ctx, request)
 
-			return render(request, self.template_name, {'form': form, 'formset': formset})
+			return render(request, self.template_name, {
+				'form': form, 'formset': formset, 'soja_id':get_soja_id_por_consorcio(cons)
+				})
 
 		# Con errores
-		return render(request, self.template_name, {'form': form, 'formset': formset})
+		return render(request, self.template_name, {
+			'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)
+			})
 
 @login_required
 def solicitud_pdf(request, pk):

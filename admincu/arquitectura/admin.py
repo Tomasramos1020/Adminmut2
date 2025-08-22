@@ -92,9 +92,18 @@ class CultivoAdmin(admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
 	list_filter = ['consorcio']
 
-class ZonasPorCultivoAdmin(admin.ModelAdmin):
+class ZonasPorCultivoResource(ModelResource):
+
+    class Meta:
+        model = ZonasPorCultivo
+
+    def for_delete(self, row, instance):
+        return self.fields['nombre'].clean(row) == ''
+
+class ZonasPorCultivoAdmin(ImportExportMixin, admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
 	list_filter = ['consorcio']
+	resource_class = ZonasPorCultivoResource	
 
 class CotizacionAdmin(admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
