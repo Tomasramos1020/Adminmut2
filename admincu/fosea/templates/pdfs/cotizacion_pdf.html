@@ -208,13 +208,6 @@
     </tbody>
   </table>
 
-  <!-- Leyenda Garantía -->
-  <div class="box">
-    EL SOCIO SUBSCRIPTOR DECLARA CONOCER EL REGLAMENTO EL FoSEA DE MUTUAL SOBERANIA, COMPROMETIENDOSE A ABONAR EL IMPORTE
-    CORRESPONDIENTE AL PRESENTE, DEJANDO UN CHEQUE DE GARANTIA O PAGARE POR DICHO IMPORTE, ABONANDO ADEMAS EL GASTO DE
-    SUSCRIPCION.
-  </div>
-
   <!-- Cálculo de Suscripción -->
   <div class="section-title" style="margin-top:10px;">Cálculo de Suscripción</div>
   <table class="t0">
@@ -235,36 +228,12 @@
       </tr>
     </tbody>
   </table>
-
-  <!-- Cheque / Efectivo por Suscripción -->
-  <table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:12px;">
-    <tr>
-      <td style="border:1px solid #000; width:200px; padding:4px;">Cheque Nº / Efectivo</td>
-      <td style="border:1px solid #000; padding:4px;"></td>
-      <td style="border:1px solid #000; width:120px; text-align:right;">
-        $ {{ total_suscripcion|floatformat:2|intcomma }}
-      </td>
-    </tr>
-  </table>
-
-  <div style="font-weight:bold; margin-top:6px;">GARANTIA</div>
-
-  <!-- Cheque / Pagaré por Garantía -->
-  <table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:12px;">
-    <tr>
-      <td style="border:1px solid #000; width:200px; padding:4px;">Cheque Nº / Pagare</td>
-      <td style="border:1px solid #000; padding:4px;"></td>
-      <td style="border:1px solid #000; width:120px; text-align:right;">
-        {% if total_garantia %}$ {{ total_garantia|floatformat:2|intcomma }}{% endif %}
-      </td>
-    </tr>
-  </table>
-
-  <!-- Pagaré en letras -->
+  <div class="section-title" style="margin-top:10px;">CONDICIONES GENERALES</div>
   <div class="box">
-    El dia 10/06/2026 pagare/mos sin protesto a la {{ consorcio.nombre_completo }}, sito en '{{ consorcio.domicilio }}',
-    {{ consorcio.provincia }}, o a su orden la cantidad de pesos:
-    {% if total_garantia %}{{ total_garantia|num_to_words }}{% endif %}.
+    20% de Resiembra si es efectiva, si no se resiembra, se paga el 40% del daño tasado 
+  </div>
+  <div class="box">
+    En caso de cobertura plena y liberacion del lote se paga el 80% de lo tasado
   </div>
 
   <!-- Fecha y Localidad (antes de firmas) -->
