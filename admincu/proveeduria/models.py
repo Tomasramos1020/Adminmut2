@@ -54,13 +54,13 @@ class Producto(models.Model):
 	nombre = models.CharField(max_length=30)
 	embalaje = models.IntegerField(blank=True, null=True)
 	retornable = models.BooleanField(default=False)
-	calibre = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)
+	calibre = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 	vencimiento = models.DateField(blank=True, null=True)
 	otra_clasificacion = models.CharField(max_length=200, blank=True, null=True)
-	precio_1 = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)
-	precio_2 = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)
-	precio_3 = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)
-	precio_4 = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)   
+	precio_1 = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
+	precio_2 = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
+	precio_3 = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
+	precio_4 = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)   
 	activo = models.BooleanField(default=True)
 	codigo_inter = models.IntegerField(blank=True, null=True)
 	descripcion = models.CharField(max_length=200, blank=True, null=True)
@@ -69,6 +69,7 @@ class Producto(models.Model):
 	unidad_medida = models.CharField(max_length=15, choices=UNIDAD_CHOICES, default='unidades')
 	stock_minimo = models.IntegerField(blank=True, null=True)
 	codigo_barra = models.IntegerField(blank=True, null=True)
+	costo = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 
 	def __str__(self):
 		return self.nombre
@@ -83,6 +84,14 @@ class Producto(models.Model):
 
 	@cached_property
 	def precio_compra(self):
+		"""
+		Compatibilidad hacia atrás:
+		- Si hay costo persistido, úsalo.
+		- Si no, caé al último precio de compra.
+		"""
+		if self.costo is not None:
+			return Decimal(self.costo).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
 		ultima_compra = self.compra_producto_set.order_by('-id').only('precio').first()
 		if ultima_compra and ultima_compra.precio is not None:
 			return Decimal(ultima_compra.precio).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -165,7 +174,7 @@ class Venta_Producto(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, blank=True, null=True)
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-	precio = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)
+	precio = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 	cantidad = models.IntegerField(blank=True, null=True)
 	credito = models.ForeignKey(Credito, on_delete=models.CASCADE)
 	liquidacion = models.ForeignKey(Liquidacion, blank=True, null=True, on_delete=models.CASCADE)
@@ -181,7 +190,7 @@ class Venta_Producto(models.Model):
 class Compra_Producto(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-	precio = models.DecimalField(max_digits=9, decimal_places=3, blank=True, null=True)
+	precio = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 	cantidad = models.IntegerField(blank=True, null=True)
 
 	@property
@@ -196,7 +205,7 @@ class MovimientoStock(models.Model):
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
 	deposito = models.ForeignKey(Deposito, on_delete=models.CASCADE, blank=True, null=True)
 	fecha = models.DateField(auto_now_add=True)
-	cantidad = models.DecimalField(max_digits=9, decimal_places=3)
+	cantidad = models.DecimalField(max_digits=9, decimal_places=2)
 	venta_producto = models.ForeignKey(Venta_Producto, on_delete=models.SET_NULL, null=True, blank=True)
 	compra_producto = models.ForeignKey(Compra_Producto, on_delete=models.SET_NULL, null=True, blank=True)
 

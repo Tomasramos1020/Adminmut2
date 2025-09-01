@@ -38,7 +38,7 @@
     }
     .formset-linea {
         display: flex;
-        gap: 10px;
+        gap: 3px;
         align-items: center;
         margin-bottom: 10px;
         flex-wrap: wrap;
@@ -109,6 +109,10 @@
                 <div class="formset-linea">
                     {{ form.producto.label_tag }} {{ form.producto }}
                     {{ form.precio.label_tag }} {{ form.precio }}
+                    <label>Costo</label>
+                    <input type="number" class="form-costo" readonly step="0.01" />
+                    <label>Margen (%)</label>
+                    <input type="number" class="form-margen" step="0.01" />
                     {{ form.cantidad.label_tag }} {{ form.cantidad }}
                     <label>Total</label>
                     <input type="number" class="form-total" readonly />
@@ -121,6 +125,10 @@
             <div class="formset-linea">
                 {{ formset.empty_form.producto.label_tag }} {{ formset.empty_form.producto }}
                 {{ formset.empty_form.precio.label_tag }} {{ formset.empty_form.precio }}
+                <label>Costo</label>
+                <input type="number" class="form-costo" readonly step="0.01" />
+                <label>Margen (%)</label>
+                <input type="number" class="form-margen" step="0.01" />
                 {{ formset.empty_form.cantidad.label_tag }} {{ formset.empty_form.cantidad }}
                 <label>Total</label>
                 <input type="number" class="form-total" readonly />
@@ -178,29 +186,79 @@
         calcularTotalFinal();
     }
 
-    function bindEventosLinea($linea) {
-        $linea.find('input[name$="-precio"]')
-            .attr('readonly', true)
-            .addClass('form-precio')
-            .css('background-color', '#eee');
+    // ← NUEVA: calcula el margen (%) a partir de precio y costo
+    function calcularMargen($linea) {
+        const costo  = parseFloat($linea.find('.form-costo').val()) || 0;
+        const precio = parseFloat($linea.find('input[name$="-precio"]').val()) || 0;
+        if (costo > 0) {
+            const margen = ((precio - costo) / costo) * 100;
+            $linea.find('.form-margen').val(margen.toFixed(2));
+        } else {
+            $linea.find('.form-margen').val('');
+        }
+    }
 
-        $linea.find('input[name$="-cantidad"]').on('input', function () {
+    // ← NUEVA: actualiza precio cuando editás el margen
+    function actualizarPrecioDesdeMargen($linea) {
+        const costo  = parseFloat($linea.find('.form-costo').val()) || 0;
+        const margen = parseFloat($linea.find('.form-margen').val());
+        if (costo > 0 && !isNaN(margen)) {
+            const precio = costo * (1 + (margen / 100));
+            $linea.find('input[name$="-precio"]').val(precio.toFixed(2));
             calcularTotal($linea);
-        });
+            // No llamo calcularMargen para evitar loop; ya quedó consistente.
+        }
+    }
 
-        $linea.find('select[name$="-producto"], input[name$="-producto"]').on('change', function () {
-            const productoId = $(this).val();
-            if (productoId) {
-                $.ajax({
-                    url: "{% url 'obtener_precio_producto' %}",
-                    data: { producto_id: productoId },
-                    success: function (data) {
-                        const precio = parseFloat(data.precio_1);
-                        $linea.find('input[name$="-precio"]').val(precio.toFixed(2));
-                        calcularTotal($linea);
-                    }
-                });
-            }
+    function bindEventosLinea($linea) {
+        const $precio   = $linea.find('input[name$="-precio"]');
+        const $cantidad = $linea.find('input[name$="-cantidad"]');
+        const $margen   = $linea.find('.form-margen');
+        const $producto = $linea.find('select[name$="-producto"], input[name$="-producto"]');
+      
+        // Precio editable + recalcula total y margen
+        $precio
+          .removeAttr('readonly')
+          .removeClass('form-precio')
+          .css('background-color', '#eee')
+          .on('input', function () {
+            calcularTotal($linea);
+            calcularMargen($linea);
+          });
+      
+        // Cantidad
+        $cantidad.on('input', function () {
+          calcularTotal($linea);
+        });
+      
+        // Margen -> actualiza precio
+        $margen.on('input', function () {
+          actualizarPrecioDesdeMargen($linea);
+        });
+      
+        // Producto -> trae precio y costo
+        $producto.on('change', function () {
+          const productoId = $(this).val();
+          if (productoId) {
+            $.ajax({
+              url: "{% url 'obtener_precio_producto' %}",
+              data: { producto_id: productoId },
+              success: function (data) {
+                const precio = parseFloat(data.precio_1) || 0;
+                const costo  = parseFloat(data.costo) || 0;
+                $linea.find('.form-costo').val(costo.toFixed(2));
+                $precio.val(precio.toFixed(2));
+                calcularTotal($linea);
+                calcularMargen($linea);
+              }
+            });
+          } else {
+            $linea.find('.form-costo').val('');
+            $precio.val('');
+            $margen.val('');
+            $linea.find('.form-total').val('0.00');
+            calcularTotalFinal();
+          }
         });
     }
 
@@ -214,17 +272,22 @@
             }
         });
 
+        // Ligar eventos a líneas existentes
         $("#formset .formset-linea").each(function () {
             bindEventosLinea($(this));
+            calcularTotal($(this)); // por si hay datos precargados
+            calcularMargen($(this));
         });
 
+        // Eliminar línea
         $("#formset").on("click", ".eliminar", function () {
             $(this).closest(".formset-linea").remove();
             calcularTotalFinal();
             totalForms--;
             $('#id_form-TOTAL_FORMS').val(totalForms);
         });
-
+        
+        // Agregar línea
         $("#agregar-linea").click(function () {
             const html = $("#formset-empty").html().replace(/__prefix__/g, totalForms);  // <- importante __prefix__
             $("#formset").append(html);

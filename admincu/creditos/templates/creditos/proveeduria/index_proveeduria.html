@@ -55,7 +55,7 @@
             </div>
             <div class="panel-body">
               <div class="table-responsive">
-                {% include 'creditos/registros/tabla-liquidaciones-proveeduria.html' with liquidaciones=lista  %}
+                {% include 'creditos/registros/tabla-liquidaciones-proveeduria.html' with liquidaciones=object_list  %}
                 <a href="{% url 'registro de liquidaciones' %}" class="btn btn-link btn-block">Ver mas</a>
               </div>
             </div>

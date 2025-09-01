@@ -48,4 +48,44 @@
       });
     })
   </script>
+  <script>
+    (function(){
+      function N(v){ return (v===""||v===null)?null:Number(v); }
+      function onReady(fn){
+        if(document.readyState!=='loading'){fn();} else {document.addEventListener('DOMContentLoaded', fn);}
+      }
+      onReady(function(){
+        var costo   = document.getElementById('id_costo');
+        var margen  = document.getElementById('id_margen_pct');
+        var precio1 = document.getElementById('id_precio_1');
+        if(!costo || !margen || !precio1) return;
+    
+        // MARKUP sobre costo
+        function syncFromPrecio(){
+          var c = N(costo.value); if(c===null) c = 0;
+          var p = N(precio1.value);
+          if(p!==null){
+            var pct = (c>0) ? ((p/c)-1)*100 : 0;
+            margen.value = pct.toFixed(2);
+          }
+        }
+        function syncFromMargen(){
+          var c = N(costo.value); if(c===null) c = 0;
+          var m = N(margen.value);
+          if(m!==null){
+            var factor = 1 + (m/100);
+            precio1.value = (c*factor).toFixed(2);
+          }
+        }
+        function syncFromCosto(){
+          // UX: si cambia costo, recomputamos margen tomando precio como fuente
+          syncFromPrecio();
+        }
+    
+        precio1.addEventListener('input', syncFromPrecio);
+        margen .addEventListener('input', syncFromMargen);
+        costo  .addEventListener('input', syncFromCosto);
+      });
+    })();
+    </script>    
 {% endblock %}

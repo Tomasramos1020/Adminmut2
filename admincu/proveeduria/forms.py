@@ -6,7 +6,7 @@ from admincu.funciones import consorcio
 from django.forms.widgets import DateInput
 from django_afip.models import PointOfSales
 from arquitectura.models import Acreedor
-
+from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 
 
 class sucursalForm(FormControl, forms.ModelForm):
@@ -29,45 +29,128 @@ class sucursalForm(FormControl, forms.ModelForm):
 		self.fields['socio'].queryset = Socio.objects.filter(consorcio=consorcio, baja__isnull=True)
 		self.fields['socio'].required = True
 
-
 class productoForm(FormControl, forms.ModelForm):
-	class Meta:
-		model = Producto
-		fields = [
-			'nombre', 'precio_1','precio_2', 'precio_3', 'precio_4',
-			'embalaje', 'retornable', 'calibre', 'vencimiento', 'otra_clasificacion',
-			'activo', 'codigo_inter', 'descripcion',
-			'proveedor', 'rubro', 'unidad_medida', 'stock_minimo', 'codigo_barra'
-		]
-		labels = {
-			'nombre':"Nombre",
-			'embalaje':'Embalaje',
-			'retornable':'Retornable',
-			'calibre':'Calibre',
-			'vencimiento':'Vencimiento',
-			'otra_clasificacion':'Otra Clasificacion',
-			'precio_1':'Precio 1',
-			'precio_2':'Precio 2',
-			'precio_3':'Precio_3',
-			'precio_4':'Precio_4',
-			'activo':'Activo',
-			'codigo_inter':'Codigo Interno',
-			'descripcion':'Descripcion',
-			'proveedor':'Proveedor',
-			'rubro':'Rubro',
-			'unidad_medida': 'Unidad de medida',
-			'stock_minimo':'Stock Minimo',
-			'codigo_barra':'Codigo Barra'
-			}
+    # margen virtual (% markup sobre costo)
+    margen_pct = forms.DecimalField(
+        label="Margen (%)", max_digits=6, decimal_places=2, required=False,
+        help_text="Porcentaje sobre costo. Ej: 20 = 20%.",
+        widget=forms.NumberInput(attrs={"step": "0.01"})
+    )
 
-	def __init__(self, consorcio=None, *args, **kwargs):
-		self.consorcio = consorcio
-		super().__init__(*args, **kwargs)
-		self.fields['nombre'].required = True
+    class Meta:
+        model = Producto
+        fields = [
+            'nombre',
+            'costo',                 # 👈 ahora es de modelo
+            'precio_1','precio_2','precio_3','precio_4',
+            'embalaje','retornable','calibre','vencimiento','otra_clasificacion',
+            'activo','codigo_inter','descripcion',
+            'proveedor','rubro','unidad_medida','stock_minimo','codigo_barra',
+        ]
+        widgets = {
+            'costo':    forms.NumberInput(attrs={"step": "0.01"}),
+            'precio_1': forms.NumberInput(attrs={"step": "0.01"}),
+            'precio_2': forms.NumberInput(attrs={"step": "0.01"}),
+            'precio_3': forms.NumberInput(attrs={"step": "0.01"}),
+            'precio_4': forms.NumberInput(attrs={"step": "0.01"}),
+        }
 
-		# Ocultar el campo proveedor y hacerlo no requerido
-		self.fields['proveedor'].required = False
-		self.fields['proveedor'].widget = forms.HiddenInput()
+    field_order = [
+        'nombre',
+        'costo', 'margen_pct',
+        'precio_1','precio_2','precio_3','precio_4',
+        'embalaje','retornable','calibre','vencimiento','otra_clasificacion',
+        'activo','codigo_inter','descripcion',
+        'proveedor','rubro','unidad_medida','stock_minimo','codigo_barra',
+    ]
+
+    def __init__(self, consorcio=None, *args, **kwargs):
+        self.consorcio = consorcio
+        super().__init__(*args, **kwargs)
+        self.fields['nombre'].required = True
+
+        self.fields['proveedor'].required = False
+        self.fields['proveedor'].widget = forms.HiddenInput()
+
+        # Inicializar margen_pct desde costo y precio_1
+        costo = self.instance.costo if (self.instance and self.instance.pk) else None
+        p1 = self.instance.precio_1 if (self.instance and self.instance.pk) else None
+        try:
+            costD = Decimal(costo) if costo is not None else None
+            p1D = Decimal(p1) if p1 is not None else None
+        except (InvalidOperation, TypeError, ValueError):
+            costD = p1D = None
+
+        if costD is not None and p1D is not None:
+            if costD > 0:
+                margen = ((p1D / costD) - Decimal('1')) * Decimal('100')
+                self.fields['margen_pct'].initial = margen.quantize(Decimal('0.01'))
+            else:
+                self.fields['margen_pct'].initial = Decimal('0.00')
+
+        self.order_fields(self.field_order)
+
+    def clean(self):
+        cleaned = super().clean()
+
+        def D(x):
+            if x in (None, ""): return None
+            try: return Decimal(x)
+            except (InvalidOperation, TypeError, ValueError): return None
+
+        costo = D(cleaned.get("costo"))
+        precio_1 = D(cleaned.get("precio_1"))
+        margen_pct = D(cleaned.get("margen_pct"))
+
+        # Si no hay costo, forzamos 0.00
+        if costo is None:
+            costo = Decimal('0.00')
+            cleaned['costo'] = costo
+
+        changed = set(getattr(self, "changed_data", []))
+        ch_precio = "precio_1" in changed
+        ch_margen = "margen_pct" in changed
+        ch_costo  = "costo" in changed
+
+        # Reglas de sync (markup sobre costo): precio_1 = costo * (1 + m/100)
+        def recompute_margen():
+            if costo is not None and precio_1 is not None:
+                if costo > 0:
+                    cleaned["margen_pct"] = ((precio_1 / costo) - Decimal('1')) * Decimal('100')
+                else:
+                    cleaned["margen_pct"] = Decimal('0.00')
+                cleaned["margen_pct"] = cleaned["margen_pct"].quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        def recompute_precio():
+            if costo is not None and margen_pct is not None:
+                factor = (Decimal('1') + (margen_pct / Decimal('100')))
+                cleaned["precio_1"] = (costo * factor).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+        if ch_precio and not ch_margen:
+            recompute_margen()
+        elif ch_margen and not ch_precio:
+            recompute_precio()
+        elif ch_precio and ch_margen:
+            # Priorizamos precio_1 y recalculamos margen
+            recompute_margen()
+        else:
+            # Si cambió costo, derivamos precio desde margen si existe; si no, derivamos margen desde precio
+            if ch_costo:
+                if margen_pct is not None:
+                    recompute_precio()
+                elif precio_1 is not None:
+                    recompute_margen()
+            else:
+                # Nada cambió explícito: completar el faltante
+                if margen_pct is None and precio_1 is not None:
+                    recompute_margen()
+                elif precio_1 is None and margen_pct is not None:
+                    recompute_precio()
+
+        return cleaned
+
+
+
 
 class depositoForm(FormControl, forms.ModelForm):
 	class Meta:
@@ -239,7 +322,7 @@ class VentaProductoForm(forms.ModelForm):
 		fields = ['producto', 'precio', 'cantidad']
 		widgets = {
 			'producto': forms.Select(attrs={'class': 'form-control'}),
-			'precio': forms.NumberInput(attrs={'class': 'form-control'}),
+			'precio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
 			'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
 		}
 
@@ -252,36 +335,36 @@ VentaProductoFormSet = modelformset_factory(
 
 
 class CompraForm(forms.Form):
-    acreedor = forms.ModelChoiceField(queryset=None)
-    numero = forms.CharField()
-    fecha = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
-    deposito = forms.ModelChoiceField(queryset=None)
-    observacion = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 2}))
+	acreedor = forms.ModelChoiceField(queryset=None)
+	numero = forms.CharField()
+	fecha = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+	deposito = forms.ModelChoiceField(queryset=None)
+	observacion = forms.CharField(required=False, widget=forms.Textarea(attrs={'rows': 2}))
 
-    def __init__(self, *args, **kwargs):
-        request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        if request:
-            cons = consorcio(request)
-            self.fields['acreedor'].queryset = Acreedor.objects.filter(
+	def __init__(self, *args, **kwargs):
+		request = kwargs.pop('request', None)
+		super().__init__(*args, **kwargs)
+		if request:
+			cons = consorcio(request)
+			self.fields['acreedor'].queryset = Acreedor.objects.filter(
 				consorcio=cons,
 				tipo__es_proveeduria=True
 				).distinct()
-            self.fields['deposito'].queryset = Deposito.objects.filter(consorcio=cons)
+			self.fields['deposito'].queryset = Deposito.objects.filter(consorcio=cons)
 
 class CompraProductoForm(forms.ModelForm):
-    class Meta:
-        model = Compra_Producto
-        fields = ['producto', 'precio', 'cantidad']
-        widgets = {
-            'producto': forms.Select(attrs={'class': 'form-control'}),
-            'precio': forms.NumberInput(attrs={'class': 'form-control'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
-        }
+	class Meta:
+		model = Compra_Producto
+		fields = ['producto', 'precio', 'cantidad']
+		widgets = {
+			'producto': forms.Select(attrs={'class': 'form-control'}),
+			'precio': forms.NumberInput(attrs={'class': 'form-control'}),
+			'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
+		}
 
 CompraProductoFormSet = modelformset_factory(
-    Compra_Producto,
-    form=CompraProductoForm,
-    extra=1,
-    can_delete=True
+	Compra_Producto,
+	form=CompraProductoForm,
+	extra=1,
+	can_delete=True
 )

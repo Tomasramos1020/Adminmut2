@@ -74,10 +74,10 @@
         <td>{{objeto.nombre|default_if_none:""}}</td>
         <td>{{objeto.embalaje|default_if_none:""}}</td>
         <td>{{objeto.unidad_medida|default_if_none:""}}</td>
-        <td>{{objeto.precio_1|default_if_none:""}}</td>
-        <td>{{objeto.precio_2|default_if_none:""}}</td>
-        <td>{{objeto.precio_3|default_if_none:""}}</td>
-        <td>{{objeto.precio_4|default_if_none:""}}</td>
+        <td>{{ objeto.precio_1|floatformat:2|default_if_none:"" }}</td>
+        <td>{{ objeto.precio_2|floatformat:2|default_if_none:"" }}</td>
+        <td>{{ objeto.precio_3|floatformat:2|default_if_none:"" }}</td>
+        <td>{{ objeto.precio_4|floatformat:2|default_if_none:"" }}</td>
         <td>{% if objeto.retornable == True %}Sí{% elif objeto.retornable == False %}No{% else %}{% endif %}</td>
         <td>{{objeto.calibre|default_if_none:""}}</td>
         <td>{% if objeto.activo == True %}Sí{% elif objeto.activo == False %}No{% else %}{% endif %}</td>

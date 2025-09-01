@@ -17,6 +17,7 @@ from django.http import JsonResponse
 from django.views.generic import View
 from op.models import Deuda, GastoDeuda
 from arquitectura.models import Gasto, Acreedor
+from decimal import Decimal
 
 
 
@@ -197,8 +198,8 @@ class CrearOperacionView(View):
 			capital = Decimal('0.00')
 			for linea in formset:
 				if linea.cleaned_data:
-					precio = linea.cleaned_data.get('precio') or 0
-					cantidad = linea.cleaned_data.get('cantidad') or 0
+					precio = linea.cleaned_data.get('precio') or Decimal('0')
+					cantidad = linea.cleaned_data.get('cantidad') or Decimal('0')
 					capital += precio * cantidad
 
 			# Crear liquidación
@@ -302,10 +303,14 @@ def obtener_sucursales(request):
 def obtener_precio_producto(request):
 	producto_id = request.GET.get('producto_id')
 	try:
-		producto = Producto.objects.get(id=producto_id)
-		return JsonResponse({'precio_1': float(producto.precio_1)})
+		p = Producto.objects.get(id=producto_id)
+		precio = p.precio_1 or 0
+		costo = getattr(p, 'costo', None)
+		if costo is None:
+			costo = getattr(p, 'costo', 0)
+		return JsonResponse({'precio_1': float(precio), 'costo': float(costo or 0)})
 	except Producto.DoesNotExist:
-		return JsonResponse({'precio_1': 0})
+		return JsonResponse({'precio_1': 0, 'costo': 0})
 
 
 class CrearCompraView(View):
