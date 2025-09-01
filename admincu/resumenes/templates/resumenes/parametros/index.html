@@ -111,6 +111,13 @@
               <div class="col-md-6">
                 {% include 'resumenes/parametros/fechas.html' %}
               </div>
+            {% elif resumen.slug == 'costo-de-mercaderia-vendida' %}
+              <div class="col-md-6">
+                {% include 'resumenes/parametros/productos.html' %}
+              </div>
+              <div class="col-md-12">
+                {% include 'resumenes/parametros/fechas.html' %}
+              </div>
             {% endif %}
           </div>
           <br>

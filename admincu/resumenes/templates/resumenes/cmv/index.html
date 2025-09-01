@@ -1,0 +1,81 @@
+{# templates/resumenes/cmv/index.html #}
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+
+{% block titulo %}{{ resumen.nombre }}{% endblock %}
+
+{% block css %}
+  <link rel="stylesheet" href='{% static "plugins/datatables/jquery.dataTables.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/buttons.bootstrap.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/dataTables.bootstrap.min.css" %}'>
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="resumenes" bhijo1=resumen.nombre %}
+{% endblock %}
+
+{% block header %}
+  {{ resumen.nombre }}
+{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="card-box">
+      <h4 class="header-title m-t-0">
+        Período: {{ fecha_desde }} al {{ fecha_hasta }}
+        <a href="{% url 'res_par' resumen=resumen.slug %}" class="btn pull-right btn-pink waves-effect waves-light">
+          <i class="fa fa-hand-o-left"></i> Consultar otros parámetros
+        </a>
+      </h4>
+      <br>
+      <div class="table-responsive">
+        <table class="anopa table display nowrap" style="width:100%">
+          <thead>
+            <tr class="active">
+              <th>Producto</th>
+              <th class="text-right">Cantidad</th>
+              <th class="text-right">Costo Prom.</th>
+              <th class="text-right">Precio Prom.</th>
+              <th class="text-right">Costo Total</th>
+              <th class="text-right">Venta Total</th>
+              <th class="text-right">Rent. ($)</th>
+              <th class="text-right">Rent. (%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in filas %}
+              <tr>
+                <td>{{ r.producto__nombre }}</td>
+                <td class="text-right">{{ r.cantidad|default:"0" }}</td>
+                <td class="text-right">{{ r.costo_prom|floatformat:2 }}</td>
+                <td class="text-right">{{ r.precio_prom|floatformat:2 }}</td>
+                <td class="text-right">{{ r.costo_total|floatformat:2 }}</td>
+                <td class="text-right">{{ r.venta_total|floatformat:2 }}</td>
+                <td class="text-right">{{ r.rent_neto|floatformat:2 }}</td>
+                <td class="text-right">{{ r.rent_pct|floatformat:2 }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="info">
+              <th>Total</th>
+              <th class="text-right">{{ totales.cantidad|default:"0" }}</th>
+              <th></th>
+              <th></th>
+              <th class="text-right">{{ totales.costo_total|floatformat:2 }}</th>
+              <th class="text-right">{{ totales.venta_total|floatformat:2 }}</th>
+              <th class="text-right">{{ totales.rent_neto|floatformat:2 }}</th>
+              <th class="text-right">{{ totales.rent_pct|floatformat:2 }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+  {% include 'comunes/js_datatable_print_excel_titulo.html' with titulo_print=resumen.nombre with_footer='True' %}
+{% endblock %}

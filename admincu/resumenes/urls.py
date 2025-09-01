@@ -13,5 +13,6 @@ urlpatterns = [
 	path('g/movimientos-de-caja/', res_mdc, name='movimientos-de-caja'),
 	path('g/ingresos-devengados/', res_id, name='ingresos-devengados'),
 	path('g/gastos-devengados/', res_gd, name='gastos-devengados'),
-	path('g/estado-de-deuda/', res_edd, name='estado-de-deuda'),	
+	path('g/estado-de-deuda/', res_edd, name='estado-de-deuda'),
+	path('g/costo-mercaderia-vendida/', res_cmv, name='costo-de-mercaderia-vendida'),	
 ]

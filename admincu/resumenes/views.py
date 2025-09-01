@@ -8,7 +8,10 @@ from django.views.decorators.http import require_http_methods
 from django.db.models import Q, Count
 from comprobantes.models import *
 from creditos.models import *
+from proveeduria.models import *
 from op.models import *
+from django.db.models import Sum, Avg, F, DecimalField, FloatField, ExpressionWrapper, Case, When, Value
+from django.db.models.functions import Coalesce, Cast
 
 @group_required('administrativo', 'contable')
 def res_index(request):
@@ -534,4 +537,99 @@ def res_edd(request):
 	'total_saldo': total_saldo,
 	'consorcio': consorcio,
 	})
+
+
+# views.py
+
+# views.py
+
+
+@require_http_methods(["POST"])
+@group_required('administrativo', 'contable')
+def res_cmv(request):
+    try:
+        resumen = Resumen.objects.get(slug='costo-de-mercaderia-vendida')
+    except Resumen.DoesNotExist:
+        messages.error(request, 'No existe el resumen "Costo de mercadería vendida".')
+        return redirect('resumenes')
+
+    # Rango de fechas "YYYY-MM-DD / YYYY-MM-DD"
+    fechas_raw = (request.POST.get('fechas') or '').split(' / ')
+    if len(fechas_raw) != 2:
+        messages.error(request, 'Debés seleccionar un rango de fechas válido.')
+        return redirect('res_par', resumen=resumen.slug)
+    fecha_desde, fecha_hasta = fechas_raw
+
+    # Productos seleccionados (opcional)
+    productos_ids = request.POST.getlist('productos')
+
+    # Query base
+    qs = (
+        Venta_Producto.objects
+        .filter(
+            consorcio=consorcio(request),
+            credito__fecha__range=(fecha_desde, fecha_hasta),
+            credito__liquidacion__estado='confirmado',
+        )
+        .select_related('producto')
+    )
+    if productos_ids:
+        qs = qs.filter(producto_id__in=productos_ids)
+
+    # 1) Anoto importes por línea (NO los sume todavía)
+    qs = qs.annotate(
+        cantidad_dec=Cast(Coalesce(F('cantidad'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
+        costo_prod=Cast(Coalesce(F('producto__costo'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
+        precio_unit=Cast(Coalesce(F('precio'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
+    ).annotate(
+        costo_linea=ExpressionWrapper(F('cantidad_dec') * F('costo_prod'),
+                                      output_field=DecimalField(max_digits=18, decimal_places=2)),
+        venta_linea=ExpressionWrapper(F('cantidad_dec') * F('precio_unit'),
+                                      output_field=DecimalField(max_digits=18, decimal_places=2)),
+    )
+
+    # 2) Agrupo y sumo sobre las ANOTACIONES (evita el FieldError)
+    por_prod = (
+        qs.values('producto__id', 'producto__nombre')
+          .annotate(
+              cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
+              costo_prom=Avg('costo_prod'),
+              precio_prom=Avg('precio_unit'),
+              costo_total=Coalesce(Sum('costo_linea'), Value(0)),
+              venta_total=Coalesce(Sum('venta_linea'), Value(0)),
+          )
+          .annotate(
+              rent_neto=ExpressionWrapper(F('venta_total') - F('costo_total'),
+                                          output_field=DecimalField(max_digits=18, decimal_places=2)),
+          )
+          .annotate(
+              rent_pct=Case(
+                  When(venta_total__gt=0,
+                       then=ExpressionWrapper((F('rent_neto') * Value(100.0)) / F('venta_total'),
+                                              output_field=FloatField())),
+                  default=Value(0.0),
+                  output_field=FloatField()
+              )
+          )
+          .order_by('producto__nombre')
+    )
+
+    # 3) Totales generales
+    totales = qs.aggregate(
+        cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
+        costo_total=Coalesce(Sum('costo_linea'), Value(0)),
+        venta_total=Coalesce(Sum('venta_linea'), Value(0)),
+    )
+    totales['rent_neto'] = totales['venta_total'] - totales['costo_total']
+    totales['rent_pct'] = (float(totales['rent_neto']) * 100.0 / float(totales['venta_total'])) if totales['venta_total'] else 0.0
+
+    return render(request, 'resumenes/cmv/index.html', {
+        'resumen': resumen,
+        'fechas': f'{fecha_desde} / {fecha_hasta}',
+        'fecha_desde': fecha_desde,
+        'fecha_hasta': fecha_hasta,
+        'filas': list(por_prod),
+        'totales': totales,
+    })
+
 

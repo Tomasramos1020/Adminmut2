@@ -1,0 +1,10 @@
+{# templates/resumenes/parametros/productos.html #}
+<label for="id_productos">Productos:</label>
+<select id="id_productos" name="productos" multiple class="selector form-control">
+  {% spaceless %}
+    {% for p in consorcio.producto_set.all %}
+      <option value="{{ p.id }}">{{ p }}</option>
+    {% endfor %}
+  {% endspaceless %}
+</select>
+<small class="text-muted">Si no seleccionás ninguno, se incluyen todos.</small>
