@@ -118,6 +118,13 @@
               <div class="col-md-12">
                 {% include 'resumenes/parametros/fechas.html' %}
               </div>
+              {% elif resumen.slug == 'valorizacion-de-stock-a-fecha' %}
+              <div class="col-md-6">
+                {% include 'resumenes/parametros/productos.html' %}
+              </div>
+              <div class="col-md-6">
+                {% include 'resumenes/parametros/fecha.html' %}
+              </div>
             {% endif %}
           </div>
           <br>

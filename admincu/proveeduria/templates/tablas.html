@@ -47,9 +47,7 @@
         <th width="20">Embalaje</th>
         <th width="20">Unidad de Medida</th>
         <th width="20">Lista de precio 1</th>
-        <th width="20">Lista de precio 2</th>
-        <th width="20">Lista de precio 3</th>
-        <th width="20">Lista de precio 4</th>
+        <th width="20">Costo</th>
         <th width="20">Retornable</th>
         <th width="20">Calibre</th>
         <th width="20">Activo</th>
@@ -75,9 +73,7 @@
         <td>{{objeto.embalaje|default_if_none:""}}</td>
         <td>{{objeto.unidad_medida|default_if_none:""}}</td>
         <td>{{ objeto.precio_1|floatformat:2|default_if_none:"" }}</td>
-        <td>{{ objeto.precio_2|floatformat:2|default_if_none:"" }}</td>
-        <td>{{ objeto.precio_3|floatformat:2|default_if_none:"" }}</td>
-        <td>{{ objeto.precio_4|floatformat:2|default_if_none:"" }}</td>
+        <td>{{ objeto.costo|floatformat:2|default_if_none:"" }}</td>
         <td>{% if objeto.retornable == True %}Sí{% elif objeto.retornable == False %}No{% else %}{% endif %}</td>
         <td>{{objeto.calibre|default_if_none:""}}</td>
         <td>{% if objeto.activo == True %}Sí{% elif objeto.activo == False %}No{% else %}{% endif %}</td>

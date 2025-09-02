@@ -10,8 +10,9 @@ from comprobantes.models import *
 from creditos.models import *
 from proveeduria.models import *
 from op.models import *
-from django.db.models import Sum, Avg, F, DecimalField, FloatField, ExpressionWrapper, Case, When, Value
+from django.db.models import Sum, Avg, F, DecimalField, FloatField, ExpressionWrapper, Case, When, Value, Subquery, OuterRef
 from django.db.models.functions import Coalesce, Cast
+from decimal import Decimal
 
 @group_required('administrativo', 'contable')
 def res_index(request):
@@ -547,89 +548,192 @@ def res_edd(request):
 @require_http_methods(["POST"])
 @group_required('administrativo', 'contable')
 def res_cmv(request):
-    try:
-        resumen = Resumen.objects.get(slug='costo-de-mercaderia-vendida')
-    except Resumen.DoesNotExist:
-        messages.error(request, 'No existe el resumen "Costo de mercadería vendida".')
-        return redirect('resumenes')
+	try:
+		resumen = Resumen.objects.get(slug='costo-de-mercaderia-vendida')
+	except Resumen.DoesNotExist:
+		messages.error(request, 'No existe el resumen "Costo de mercadería vendida".')
+		return redirect('resumenes')
 
-    # Rango de fechas "YYYY-MM-DD / YYYY-MM-DD"
-    fechas_raw = (request.POST.get('fechas') or '').split(' / ')
-    if len(fechas_raw) != 2:
-        messages.error(request, 'Debés seleccionar un rango de fechas válido.')
-        return redirect('res_par', resumen=resumen.slug)
-    fecha_desde, fecha_hasta = fechas_raw
+	# Rango de fechas "YYYY-MM-DD / YYYY-MM-DD"
+	fechas_raw = (request.POST.get('fechas') or '').split(' / ')
+	if len(fechas_raw) != 2:
+		messages.error(request, 'Debés seleccionar un rango de fechas válido.')
+		return redirect('res_par', resumen=resumen.slug)
+	fecha_desde, fecha_hasta = fechas_raw
 
-    # Productos seleccionados (opcional)
-    productos_ids = request.POST.getlist('productos')
+	# Productos seleccionados (opcional)
+	productos_ids = request.POST.getlist('productos')
 
-    # Query base
-    qs = (
-        Venta_Producto.objects
-        .filter(
-            consorcio=consorcio(request),
-            credito__fecha__range=(fecha_desde, fecha_hasta),
-            credito__liquidacion__estado='confirmado',
-        )
-        .select_related('producto')
-    )
-    if productos_ids:
-        qs = qs.filter(producto_id__in=productos_ids)
+	# Query base
+	qs = (
+		Venta_Producto.objects
+		.filter(
+			consorcio=consorcio(request),
+			credito__fecha__range=(fecha_desde, fecha_hasta),
+			credito__liquidacion__estado='confirmado',
+		)
+		.select_related('producto')
+	)
+	if productos_ids:
+		qs = qs.filter(producto_id__in=productos_ids)
 
-    # 1) Anoto importes por línea (NO los sume todavía)
-    qs = qs.annotate(
-        cantidad_dec=Cast(Coalesce(F('cantidad'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
-        costo_prod=Cast(Coalesce(F('producto__costo'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
-        precio_unit=Cast(Coalesce(F('precio'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
-    ).annotate(
-        costo_linea=ExpressionWrapper(F('cantidad_dec') * F('costo_prod'),
-                                      output_field=DecimalField(max_digits=18, decimal_places=2)),
-        venta_linea=ExpressionWrapper(F('cantidad_dec') * F('precio_unit'),
-                                      output_field=DecimalField(max_digits=18, decimal_places=2)),
-    )
+	# 1) Anoto importes por línea (NO los sume todavía)
+	qs = qs.annotate(
+		cantidad_dec=Cast(Coalesce(F('cantidad'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
+		costo_prod=Cast(Coalesce(F('producto__costo'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
+		precio_unit=Cast(Coalesce(F('precio'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
+	).annotate(
+		costo_linea=ExpressionWrapper(F('cantidad_dec') * F('costo_prod'),
+									  output_field=DecimalField(max_digits=18, decimal_places=2)),
+		venta_linea=ExpressionWrapper(F('cantidad_dec') * F('precio_unit'),
+									  output_field=DecimalField(max_digits=18, decimal_places=2)),
+	)
 
-    # 2) Agrupo y sumo sobre las ANOTACIONES (evita el FieldError)
-    por_prod = (
-        qs.values('producto__id', 'producto__nombre')
-          .annotate(
-              cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
-              costo_prom=Avg('costo_prod'),
-              precio_prom=Avg('precio_unit'),
-              costo_total=Coalesce(Sum('costo_linea'), Value(0)),
-              venta_total=Coalesce(Sum('venta_linea'), Value(0)),
-          )
-          .annotate(
-              rent_neto=ExpressionWrapper(F('venta_total') - F('costo_total'),
-                                          output_field=DecimalField(max_digits=18, decimal_places=2)),
-          )
-          .annotate(
-              rent_pct=Case(
-                  When(venta_total__gt=0,
-                       then=ExpressionWrapper((F('rent_neto') * Value(100.0)) / F('venta_total'),
-                                              output_field=FloatField())),
-                  default=Value(0.0),
-                  output_field=FloatField()
-              )
-          )
-          .order_by('producto__nombre')
-    )
+	# 2) Agrupo y sumo sobre las ANOTACIONES (evita el FieldError)
+	por_prod = (
+		qs.values('producto__id', 'producto__nombre')
+		  .annotate(
+			  cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
+			  costo_prom=Avg('costo_prod'),
+			  precio_prom=Avg('precio_unit'),
+			  costo_total=Coalesce(Sum('costo_linea'), Value(0)),
+			  venta_total=Coalesce(Sum('venta_linea'), Value(0)),
+		  )
+		  .annotate(
+			  rent_neto=ExpressionWrapper(F('venta_total') - F('costo_total'),
+										  output_field=DecimalField(max_digits=18, decimal_places=2)),
+		  )
+		  .annotate(
+			  rent_pct=Case(
+				  When(venta_total__gt=0,
+					   then=ExpressionWrapper((F('rent_neto') * Value(100.0)) / F('venta_total'),
+											  output_field=FloatField())),
+				  default=Value(0.0),
+				  output_field=FloatField()
+			  )
+		  )
+		  .order_by('producto__nombre')
+	)
 
-    # 3) Totales generales
-    totales = qs.aggregate(
-        cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
-        costo_total=Coalesce(Sum('costo_linea'), Value(0)),
-        venta_total=Coalesce(Sum('venta_linea'), Value(0)),
-    )
-    totales['rent_neto'] = totales['venta_total'] - totales['costo_total']
-    totales['rent_pct'] = (float(totales['rent_neto']) * 100.0 / float(totales['venta_total'])) if totales['venta_total'] else 0.0
+	# 3) Totales generales
+	totales = qs.aggregate(
+		cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
+		costo_total=Coalesce(Sum('costo_linea'), Value(0)),
+		venta_total=Coalesce(Sum('venta_linea'), Value(0)),
+	)
+	totales['rent_neto'] = totales['venta_total'] - totales['costo_total']
+	totales['rent_pct'] = (float(totales['rent_neto']) * 100.0 / float(totales['venta_total'])) if totales['venta_total'] else 0.0
 
-    return render(request, 'resumenes/cmv/index.html', {
-        'resumen': resumen,
-        'fechas': f'{fecha_desde} / {fecha_hasta}',
-        'fecha_desde': fecha_desde,
-        'fecha_hasta': fecha_hasta,
-        'filas': list(por_prod),
-        'totales': totales,
-    })
+	return render(request, 'resumenes/cmv/index.html', {
+		'resumen': resumen,
+		'fechas': f'{fecha_desde} / {fecha_hasta}',
+		'fecha_desde': fecha_desde,
+		'fecha_hasta': fecha_hasta,
+		'filas': list(por_prod),
+		'totales': totales,
+	})
 
+
+@require_http_methods(["POST"])
+@group_required('administrativo', 'contable')
+def res_val_stock(request):
+	try:
+		resumen = Resumen.objects.get(slug='valorizacion-de-stock-a-fecha')
+	except Resumen.DoesNotExist:
+		messages.error(request, 'No existe el resumen "Valorización de stock a fecha".')
+		return redirect('resumenes')
+
+	fecha_str = request.POST.get('fecha')
+	if not fecha_str:
+		messages.error(request, 'Debés seleccionar una fecha.')
+		return redirect('res_par', resumen=resumen.slug)
+
+	productos_ids = request.POST.getlist('productos')  # múltiple, puede venir vacío
+
+	# Movimientos hasta la fecha, del consorcio y (si hay) de los productos elegidos
+	movs = MovimientoStock.objects.filter(
+		producto__consorcio=consorcio(request),
+		fecha__lte=fecha_str,
+	)
+	if productos_ids:
+		movs = movs.filter(producto_id__in=productos_ids)
+
+	# Último precio de compra por producto (fallback si Producto.costo es nulo)
+	ult_compra_precio = (
+		Compra_Producto.objects
+		.filter(producto_id=OuterRef('producto_id'))
+		.order_by('-id').values('precio')[:1]
+	)
+
+	base = (
+		movs
+		.values(
+			'producto_id',
+			'producto__nombre',
+			'producto__rubro__nombre',
+			'producto__unidad_medida',
+			'producto__precio_1',
+			'producto__costo',
+		)
+		.annotate(
+			stock=Coalesce(Sum('cantidad'), Value(0)),
+		)
+		.annotate(
+			costo_unit=Case(
+				When(producto__costo__isnull=False, then=F('producto__costo')),
+				default=Coalesce(Subquery(ult_compra_precio), Value(0)),
+				output_field=DecimalField(max_digits=18, decimal_places=2),
+			),
+			precio_unit=Coalesce(F('producto__precio_1'), Value(0)),
+		)
+		.annotate(
+			costo_total=Coalesce(F('stock') * F('costo_unit'), Value(0),
+								 output_field=DecimalField(max_digits=18, decimal_places=2)),
+			venta_total=Coalesce(F('stock') * F('precio_unit'), Value(0),
+								 output_field=DecimalField(max_digits=18, decimal_places=2)),
+		)
+		.filter(stock__gt=0)  # si querés ver también stock 0, quitá esta línea
+	)
+
+	filas = (
+		base
+		.annotate(rent_neto=F('venta_total') - F('costo_total'))
+		.annotate(
+			rent_pct=Case(
+				When(venta_total__gt=0, then=(F('rent_neto') * Value(100.0)) / F('venta_total')),
+				default=Value(0.0),
+				output_field=FloatField(),
+			)
+		)
+		.order_by('producto__nombre')
+	)
+
+	# 👇 Evaluamos y sumamos en Python para evitar el error 1054 de MySQL
+	filas_list = list(filas)
+
+	tot_stock = Decimal('0')
+	tot_costo = Decimal('0')
+	tot_venta = Decimal('0')
+
+	for f in filas_list:
+		# pueden venir como Decimal o None
+		tot_stock += f.get('stock') or Decimal('0')
+		tot_costo += f.get('costo_total') or Decimal('0')
+		tot_venta += f.get('venta_total') or Decimal('0')
+
+	tot_rent_neto = tot_venta - tot_costo
+	tot_rent_pct = float(tot_rent_neto) * 100.0 / float(tot_venta) if tot_venta else 0.0
+
+	return render(request, 'resumenes/val_stock/index.html', {
+		'resumen': resumen,
+		'fecha': fecha_str,
+		'filas': filas_list,
+		'totales': {
+			'stock': tot_stock,
+			'costo_total': tot_costo,
+			'venta_total': tot_venta,
+			'rent_neto': tot_rent_neto,
+			'rent_pct': tot_rent_pct,
+		},
+	})
 

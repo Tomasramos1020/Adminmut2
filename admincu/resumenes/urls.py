@@ -14,5 +14,6 @@ urlpatterns = [
 	path('g/ingresos-devengados/', res_id, name='ingresos-devengados'),
 	path('g/gastos-devengados/', res_gd, name='gastos-devengados'),
 	path('g/estado-de-deuda/', res_edd, name='estado-de-deuda'),
-	path('g/costo-mercaderia-vendida/', res_cmv, name='costo-de-mercaderia-vendida'),	
+	path('g/costo-mercaderia-vendida/', res_cmv, name='costo-de-mercaderia-vendida'),
+	path('g/valorizacion-stock/', res_val_stock, name='valorizacion-de-stock-a-fecha'),	
 ]
