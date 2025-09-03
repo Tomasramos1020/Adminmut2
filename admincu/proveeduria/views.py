@@ -178,11 +178,20 @@ class CrearOperacionView(View):
 	def get(self, request):
 		form = OperacionForm(request=self.request)
 		formset = VentaProductoFormSet(queryset=Venta_Producto.objects.none())
+
+		cons = consorcio(request)
+		# Afecta a todos los formularios del formset (incluye empty_form)
+		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons)
+
 		return render(request, self.template_name, {'form': form, 'formset': formset})
 
 	def post(self, request):
 		form = OperacionForm(request.POST, request=request)
 		formset = VentaProductoFormSet(request.POST)
+
+		cons = consorcio(request)
+		# Importante: también en POST, antes de is_valid(), para que valide contra el queryset correcto
+		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons)
 
 		if form.is_valid() and formset.is_valid():
 			socio = form.cleaned_data['socio']
@@ -193,11 +202,9 @@ class CrearOperacionView(View):
 			vendedor = form.cleaned_data['vendedor']
 			punto = form.cleaned_data['punto_venta']
 
-			cons = consorcio(request)
-
 			capital = Decimal('0.00')
 			for linea in formset:
-				if linea.cleaned_data:
+				if linea.cleaned_data and not linea.cleaned_data.get('DELETE', False):
 					precio = linea.cleaned_data.get('precio') or Decimal('0')
 					cantidad = linea.cleaned_data.get('cantidad') or Decimal('0')
 					capital += precio * cantidad
@@ -264,7 +271,7 @@ class CrearOperacionView(View):
 
 			# Crear líneas de productos
 			for linea in formset:
-				if linea.cleaned_data:
+				if linea.cleaned_data and not linea.cleaned_data.get('DELETE', False):
 					vp = linea.save(commit=False)
 					vp.consorcio = cons
 					vp.socio = socio
