@@ -298,5 +298,103 @@
 
         calcularTotalFinal();  // inicial
     });
+        // --- estilos de error rápidos ---
+        const cssErr = `
+        .is-invalid{ border-color:#e74c3c !important; background:#fff6f6 !important; }
+        .error-inline{ color:#e74c3c; font-size:12px; margin-top:2px; }
+        `;
+        $('<style>').text(cssErr).appendTo('head');
+
+        // marca y mensaje en línea
+        function marcarError($field, msg) {
+        $field.addClass('is-invalid');
+        // evitar duplicados
+        if ($field.next('.error-inline').length === 0) {
+            $field.after('<div class="error-inline">' + (msg || 'Revisá este campo') + '</div>');
+        }
+        }
+        function limpiarErrores() {
+        $('.is-invalid').removeClass('is-invalid');
+        $('.error-inline').remove();
+        $('#form-errors-box').remove();
+        }
+        function mostrarErrores(arr) {
+        const unicos = [...new Set(arr)];
+        const $box = $('<div id="form-errors-box" class="alert alert-danger" style="margin-bottom:12px;"></div>');
+        $box.html('<ul style="margin:0; padding-left:18px;">' + unicos.map(e => '<li>'+e+'</li>').join('') + '</ul>');
+        $('.contenido-interno form').prepend($box);
+        $('html, body').animate({scrollTop: $box.offset().top - 20}, 200);
+        }
+
+        function setAttrsCantidad($linea){
+        $linea.find('input[name$="-cantidad"]').attr({ required: true, min: '0.01', step: '0.01' });
+        }
+
+        // valida todas las líneas antes de enviar
+        function validarAntesDeEnviar() {
+        limpiarErrores();
+        let ok = true;
+        let errores = [];
+        let lineasCargadas = 0;
+
+        $('#formset .formset-linea').each(function(){
+            const $linea = $(this);
+            const $prod = $linea.find('select[name$="-producto"], input[name$="-producto"]');
+            const $cant = $linea.find('input[name$="-cantidad"]');
+            const $prec = $linea.find('input[name$="-precio"]');
+
+            const vProd = ($prod.val() || '').toString().trim();
+            const vCant = ($cant.val() || '').toString().trim();
+            const vPrec = ($prec.val() || '').toString().trim();
+
+            const tieneAlgo = vProd !== '' || vCant !== '' || vPrec !== '';
+
+            if (!tieneAlgo) return; // línea vacía: la ignoramos
+
+            lineasCargadas++;
+
+            // producto obligatorio si la línea tiene algo
+            if (vProd === '') {
+            ok = false;
+            marcarError($prod, 'Elegí un producto');
+            errores.push('Seleccioná un producto en las líneas cargadas.');
+            }
+
+            // cantidad > 0 si la línea tiene algo
+            const nCant = parseFloat(vCant.replace(',', '.'));
+            if (isNaN(nCant) || nCant <= 0) {
+            ok = false;
+            marcarError($cant, 'Cantidad > 0');
+            errores.push('La cantidad debe ser mayor a 0 en las líneas cargadas.');
+            }
+        });
+
+        if (lineasCargadas === 0) {
+            ok = false;
+            errores.push('Cargá al menos un producto con cantidad.');
+        }
+
+        if (!ok) mostrarErrores(errores);
+        return ok;
+        }
+
+        // aplicar attrs a las líneas existentes
+        $("#formset .formset-linea").each(function(){ setAttrsCantidad($(this)); });
+
+        // Hook al submit
+        $('.contenido-interno form').on('submit', function(e){
+        if (!validarAntesDeEnviar()) {
+            e.preventDefault();
+        }
+        });
+
+        // cuando agregás una línea nueva, también poné attrs a cantidad
+        const _bindEventosLinea_original = bindEventosLinea;
+        bindEventosLinea = function($linea){
+        _bindEventosLinea_original($linea);
+        setAttrsCantidad($linea);
+        };
+
+
 </script>
 {% endblock %}

@@ -189,5 +189,120 @@
 
         calcularTotalFinal();
     });
+            // ====== Estilos y helpers de error ======
+        const cssErr = `
+        .is-invalid{ border-color:#e74c3c !important; background:#fff6f6 !important; }
+        .error-inline{ color:#e74c3c; font-size:12px; margin-top:2px; }
+        `;
+        $('<style>').text(cssErr).appendTo('head');
+
+        function marcarError($field, msg) {
+        $field.addClass('is-invalid');
+        if ($field.next('.error-inline').length === 0) {
+        $field.after('<div class="error-inline">'+(msg||'Revisá este campo')+'</div>');
+        }
+        }
+        function limpiarErrores() {
+        $('.is-invalid').removeClass('is-invalid');
+        $('.error-inline').remove();
+        $('#form-errors-box').remove();
+        }
+        function mostrarErrores(arr) {
+        const unicos = [...new Set(arr)];
+        const $box = $('<div id="form-errors-box" class="alert alert-danger" style="margin-bottom:12px;"></div>');
+        $box.html('<ul style="margin:0; padding-left:18px;">' + unicos.map(e => '<li>'+e+'</li>').join('') + '</ul>');
+        $('.contenido-interno form').prepend($box);
+        $('html, body').animate({scrollTop: $box.offset().top - 20}, 200);
+        }
+
+        // ====== Atributos requeridos en precio/cantidad ======
+        function setAttrsLinea($linea){
+        $linea.find('input[name$="-precio"]').attr({ required:true, min:'0.01', step:'0.01' });
+        $linea.find('input[name$="-cantidad"]').attr({ required:true, min:'0.01', step:'0.01' });
+        }
+
+        // ====== Validación previa al submit ======
+        function validarAntesDeEnviar() {
+        limpiarErrores();
+        let ok = true;
+        let errores = [];
+        let lineasCargadas = 0;
+
+        $('#formset .formset-linea').each(function(){
+        const $linea = $(this);
+        const $prod = $linea.find('select[name$="-producto"], input[name$="-producto"]');
+        const $prec = $linea.find('input[name$="-precio"]');
+        const $cant = $linea.find('input[name$="-cantidad"]');
+
+        const vProd = ($prod.val() || '').toString().trim();
+        const vPrecStr = ($prec.val() || '').toString().trim();
+        const vCantStr = ($cant.val() || '').toString().trim();
+
+        // Consideramos "cargada" si hay algo en producto, precio o cantidad
+        const tieneAlgo = vProd !== '' || vPrecStr !== '' || vCantStr !== '';
+        if (!tieneAlgo) return;
+
+        lineasCargadas++;
+
+        // producto obligatorio
+        if (vProd === '') {
+            ok = false;
+            marcarError($prod, 'Elegí un producto');
+            errores.push('Seleccioná un producto en las líneas cargadas.');
+        }
+
+        // precio > 0
+        const vPrec = parseFloat(vPrecStr.replace(',', '.'));
+        if (isNaN(vPrec) || vPrec <= 0) {
+            ok = false;
+            marcarError($prec, 'Precio > 0');
+            errores.push('El precio debe ser mayor a 0 en las líneas cargadas.');
+        }
+
+        // cantidad > 0
+        const vCant = parseFloat(vCantStr.replace(',', '.'));
+        if (isNaN(vCant) || vCant <= 0) {
+            ok = false;
+            marcarError($cant, 'Cantidad > 0');
+            errores.push('La cantidad debe ser mayor a 0 en las líneas cargadas.');
+        }
+        });
+
+        if (lineasCargadas === 0) {
+        ok = false;
+        errores.push('Cargá al menos un producto con precio y cantidad.');
+        }
+
+        if (!ok) mostrarErrores(errores);
+        return ok;
+        }
+
+        // ====== Integración con tu JS existente ======
+
+        // 1) Atributos requeridos en líneas ya renderizadas
+        $("#formset .formset-linea").each(function(){ setAttrsLinea($(this)); });
+
+        // 2) Hook al submit del formulario
+        $('.contenido-interno form').on('submit', function(e){
+        if (!validarAntesDeEnviar()) {
+        e.preventDefault();
+        }
+        });
+
+        // 3) Al agregar una línea nueva, también setear attrs y bindear eventos
+        const _bindEventosLinea_original = (typeof bindEventosLinea === 'function') ? bindEventosLinea : function(){};
+        bindEventosLinea = function($linea){
+        _bindEventosLinea_original($linea);
+        setAttrsLinea($linea);
+        // limpiar marcas rojas al corregir
+        $linea.find('input, select').on('input change', function(){
+        $(this).removeClass('is-invalid');
+        $(this).next('.error-inline').remove();
+        });
+        };
+
+// 4) Cuando agregás la línea desde tu botón, ya llamás a bindEventosLinea($nuevaLinea)
+//    y calcularTotal($nuevaLinea); no hace falta cambiar esa parte.
+
 </script>
 {% endblock %}

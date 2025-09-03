@@ -195,7 +195,7 @@ class CrearOperacionView(View):
 
 		if form.is_valid() and formset.is_valid():
 			socio = form.cleaned_data['socio']
-			sucursal = form.cleaned_data['sucursal']
+			sucursal = form.cleaned_data.get('sucursal')
 			fecha = form.cleaned_data['fecha']
 			transporte = form.cleaned_data['transporte']
 			deposito = form.cleaned_data['deposito']
