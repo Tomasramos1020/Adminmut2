@@ -187,7 +187,7 @@ class CrearOperacionView(View):
 
 	def post(self, request):
 		form = OperacionForm(request.POST, request=request)
-		formset = VentaProductoFormSet(request.POST)
+		formset = VentaProductoFormSet(request.POST, queryset=Venta_Producto.objects.none())
 
 		cons = consorcio(request)
 		# Importante: también en POST, antes de is_valid(), para que valide contra el queryset correcto
@@ -278,6 +278,12 @@ class CrearOperacionView(View):
 					vp.sucursal = sucursal
 					vp.credito = credito
 					vp.liquidacion = liquidacion
+
+					# Asegurar costo:
+					if not vp.costo:
+						prod_costo = getattr(vp.producto, 'costo', None)
+						vp.costo = prod_costo or Decimal('0.00')
+
 					vp.save()
 
 					# Registrar movimiento de stock (salida)

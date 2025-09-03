@@ -319,11 +319,15 @@ class OperacionForm(forms.Form):
 class VentaProductoForm(forms.ModelForm):
 	class Meta:
 		model = Venta_Producto
-		fields = ['producto', 'precio', 'cantidad']
+		fields = ['producto', 'precio', 'cantidad', 'costo']
 		widgets = {
 			'producto': forms.Select(attrs={'class': 'form-control'}),
 			'precio': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-			'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
+			# cantidad es IntegerField en el modelo → step 1 para evitar decimales
+			'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '1', 'min': '1'}),
+			'costo': forms.NumberInput(attrs={
+				'class': 'form-control', 'step': '0.01', 'readonly': 'readonly'
+			}),
 		}
 
 VentaProductoFormSet = modelformset_factory(

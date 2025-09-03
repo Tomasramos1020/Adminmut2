@@ -179,6 +179,7 @@ class Venta_Producto(models.Model):
 	credito = models.ForeignKey(Credito, on_delete=models.CASCADE)
 	liquidacion = models.ForeignKey(Liquidacion, blank=True, null=True, on_delete=models.CASCADE)
 	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.CASCADE)
+	costo = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 
 
 	@property

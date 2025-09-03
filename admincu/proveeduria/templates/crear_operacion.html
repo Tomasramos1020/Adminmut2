@@ -109,8 +109,7 @@
                 <div class="formset-linea">
                     {{ form.producto.label_tag }} {{ form.producto }}
                     {{ form.precio.label_tag }} {{ form.precio }}
-                    <label>Costo</label>
-                    <input type="number" class="form-costo" readonly step="0.01" />
+                    {{ form.costo.label_tag }} {{ form.costo }}
                     <label>Margen (%)</label>
                     <input type="number" class="form-margen" step="0.01" />
                     {{ form.cantidad.label_tag }} {{ form.cantidad }}
@@ -125,8 +124,7 @@
             <div class="formset-linea">
                 {{ formset.empty_form.producto.label_tag }} {{ formset.empty_form.producto }}
                 {{ formset.empty_form.precio.label_tag }} {{ formset.empty_form.precio }}
-                <label>Costo</label>
-                <input type="number" class="form-costo" readonly step="0.01" />
+                {{ formset.empty_form.costo.label_tag }} {{ formset.empty_form.costo }}  {# ← ENLAZADO #}
                 <label>Margen (%)</label>
                 <input type="number" class="form-margen" step="0.01" />
                 {{ formset.empty_form.cantidad.label_tag }} {{ formset.empty_form.cantidad }}
@@ -188,7 +186,7 @@
 
     // ← NUEVA: calcula el margen (%) a partir de precio y costo
     function calcularMargen($linea) {
-        const costo  = parseFloat($linea.find('.form-costo').val()) || 0;
+        const costo  = parseFloat($linea.find('input[name$="-costo"]').val()) || 0;
         const precio = parseFloat($linea.find('input[name$="-precio"]').val()) || 0;
         if (costo > 0) {
             const margen = ((precio - costo) / costo) * 100;
@@ -200,7 +198,7 @@
 
     // ← NUEVA: actualiza precio cuando editás el margen
     function actualizarPrecioDesdeMargen($linea) {
-        const costo  = parseFloat($linea.find('.form-costo').val()) || 0;
+        const costo  = parseFloat($linea.find('input[name$="-costo"]').val()) || 0;
         const margen = parseFloat($linea.find('.form-margen').val());
         if (costo > 0 && !isNaN(margen)) {
             const precio = costo * (1 + (margen / 100));
@@ -238,27 +236,28 @@
       
         // Producto -> trae precio y costo
         $producto.on('change', function () {
-          const productoId = $(this).val();
-          if (productoId) {
+            const productoId = $(this).val();
+            if (productoId) {
             $.ajax({
-              url: "{% url 'obtener_precio_producto' %}",
-              data: { producto_id: productoId },
-              success: function (data) {
+                url: "{% url 'obtener_precio_producto' %}",
+                data: { producto_id: productoId },
+                success: function (data) {
                 const precio = parseFloat(data.precio_1) || 0;
                 const costo  = parseFloat(data.costo) || 0;
-                $linea.find('.form-costo').val(costo.toFixed(2));
+                const $costo = $linea.find('input[name$="-costo"]');
+                $costo.val(costo.toFixed(2));
                 $precio.val(precio.toFixed(2));
                 calcularTotal($linea);
                 calcularMargen($linea);
-              }
+                }
             });
-          } else {
-            $linea.find('.form-costo').val('');
+            } else {
+            $linea.find('input[name$="-costo"]').val('');
             $precio.val('');
             $margen.val('');
             $linea.find('.form-total').val('0.00');
             calcularTotalFinal();
-          }
+            }
         });
     }
 

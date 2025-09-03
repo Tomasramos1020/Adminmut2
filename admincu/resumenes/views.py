@@ -580,7 +580,7 @@ def res_cmv(request):
 	# 1) Anoto importes por línea (NO los sume todavía)
 	qs = qs.annotate(
 		cantidad_dec=Cast(Coalesce(F('cantidad'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
-		costo_prod=Cast(Coalesce(F('producto__costo'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
+		costo_prod=Cast(Coalesce(F('costo'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
 		precio_unit=Cast(Coalesce(F('precio'), Value(0)), DecimalField(max_digits=18, decimal_places=2)),
 	).annotate(
 		costo_linea=ExpressionWrapper(F('cantidad_dec') * F('costo_prod'),
@@ -592,28 +592,43 @@ def res_cmv(request):
 	# 2) Agrupo y sumo sobre las ANOTACIONES (evita el FieldError)
 	por_prod = (
 		qs.values('producto__id', 'producto__nombre')
-		  .annotate(
-			  cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
-			  costo_prom=Avg('costo_prod'),
-			  precio_prom=Avg('precio_unit'),
-			  costo_total=Coalesce(Sum('costo_linea'), Value(0)),
-			  venta_total=Coalesce(Sum('venta_linea'), Value(0)),
-		  )
-		  .annotate(
-			  rent_neto=ExpressionWrapper(F('venta_total') - F('costo_total'),
-										  output_field=DecimalField(max_digits=18, decimal_places=2)),
-		  )
-		  .annotate(
-			  rent_pct=Case(
-				  When(venta_total__gt=0,
-					   then=ExpressionWrapper((F('rent_neto') * Value(100.0)) / F('venta_total'),
-											  output_field=FloatField())),
-				  default=Value(0.0),
-				  output_field=FloatField()
-			  )
-		  )
-		  .order_by('producto__nombre')
+		.annotate(
+			cantidad=Coalesce(Sum('cantidad_dec'), Value(0)),
+			costo_total=Coalesce(Sum('costo_linea'), Value(0)),
+			venta_total=Coalesce(Sum('venta_linea'), Value(0)),
+		)
+		.annotate(
+			costo_prom=Case(
+				When(cantidad__gt=0,
+					then=ExpressionWrapper(F('costo_total') / F('cantidad'),
+											output_field=DecimalField(max_digits=18, decimal_places=2))),
+				default=Value(0),
+				output_field=DecimalField(max_digits=18, decimal_places=2),
+			),
+			precio_prom=Case(
+				When(cantidad__gt=0,
+					then=ExpressionWrapper(F('venta_total') / F('cantidad'),
+											output_field=DecimalField(max_digits=18, decimal_places=2))),
+				default=Value(0),
+				output_field=DecimalField(max_digits=18, decimal_places=2),
+			),
+		)
+		.annotate(
+			rent_neto=ExpressionWrapper(F('venta_total') - F('costo_total'),
+										output_field=DecimalField(max_digits=18, decimal_places=2)),
+		)
+		.annotate(
+			rent_pct=Case(
+				When(venta_total__gt=0,
+					then=ExpressionWrapper((F('rent_neto') * Value(100.0)) / F('venta_total'),
+											output_field=FloatField())),
+				default=Value(0.0),
+				output_field=FloatField()
+			)
+		)
+		.order_by('producto__nombre')
 	)
+
 
 	# 3) Totales generales
 	totales = qs.aggregate(
