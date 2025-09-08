@@ -1,0 +1,25 @@
+{# templates/documentacion/barra_doc.html #}
+<div class="card-box ribbon-box">
+    <p class="text-muted m-b-10 font-14"></p>
+  
+    <a class="btn btn-block btn-bordered btn-default {% if elemento == 'Estatuto' %}btn-primary{% endif %}"
+       href="{% url 'doc_listado' modelo='Estatuto' %}">Estatutos</a>
+  
+    <a class="btn btn-block btn-bordered btn-default {% if elemento == 'ActaConsejo' %}btn-primary{% endif %}"
+       href="{% url 'doc_listado' modelo='ActaConsejo' %}">Actas de Consejo</a>
+  
+    <a class="btn btn-block btn-bordered btn-default {% if elemento == 'ActaJuntaFiscalizadora' %}btn-primary{% endif %}"
+       href="{% url 'doc_listado' modelo='ActaJuntaFiscalizadora' %}">Actas Junta Fiscalizadora</a>
+  
+    <a class="btn btn-block btn-bordered btn-default {% if elemento == 'ActaAsamblea' %}btn-primary{% endif %}"
+       href="{% url 'doc_listado' modelo='ActaAsamblea' %}">Acta de Asamblea</a>
+    
+    <a class="btn btn-block btn-bordered btn-default {% if elemento == 'ConvenioDoc' %}btn-primary{% endif %}"
+       href="{% url 'doc_listado' modelo='ConvenioDoc' %}">Convenios</a>
+  
+    <a class="btn btn-block btn-bordered btn-default {% if elemento == 'Servicio_mutual' %}btn-primary{% endif %}"
+       href="{% url 'doc_listado' modelo='Servicio_mutual' %}">Reglamentos</a>
+  </div>
+  
+    
+    

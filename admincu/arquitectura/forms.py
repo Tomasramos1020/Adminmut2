@@ -483,7 +483,11 @@ class servicioForm(FormControl, forms.ModelForm):
 			'nombre':"Nombre del servicio mutual",
 			'descripcion': "Reglamento",
 			'nombre_reglamento': "Nombre del reglamento",
-			'fecha_reglamento': "fecha de la aprobacion del reglamento",			
+			'fecha_reglamento': "Fecha de la aprobacion del reglamento",			
+		}
+		widgets = {
+			'fecha_reglamento': forms.DateInput(attrs={'type':'date'}),
+			'descripcion': forms.Textarea(attrs={'rows': 10}),
 		}
 
 	def __init__(self, consorcio=None, *args, **kwargs):

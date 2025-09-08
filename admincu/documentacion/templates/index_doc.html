@@ -1,0 +1,90 @@
+{% extends 'raiz.html' %}
+{% load static %}
+
+{% block titulo %}Documentación{% endblock %}
+{% block header %}Documentación institucional{% endblock %}
+
+{% block contenido %}
+<style>
+  .doc-grid{
+    display:grid;
+    gap:18px;
+    grid-template-columns:repeat(1,minmax(220px,1fr));   /* móvil */
+    max-width:1200px;                                    /* centra y limita ancho */
+    margin:0 auto;
+  }
+  @media (min-width:768px){
+    .doc-grid{ grid-template-columns:repeat(2,minmax(240px,1fr)); } /* tablet */
+  }
+  @media (min-width:992px){
+    .doc-grid{ grid-template-columns:repeat(3,minmax(260px,1fr)); } /* desktop: 3 y 3 */
+  }
+
+  .doc-card{
+    background:#fff;border-radius:14px;padding:24px;text-align:center;
+    box-shadow:0 2px 8px rgba(0,0,0,.06);transition:transform .18s, box-shadow .18s;
+    position:relative;overflow:hidden;min-height:140px;display:flex;flex-direction:column;justify-content:center
+  }
+  .doc-card:hover{transform:translateY(-4px);box-shadow:0 8px 22px rgba(0,0,0,.12)}
+  .doc-icon{
+    width:64px;height:64px;margin:0 auto 10px;border-radius:18px;
+    display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.04)
+  }
+  .doc-icon i{font-size:28px}
+  .doc-title{font-weight:600;color:#2d2d2d;margin-top:8px}
+  /* acentos */
+  .is-blue .doc-icon{background:rgba(41,121,255,.10)} .is-blue i{color:#2979ff}
+  .is-green .doc-icon{background:rgba(0,200,83,.10)}  .is-green i{color:#00c853}
+  .is-purple .doc-icon{background:rgba(124,77,255,.10)}.is-purple i{color:#7c4dff}
+  .is-orange .doc-icon{background:rgba(255,145,0,.12)} .is-orange i{color:#ff9100}
+  .is-teal .doc-icon{background:rgba(0,150,136,.12)} .is-teal i{color:#009688}
+  .is-rose .doc-icon{background:rgba(244,67,54,.10)} .is-rose i{color:#f44336}
+  .doc-card a{display:block;color:inherit;text-decoration:none}
+</style>
+
+<div class="doc-grid">
+
+  <div class="doc-card is-blue">
+    <a href="{% url 'doc_listado' 'Estatuto' %}">
+      <div class="doc-icon"><i class="fa fa-book"></i></div>
+      <div class="doc-title">Estatutos</div>
+    </a>
+  </div>
+
+  <div class="doc-card is-green">
+    <a href="{% url 'doc_listado' 'ActaConsejo' %}">
+      <div class="doc-icon"><i class="fa fa-users"></i></div>
+      <div class="doc-title">Actas de Consejo</div>
+    </a>
+  </div>
+
+  <div class="doc-card is-purple">
+    <a href="{% url 'doc_listado' 'ActaJuntaFiscalizadora' %}">
+      <div class="doc-icon"><i class="fa fa-shield"></i></div>
+      <div class="doc-title">Actas Junta Fiscalizadora</div>
+    </a>
+  </div>
+
+  <div class="doc-card is-orange">
+    <a href="{% url 'doc_listado' 'ActaAsamblea' %}">
+      <div class="doc-icon"><i class="fa fa-university"></i></div>
+      <div class="doc-title">Actas de Asamblea</div>
+    </a>
+  </div>
+
+  <div class="doc-card is-teal">
+    <a href="{% url 'doc_listado' 'ConvenioDoc' %}">
+      <div class="doc-icon"><i class="fa fa-file-text-o"></i></div>
+      <div class="doc-title">Convenios</div>
+    </a>
+  </div>
+
+  <div class="doc-card is-rose">
+    <a href="{% url 'doc_listado' 'Servicio_mutual' %}">
+      <div class="doc-icon"><i class="fa fa-gavel"></i></div>
+      <div class="doc-title">Reglamentos</div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}

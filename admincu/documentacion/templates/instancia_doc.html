@@ -1,0 +1,108 @@
+{% extends 'raiz.html' %}
+{% block titulo %}{{ nombre_elemento|default:"Documento" }}{% endblock %}
+{% block header %}{{ nombre_elemento|default:"Documento" }}{% endblock %}
+
+{% block contenido %}
+<style>
+  .doc-section-title{
+    font-weight:600; margin:18px 0 8px; font-size:13px; color:#555; text-transform:uppercase;
+  }
+  .doc-well{
+    background:#fafafa; border:1px solid #eee; border-radius:6px; padding:12px 14px; margin-top:10px;
+  }
+  .doc-actions{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .doc-checkbox{ display:flex; align-items:center; gap:8px; margin:6px 12px 0 0; }
+  .doc-checkbox label{ margin:0; font-weight:600; color:#444; }
+</style>
+
+<div class="card-box">
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form.media }}
+
+    <div class="row">
+      {# Fila 1: Nombre + Fecha #}
+      {% if form.nombre %}
+        <div class="col-md-6">
+          {{ form.nombre.label_tag }} {{ form.nombre }}
+        </div>
+      {% endif %}
+
+      {% if form.fecha %}
+        <div class="col-md-6">
+          {{ form.fecha.label_tag }} {{ form.fecha }}
+        </div>
+      {% elif form.fecha_reglamento %}
+        <div class="col-md-6">
+          {{ form.fecha_reglamento.label_tag }} {{ form.fecha_reglamento }}
+        </div>
+      {% endif %}
+
+      {# Fila 2: Número + Foja (si corresponde) #}
+      {% if form.numero %}
+        <div class="col-md-6">
+          {{ form.numero.label_tag }} {{ form.numero }}
+        </div>
+      {% endif %}
+
+      {% if form.foja %}
+        <div class="col-md-6">
+          {{ form.foja.label_tag }} {{ form.foja }}
+        </div>
+      {% endif %}
+
+      {# Integrantes (actas) #}
+      {% if form.integrantes %}
+        <div class="col-md-12">
+          {{ form.integrantes.label_tag }} {{ form.integrantes }}
+        </div>
+      {% endif %}
+
+      {# Contenido #}
+      {% if form.contenido %}
+        <div class="col-md-12">
+          {{ form.contenido.label_tag }} {{ form.contenido }}
+        </div>
+      {% endif %}
+
+      {# Descripción #}
+      {% if form.descripcion %}
+        <div class="col-md-12">
+          {{ form.descripcion.label_tag }} {{ form.descripcion }}
+        </div>
+      {% endif %}
+
+      {# Firma / Transcripción al final #}
+      {% if form.firma or form.transcripcion %}
+        <div class="col-md-12">
+          <div class="doc-section-title">Estado del documento</div>
+          <div class="doc-well">
+            <div class="doc-actions">
+              {% if form.firma %}
+                <div class="doc-checkbox">
+                  {{ form.firma }} <label for="{{ form.firma.id_for_label }}">{{ form.firma.label }}</label>
+                </div>
+              {% endif %}
+              {% if form.transcripcion %}
+                <div class="doc-checkbox">
+                  {{ form.transcripcion }} <label for="{{ form.transcripcion.id_for_label }}">{{ form.transcripcion.label }}</label>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <hr>
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'doc_listado' modelo=elemento %}" class="btn btn-default">Cancelar</a>
+  </form>
+</div>
+{% endblock %}
+
+
+
+
+
