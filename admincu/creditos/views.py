@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.db import transaction
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q, Min
 from django.views import generic
 from django.utils.decorators import method_decorator
 from formtools.wizard.views import SessionWizardView
@@ -14,6 +14,7 @@ from django.core.files.storage import FileSystemStorage
 from tablib import Dataset
 from django.conf import settings
 from decimal import Decimal
+from django.views.generic import ListView
 
 
 from admincu.funciones import *
@@ -28,6 +29,8 @@ from .manager import *
 from .filters import *
 from comprobantes.funciones import *
 from reportes.models import Cierre
+from django_filters.views import FilterView
+from admincu.funciones import group_required
 
 envioAFIP = 'Liquidacion guardada. En los proximos minutos se enviara la información a AFIP. Te informaremos los resultados.'
 
@@ -966,6 +969,52 @@ class RegistroCreditos(OrderQS):
 
 	def get_queryset(self):
 		return super().get_queryset(padre__isnull=True, liquidacion__estado="confirmado")
+
+
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class RegistroFacturas(ListView):
+    model = Factura
+    template_name = "creditos/registros/facturas.html"
+    paginate_by = 50
+
+    def get_base_qs(self):
+        qs = (Factura.objects
+              .select_related('liquidacion', 'liquidacion__punto', 'socio', 'receipt'))
+
+        try:
+            from admincu.funciones import consorcio
+            c = consorcio(self.request)
+            qs = qs.filter(consorcio=c)
+        except Exception:
+            pass
+
+        # importe = suma de capitales SOLO de créditos raíz (no hijos)
+        qs = qs.filter(liquidacion__isnull=False).annotate(
+            importe=Sum('credito__capital', filter=Q(credito__padre__isnull=True)),
+            # fecha de factura = fecha del primer crédito raíz
+            fecha_factura=Min('credito__fecha', filter=Q(credito__padre__isnull=True)),
+        )
+        return qs
+
+    def get_queryset(self):
+        self.filterset = FacturaFilter(self.request.GET or None,
+                                       queryset=self.get_base_qs(),
+                                       request=self.request)
+        # ordenar por la fecha de factura (primer crédito) más reciente
+        return self.filterset.qs.order_by('-fecha_factura', '-pk')
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['filter'] = self.filterset
+        ctx['lista']  = ctx['page_obj']    # el paginador usa 'lista'
+        return ctx
+
+
+
+
+
+
 
 
 class HeaderExeptMixin:

@@ -1,0 +1,49 @@
+{% load humanize %}
+{% load staticfiles %}
+<table class="anopa table display nowrap" style="width:100%">
+  <thead>
+    <tr>
+      <th>Factura</th>
+      <th>Fecha</th>
+      <th>Punto de venta</th>
+      <th class="text-right">Nº de Asoc.</th>
+      <th>Socio</th>
+      <th class="text-right">Importe</th>
+      <th>Observación AFIP</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in facturas %}
+      <tr>
+        <td>
+          <a href="{% url 'pdf-factura' pk=f.pk %}" target="_blank">
+            {{ f.formatoAfip|default:"Ver PDF" }}
+          </a>
+        </td>
+
+        {# >>> fecha de factura = fecha del primer crédito raíz (anotación fecha_factura) #}
+        <td>
+          {% if f.fecha_factura %}
+            {{ f.fecha_factura|date:"d/m/Y" }}
+          {% else %}
+            {{ f.liquidacion.fecha|date:"d/m/Y" }}
+          {% endif %}
+        </td>
+
+        <td>{{ f.liquidacion.punto }}</td>
+        <td class="text-right">{{ f.socio.numero_asociado }}</td>
+        <td>{{ f.socio }}</td>
+        <td class="text-right">
+          {% if f.importe is not None %}
+            {{ f.importe|floatformat:2|intcomma }}
+          {% else %}
+            {{ f.suma_capitales|floatformat:2|intcomma }}
+          {% endif %}
+        </td>
+        <td>{{ f.observacion|default:"" }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+

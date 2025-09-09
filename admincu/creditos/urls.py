@@ -25,6 +25,7 @@ urlpatterns = [
 	# Registros
 	path('registro/liquidaciones/', RegistroLiquidaciones.as_view(), name='registro de liquidaciones'),
 	path('registro/creditos/', RegistroCreditos.as_view(), name='registro de creditos'),
+	path('registro/facturas/', RegistroFacturas.as_view(), name='registro-de-facturas'),
 
 	# Vistas particulares
 	path('liquidacion/pdf/<int:pk>/', PDFLiquidacion.as_view(), name='pdf-liquidacion'),
