@@ -1,43 +1,60 @@
+{# creditos/registros/tabla-facturas.html #}
 {% load humanize %}
 {% load staticfiles %}
 <table class="anopa table display nowrap" style="width:100%">
   <thead>
     <tr>
-      <th>Factura</th>
+      <th>Tipo</th>
+      <th>Comprobante</th>
       <th>Fecha</th>
       <th>Punto de venta</th>
       <th class="text-right">Nº de Asoc.</th>
       <th>Socio</th>
       <th class="text-right">Importe</th>
-      <th>Observación AFIP</th>
+      <th>Observación</th>
     </tr>
   </thead>
   <tbody>
     {% for f in facturas %}
       <tr>
         <td>
-          <a href="{% url 'pdf-factura' pk=f.pk %}" target="_blank">
-            {{ f.formatoAfip|default:"Ver PDF" }}
-          </a>
-        </td>
-
-        {# >>> fecha de factura = fecha del primer crédito raíz (anotación fecha_factura) #}
-        <td>
-          {% if f.fecha_factura %}
-            {{ f.fecha_factura|date:"d/m/Y" }}
+          {% if f.tipo == 'NC' %}
+            <span class="label label-danger">NC</span>
           {% else %}
-            {{ f.liquidacion.fecha|date:"d/m/Y" }}
+            <span class="label label-primary">FAC</span>
           {% endif %}
         </td>
 
-        <td>{{ f.liquidacion.punto }}</td>
-        <td class="text-right">{{ f.socio.numero_asociado }}</td>
-        <td>{{ f.socio }}</td>
-        <td class="text-right">
-          {% if f.importe is not None %}
-            {{ f.importe|floatformat:2|intcomma }}
+        <td>
+          {% if f.tipo == 'NC' %}
+            {# Ajustá 'pdf-comprobante' al nombre real de tu url para el PDF de Comprobante #}
+            <a href="{% url 'pdf-comprobante' pk=f.pk %}" target="_blank">
+              {{ f.formatoAfip|default:"Nota de crédito" }}
+            </a>
           {% else %}
-            {{ f.suma_capitales|floatformat:2|intcomma }}
+            <a href="{% url 'pdf-factura' pk=f.pk %}" target="_blank">
+              {{ f.formatoAfip|default:"Ver PDF" }}
+            </a>
+          {% endif %}
+        </td>
+
+        <td>
+          {% if f.fecha_factura %}
+            {{ f.fecha_factura|date:"d/m/Y" }}
+          {% endif %}
+        </td>
+
+        <td>{% if f.punto %}{{ f.punto }}{% else %}—{% endif %}</td>
+    
+        <td class="text-right">{{ f.numero_asociado }}</td>
+        <td>{{ f.socio }}</td>
+
+        <td class="text-right">
+          {# Si querés negativo en rojo: #}
+          {% if f.tipo == 'NC' and f.importe %}
+            <span style="color:#c9302c;">{{ f.importe|floatformat:2|intcomma }}</span>
+          {% else %}
+            {{ f.importe|floatformat:2|intcomma }}
           {% endif %}
         </td>
         <td>{{ f.observacion|default:"" }}</td>
@@ -45,5 +62,6 @@
     {% endfor %}
   </tbody>
 </table>
+
 
 

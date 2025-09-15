@@ -357,14 +357,31 @@ class CompraForm(forms.Form):
 			self.fields['deposito'].queryset = Deposito.objects.filter(consorcio=cons)
 
 class CompraProductoForm(forms.ModelForm):
-	class Meta:
-		model = Compra_Producto
-		fields = ['producto', 'precio', 'cantidad']
-		widgets = {
-			'producto': forms.Select(attrs={'class': 'form-control'}),
-			'precio': forms.NumberInput(attrs={'class': 'form-control'}),
-			'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
-		}
+    class Meta:
+        model = Compra_Producto
+        fields = ['producto', 'precio', 'cantidad']
+        widgets = {
+            'producto': forms.Select(attrs={'class': 'form-control'}),
+            'precio': forms.NumberInput(attrs={'class': 'form-control'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        if request:
+            try:
+                c = consorcio(request)
+                # Ajustá el filtro a tu modelo de productos
+                # Ejemplos habituales: Producto.objects.filter(consorcio=c, baja__isnull=True)
+                self.fields['producto'].queryset = (
+                    Producto.objects.filter(consorcio=c)  # + los filtros que uses (activos, sin baja, etc.)
+                    .order_by('nombre')
+                )
+            except Exception:
+                # Si por algún motivo no se detecta el consorcio, al menos dejá la lista vacía
+                self.fields['producto'].queryset = Producto.objects.none()
+
 
 CompraProductoFormSet = modelformset_factory(
 	Compra_Producto,

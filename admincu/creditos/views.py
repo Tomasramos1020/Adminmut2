@@ -5,7 +5,7 @@ from django.urls import reverse
 from django.http import HttpResponse, HttpResponseRedirect
 from django.db import transaction
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db.models import Count, Sum, Q, Min
+from django.db.models import Count, Sum, Q, Min, F, Value, DecimalField, CharField, ExpressionWrapper
 from django.views import generic
 from django.utils.decorators import method_decorator
 from formtools.wizard.views import SessionWizardView
@@ -15,8 +15,6 @@ from tablib import Dataset
 from django.conf import settings
 from decimal import Decimal
 from django.views.generic import ListView
-
-
 from admincu.funciones import *
 from admincu.generic import OrderQS
 from consorcios.models import *
@@ -31,6 +29,23 @@ from comprobantes.funciones import *
 from reportes.models import Cierre
 from django_filters.views import FilterView
 from admincu.funciones import group_required
+from django.utils.functional import cached_property
+from django.views import View
+from django.core.paginator import Paginator
+from decimal import Decimal
+from types import SimpleNamespace
+import itertools
+
+from django.views import View
+from admincu.funciones import consorcio
+
+from comprobantes.models import Comprobante
+
+# views.py
+from django import forms
+from django.db.models.functions import Coalesce, Concat, Cast
+from django.db.models.expressions import Func
+
 
 envioAFIP = 'Liquidacion guardada. En los proximos minutos se enviara la información a AFIP. Te informaremos los resultados.'
 
@@ -372,81 +387,81 @@ class CuotaSocialWizard(WizardLiquidacionManager, SessionWizardView):
 @method_decorator(group_required('administrativo'), name='dispatch')
 class CuotaConvenioWizard(WizardLiquidacionManager, SessionWizardView):
 
-    form_list = [
-        ('inicial', InicialForm),
-        ('cuota_convenio', CuotaConvenioForm),
-        ('plazos', PlazoFormSet),
-        ('confirmacion', ConfirmacionForm)
-    ]
+	form_list = [
+		('inicial', InicialForm),
+		('cuota_convenio', CuotaConvenioForm),
+		('plazos', PlazoFormSet),
+		('confirmacion', ConfirmacionForm)
+	]
 
-    def get_template_names(self):
-        return [self.TEMPLATES[self.steps.current]]
+	def get_template_names(self):
+		return [self.TEMPLATES[self.steps.current]]
 
-    def get_context_data(self, form, **kwargs):
-        context = super().get_context_data(form=form, **kwargs)
-        tipo = "Cuota por Convenio"
-        peticion = "liquidacion de comprobantes RG-1415"
-        if self.steps.current == 'plazos':
-            data_individuales = self.get_cleaned_data_for_step('cuota_convenio')
-            ingresos = [Ingreso.objects.get(consorcio=consorcio(self.request), es_cuota_social=True)]
-            accesorios = self.obtener_accesorios(ingresos)
+	def get_context_data(self, form, **kwargs):
+		context = super().get_context_data(form=form, **kwargs)
+		tipo = "Cuota por Convenio"
+		peticion = "liquidacion de comprobantes RG-1415"
+		if self.steps.current == 'plazos':
+			data_individuales = self.get_cleaned_data_for_step('cuota_convenio')
+			ingresos = [Ingreso.objects.get(consorcio=consorcio(self.request), es_cuota_social=True)]
+			accesorios = self.obtener_accesorios(ingresos)
 
-        elif self.steps.current == 'confirmacion':
-            data_plazos = self.hacer_plazos()
-            liquidacion = self.hacer_liquidacion('cuota_convenio', receipt_type="101")
+		elif self.steps.current == 'confirmacion':
+			data_plazos = self.hacer_plazos()
+			liquidacion = self.hacer_liquidacion('cuota_convenio', receipt_type="101")
 
-        context.update(locals())
-        return context
+		context.update(locals())
+		return context
 
-    def get_form_kwargs(self, step):
-        kwargs = super().get_form_kwargs()
-        if step in ["inicial", "cuota_convenio"]:
-            kwargs.update({
-                'consorcio': consorcio(self.request)
-            })
-        if step == "confirmacion":
-            liquidacion = self.hacer_liquidacion('cuota_convenio', receipt_type="101")
-            mostrar = len(liquidacion.listar_documentos()) == 1
-            kwargs.update({
-                'mostrar': mostrar
-            })
-        return kwargs
+	def get_form_kwargs(self, step):
+		kwargs = super().get_form_kwargs()
+		if step in ["inicial", "cuota_convenio"]:
+			kwargs.update({
+				'consorcio': consorcio(self.request)
+			})
+		if step == "confirmacion":
+			liquidacion = self.hacer_liquidacion('cuota_convenio', receipt_type="101")
+			mostrar = len(liquidacion.listar_documentos()) == 1
+			kwargs.update({
+				'mostrar': mostrar
+			})
+		return kwargs
 
-    def get_form(self, step=None, data=None, files=None):
-        form = super().get_form(step, data, files)
-        formset = False
-        if data:
-            if 'cuota_convenio' in data['cuota_convenio_wizard-current_step']:
-                formset = True
-        if step == "cuota_convenio":
-            formset = True
+	def get_form(self, step=None, data=None, files=None):
+		form = super().get_form(step, data, files)
+		formset = False
+		if data:
+			if 'cuota_convenio' in data['cuota_convenio_wizard-current_step']:
+				formset = True
+		if step == "cuota_convenio":
+			formset = True
 
-        if formset:
-            formset = formset_factory(
-                wraps(CuotaConvenioForm)(partial(CuotaConvenioForm, consorcio=consorcio(self.request))), 
-                extra=1
-            )
-            form = formset(prefix='cuota_convenio', data=data)
-        return form
+		if formset:
+			formset = formset_factory(
+				wraps(CuotaConvenioForm)(partial(CuotaConvenioForm, consorcio=consorcio(self.request))), 
+				extra=1
+			)
+			form = formset(prefix='cuota_convenio', data=data)
+		return form
 
-    @transaction.atomic
-    def done(self, form_list, **kwargs):
-        liquidacion = self.hacer_liquidacion('cuota_convenio', receipt_type="101")
-        liquidacion = liquidacion.guardar()
-        contado = self.get_cleaned_data_for_step('confirmacion')['confirmacion']
-        if contado:
-            factura = liquidacion.factura_set.first()
-            creditos = factura.incorporar_creditos()
-            factura.validar_factura()
+	@transaction.atomic
+	def done(self, form_list, **kwargs):
+		liquidacion = self.hacer_liquidacion('cuota_convenio', receipt_type="101")
+		liquidacion = liquidacion.guardar()
+		contado = self.get_cleaned_data_for_step('confirmacion')['confirmacion']
+		if contado:
+			factura = liquidacion.factura_set.first()
+			creditos = factura.incorporar_creditos()
+			factura.validar_factura()
 
-            liquidacion.confirmar()
-            if liquidacion.estado == "confirmado":
-                return redirect('nuevo-rcx-factura', pk=factura.pk)
-            else:
-                messages.error(self.request, factura.observacion)
-        else:
-            messages.success(self.request, envioAFIP)
-        return redirect('recursos')
+			liquidacion.confirmar()
+			if liquidacion.estado == "confirmado":
+				return redirect('nuevo-rcx-factura', pk=factura.pk)
+			else:
+				messages.error(self.request, factura.observacion)
+		else:
+			messages.success(self.request, envioAFIP)
+		return redirect('recursos')
 
 
 
@@ -972,47 +987,215 @@ class RegistroCreditos(OrderQS):
 
 
 
+def _lpad(expr, n):
+	"""LPAD(CAST(expr AS varchar), n, '0') compatible con 2.2."""
+	return Func(Cast(expr, CharField()), Value(n), Value('0'), function='LPAD')
+
+
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')
-class RegistroFacturas(ListView):
-    model = Factura
-    template_name = "creditos/registros/facturas.html"
-    paginate_by = 50
+class RegistroFacturas(View):
+	template_name = "creditos/registros/facturas.html"
+	paginate_by = 50
 
-    def get_base_qs(self):
-        qs = (Factura.objects
-              .select_related('liquidacion', 'liquidacion__punto', 'socio', 'receipt'))
+	# ---------------------------
+	# Query bases (todo en SQL)
+	# ---------------------------
+	def get_base_facturas(self):
+		c = consorcio(self.request)
+		return (
+			Factura.objects
+			.filter(consorcio=c, liquidacion__isnull=False)
+			.select_related('socio', 'receipt', 'receipt__point_of_sales',
+							'liquidacion', 'liquidacion__punto')
+			.annotate(
+				fecha_factura=Coalesce(
+					Min('credito__fecha', filter=Q(credito__padre__isnull=True)),
+					F('liquidacion__fecha'),
+				),
+				importe=Coalesce(
+					Sum('credito__capital', filter=Q(credito__padre__isnull=True)),
+					Value(0, output_field=DecimalField(max_digits=20, decimal_places=2)),
+				),
+				pos_num=Coalesce(
+					F('receipt__point_of_sales__number'),
+					F('liquidacion__punto__number'),
+				),
+				pos_text=_lpad(F('pos_num'), 4),
+				nro_text=_lpad(F('receipt__receipt_number'), 8),
+				formatoAfip=Concat(F('pos_text'), Value('-'), F('nro_text')),
+			)
+		)
 
-        try:
-            from admincu.funciones import consorcio
-            c = consorcio(self.request)
-            qs = qs.filter(consorcio=c)
-        except Exception:
-            pass
+	def get_base_nc(self):
+		c = consorcio(self.request)
+		return (
+			Comprobante.objects
+			.filter(consorcio=c)
+			# ✅ Solo Notas de Crédito (vigentes o anuladas). Nada de Recibo X.
+			.filter(Q(nota_credito__isnull=False) | Q(nota_credito_anulado__isnull=False))
+			.select_related(
+				'socio',
+				'nota_credito', 'nota_credito__point_of_sales',
+				'nota_credito_anulado', 'nota_credito_anulado__point_of_sales',
+			)
+			.annotate(
+				# POS SOLO desde la NC (vigente o anulada)
+				pos_num=Coalesce(
+					F('nota_credito__point_of_sales__number'),
+					F('nota_credito_anulado__point_of_sales__number'),
+				),
+				pos_text=_lpad(F('pos_num'), 4),
+				# Número SOLO desde la NC (vigente o anulada)
+				nro_rcpt=Coalesce(
+					F('nota_credito__receipt_number'),
+					F('nota_credito_anulado__receipt_number'),
+				),
+				nro_text=_lpad(F('nro_rcpt'), 8),
+				formatoAfip=Concat(F('pos_text'), Value('-'), F('nro_text')),
+				importe_neg=ExpressionWrapper(
+					-Coalesce(F('total'), Value(0)),
+					output_field=DecimalField(max_digits=20, decimal_places=2)
+				),
+			)
+		)
 
-        # importe = suma de capitales SOLO de créditos raíz (no hijos)
-        qs = qs.filter(liquidacion__isnull=False).annotate(
-            importe=Sum('credito__capital', filter=Q(credito__padre__isnull=True)),
-            # fecha de factura = fecha del primer crédito raíz
-            fecha_factura=Min('credito__fecha', filter=Q(credito__padre__isnull=True)),
-        )
-        return qs
-
-    def get_queryset(self):
-        self.filterset = FacturaFilter(self.request.GET or None,
-                                       queryset=self.get_base_qs(),
-                                       request=self.request)
-        # ordenar por la fecha de factura (primer crédito) más reciente
-        return self.filterset.qs.order_by('-fecha_factura', '-pk')
-
-    def get_context_data(self, **kwargs):
-        ctx = super().get_context_data(**kwargs)
-        ctx['filter'] = self.filterset
-        ctx['lista']  = ctx['page_obj']    # el paginador usa 'lista'
-        return ctx
 
 
 
+	# ---------------------------
+	# Filtros para NC usando el mismo form del FilterSet de facturas
+	# ---------------------------
+	def apply_filters_to_nc(self, qs, filterset):
+		if not hasattr(filterset, 'form') or not filterset.form.is_valid():
+			return qs
 
+		cd = filterset.form.cleaned_data
+
+		numero = cd.get('numero')
+		if numero:
+			qs = qs.filter(
+				Q(nota_credito__receipt_number=numero) |
+				Q(nota_credito_anulado__receipt_number=numero)
+			)
+
+		apellido = cd.get('apellido')
+		if apellido:
+			qs = qs.filter(socio__apellido__icontains=apellido)
+
+		punto = cd.get('punto')
+		if punto:
+			v_id = punto.pk
+			v_num = getattr(punto, 'number', None)
+
+			# ✅ Filtrar SOLO por POS del receipt de la NC (vigente o anulada)
+			cond = Q(nota_credito__point_of_sales_id=v_id) | Q(nota_credito_anulado__point_of_sales_id=v_id)
+			if v_num is not None:
+				cond |= Q(nota_credito__point_of_sales__number=v_num) | Q(nota_credito_anulado__point_of_sales__number=v_num)
+			qs = qs.filter(cond)
+
+		rango = cd.get('fecha')
+		if rango:
+			if rango.start and rango.stop:
+				qs = qs.filter(fecha__range=(rango.start, rango.stop))
+			elif rango.start:
+				qs = qs.filter(fecha__gte=rango.start)
+			elif rango.stop:
+				qs = qs.filter(fecha__lte=rango.stop)
+
+		return qs
+
+
+	# ---------------------------
+	# Builders sin N+1 (listan objetos livianos)
+	# ---------------------------
+	def build_rows_facturas(self, qs):
+		rows = []
+		for f in qs.order_by('-fecha_factura', '-pk'):
+			rows.append(SimpleNamespace(
+				tipo="FAC",
+				pk=f.pk,
+				formatoAfip=f.formatoAfip,       # ya viene "0001-00000001"
+				fecha_factura=f.fecha_factura,
+				punto=f.pos_num,                 # número o None (el template lo maneja)
+				socio=f.socio,
+				numero_asociado=getattr(f.socio, 'numero_asociado', ''),
+				importe=f.importe,
+				observacion=f.observacion or '',
+			))
+		return rows
+
+	def build_rows_nc(self, qs):
+		rows = []
+		for nc in qs.order_by('-fecha', '-pk'):
+			rows.append(SimpleNamespace(
+				tipo="NC",
+				pk=nc.pk,
+				formatoAfip=(nc.formatoAfip or f"NC #{nc.pk}"),
+				fecha_factura=nc.fecha,
+				punto=nc.pos_num,
+				socio=nc.socio,
+				numero_asociado=getattr(nc.socio, 'numero_asociado', ''),
+				importe=Decimal(nc.importe_neg or 0),
+				observacion='Nota de crédito',
+			))
+		return rows
+	def _has_active_filters(self, filterset):
+		form = getattr(filterset, 'form', None)
+		if not form or not form.is_valid():
+			return False
+
+		cd = form.cleaned_data or {}
+		for val in cd.values():
+			if val in (None, "", [], ()):
+				continue
+			# Rangos (DateFromToRange)
+			if hasattr(val, "start") or hasattr(val, "stop"):
+				if getattr(val, "start", None) or getattr(val, "stop", None):
+					return True
+				continue
+			return True
+		return False	
+	# ---------------------------
+	# GET
+	# ---------------------------
+	def get(self, request, *args, **kwargs):
+		from .filters import FacturaFilter
+
+		# 1) Aplico filtros a Facturas
+		fact_qs = self.get_base_facturas()
+		self.filterset = FacturaFilter(request.GET or None, queryset=fact_qs, request=request)
+		fact_qs = self.filterset.qs
+
+		# 2) Aplico mismos filtros a NC
+		nc_qs = self.get_base_nc()
+		nc_qs = self.apply_filters_to_nc(nc_qs, self.filterset)
+
+		# 3) Mezcla filas y orden
+		filas = self.build_rows_facturas(fact_qs) + self.build_rows_nc(nc_qs)
+		filas.sort(key=lambda r: (r.fecha_factura or date.min, r.pk), reverse=True)
+
+		# 4) Si hay filtros activos -> SIN paginación
+		filtros_activos = self._has_active_filters(self.filterset)
+
+		if filtros_activos:
+			page = None
+			lista = filas              # iterable simple
+			is_paginated = False
+			paginator = None
+		else:
+			paginator = Paginator(filas, self.paginate_by)
+			page = paginator.get_page(request.GET.get('page'))
+			lista = page
+			is_paginated = page.has_other_pages()
+
+		ctx = {
+			'filter': self.filterset,
+			'lista': lista,            # tu tabla itera sobre 'lista' (sea list o Page)
+			'page_obj': page,          # puede ser None
+			'is_paginated': is_paginated,
+			'paginator': paginator,
+		}
+		return render(request, self.template_name, ctx)
 
 
 
