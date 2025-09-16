@@ -1,0 +1,14 @@
+{% extends extension %}
+
+{% block panel-body %}
+  <div class="alert alert-icon alert-white alert-info">
+    <i class="mdi mdi-upload"></i>
+    <strong>Importar totales por socio</strong>
+    <ul>
+      <li>Formato esperado: columnas <code>socio</code> (CUIT) y <code>importe</code>.</li>
+      <li>Puedes repetir socios: se suman los importes.</li>
+      <li>No se indica ingreso en el archivo: se imputa según prioridades.</li>
+    </ul>
+  </div>
+  {{ wizard.form.as_p }}
+{% endblock %}

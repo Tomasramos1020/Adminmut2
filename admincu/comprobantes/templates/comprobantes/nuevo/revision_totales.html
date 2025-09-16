@@ -1,0 +1,65 @@
+{% extends extension %}
+{% load humanize %}
+
+{% block panel-body %}
+  {% if errores %}
+    <div class="alert alert-icon alert-white alert-danger">
+      <i class="mdi mdi-block-helper"></i>
+      <p>Se encontraron errores en el archivo:</p>
+      <ul>{% for e in errores %}<li>{{ e }}</li>{% endfor %}</ul>
+    </div>
+  {% endif %}
+
+  {% if preview %}
+    <div class="alert alert-icon alert-white alert-info">
+      <i class="mdi mdi-eye"></i>
+      <strong>Revisión:</strong> así se imputarán los cobros (cuotas sociales primero, luego antigüedad).
+    </div>
+
+    {% for p in preview %}
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <strong>{{ p.socio }}</strong> — CUIT: {{ p.cuit }} — Total: ${{ p.importe_total|intcomma }}
+          <span class="pull-right">Fecha: {{ p.fecha|date:"d/m/Y" }} · Caja: {{ p.caja }}</span>
+        </div>
+        <div class="panel-body">
+          {% if p.items %}
+            <div class="table-responsive">
+              <table class="table table-condensed table-bordered">
+                <thead>
+                  <tr>
+                    <th>Crédito</th>
+                    <th>Ingreso</th>
+                    <th class="text-right">Imputado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for it in p.items %}
+                    <tr>
+                      <td>{{ it.credito.detalle_limpio|default:it.credito }}</td>
+                      <td>{{ it.credito.ingreso }}</td>
+                      <td class="text-right">${{ it.subtotal|intcomma }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <em>No hay créditos con saldo para imputar.</em>
+          {% endif %}
+
+          {% if p.remanente and p.remanente > 0 %}
+            <div class="text-right">
+              <strong>Remanente:</strong> ${{ p.remanente|intcomma }}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="alert alert-icon alert-white alert-warning">
+      <i class="mdi mdi-alert"></i>
+      No hay datos para previsualizar.
+    </div>
+  {% endif %}
+{% endblock %}

@@ -88,12 +88,16 @@
     <form method="post">
         {% csrf_token %}
         <div class="form-row">
-            <div class="form-group col-4">{{ form.deposito.label_tag }}{{ form.deposito }}</div>
-            <div class="form-group col-4">{{ form.numero.label_tag }}{{ form.numero }}</div>
+            <div class="form-group col-2">{{ form.letra.label_tag }}{{ form.letra }}</div>
+            <div class="form-group col-3">{{ form.punto_venta.label_tag }}{{ form.punto_venta }}</div>
+            <div class="form-group col-3">{{ form.numero_cbte.label_tag }}{{ form.numero_cbte }}</div>
             <div class="form-group col-4">{{ form.fecha.label_tag }}{{ form.fecha }}</div>
-        </div>
-        <div class="form-group">{{ form.acreedor.label_tag }}{{ form.acreedor }}</div>
-        <div class="form-group">{{ form.observacion.label_tag }}{{ form.observacion }}</div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">{{ form.deposito.label_tag }}{{ form.deposito }}</div>
+            <div class="form-group col-6">{{ form.acreedor.label_tag }}{{ form.acreedor }}</div>
+          </div>
+          {{ form.numero }} {# hidden; lo completa clean() #}
 
         <hr>
         <h3>Productos</h3>

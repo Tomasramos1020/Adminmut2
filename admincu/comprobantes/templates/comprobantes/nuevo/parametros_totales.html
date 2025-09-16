@@ -1,0 +1,9 @@
+{% extends extension %}
+
+{% block panel-body %}
+  <div class="alert alert-icon alert-white alert-warning">
+    <i class="mdi mdi-tune"></i>
+    <strong>Parámetros</strong> · Seleccioná punto, caja y fecha a aplicar a todos los cobros.
+  </div>
+  {{ wizard.form.as_p }}
+{% endblock %}

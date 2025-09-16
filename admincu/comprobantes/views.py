@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.http import HttpResponse
@@ -30,6 +30,17 @@ from .manager import ComprobanteCreator
 from .filters import *
 from expensas_pagas.models import CobroExp
 
+# cobranzas/views_cobros_totales.py
+import os
+from decimal import Decimal, InvalidOperation
+
+from django.contrib import messages
+from django.db import transaction
+
+from tablib import Dataset
+
+from admincu.funciones import consorcio
+from contabilidad.models import Cuenta
 
 mensaje_success = "Comprobante generado con exito."
 
@@ -1362,3 +1373,286 @@ class CobrosImportacionWizard(WizardComprobanteManager, SessionWizardView):
 		messages.success(self.request, "Cobros guardados con exito")
 		return redirect('cobranzas')
 
+
+
+@method_decorator(group_required('administrativo'), name='dispatch')
+class CobrosImportacionTotalesWizard(WizardComprobanteManager, SessionWizardView):
+	"""
+	Wizard NUEVO: importa totales por socio (sin ingreso),
+	setea punto/caja/fecha manualmente y genera Recibos X masivos
+	imputando 1) cuotas sociales primero, 2) resto por antigüedad.
+	"""
+	file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'cobros'))
+
+	form_list = [
+		('importacion', ImportacionTotalesForm),
+		('parametros', ParametrosTotalesForm),
+		('revision', forms.Form),  # Confirmación simple (usa el template)
+	]
+
+	TEMPLATES = {
+		'importacion': 'comprobantes/nuevo/importacion_totales.html',
+		'parametros': 'comprobantes/nuevo/parametros_totales.html',
+		'revision'  : 'comprobantes/nuevo/revision_totales.html',
+	}
+
+	# ---------- Utilidades de lectura/limpieza ----------
+	def leer_datos(self, archivo):
+		"""Lee .xlsx y retorna Dataset"""
+		datos = Dataset()
+		# Intento xlsx, si falla pruebo xls
+		try:
+			return datos.load(in_stream=archivo.read(), format='xlsx')
+		except Exception:
+			archivo.seek(0)
+			return datos.load(in_stream=archivo.read(), format='xls')
+
+	def _to_decimal(self, val):
+		if val in (None, ""):
+			raise InvalidOperation("vacío")
+		if isinstance(val, (int, float, Decimal)):
+			return Decimal(str(val)).quantize(Decimal("0.01"))
+		# string
+		s = str(val).replace(",", ".").strip()
+		return Decimal(s).quantize(Decimal("0.01"))
+
+	def limpiar_totales(self, datos):
+		"""
+		Espera columnas: socio, importe
+		- socio: CUIT del socio (como en tu importador actual)
+		- importe: total a cobrar (se agrupa si hay múltiples filas por socio)
+		Retorna (agrupados, socios_mapeados, errores)
+		"""
+		columnas_necesarias = ['socio', 'importe']
+		columnas_archivo = datos.headers
+		faltantes = [c for c in columnas_necesarias if c not in columnas_archivo]
+		if faltantes:
+			return None, None, [f'Falta la columna "{c}" en el archivo' for c in faltantes]
+
+		cons = consorcio(self.request)
+		errores = []
+		# Agrupar importes por socio
+		agrupados = {}  # cuit_str -> Decimal total
+		socios_mapeados = {}  # cuit_str -> Socio
+
+		for i, row in enumerate(datos.dict, start=2):  # fila 2 = primera luego de encabezados
+			cuit_raw = row.get('socio')
+			imp_raw = row.get('importe')
+			if not cuit_raw:
+				errores.append(f"Fila {i}: faltó CUIT en 'socio'")
+				continue
+			try:
+				# como en tu importador: get por cuit normalizado a int -> str
+				cuit_str = str(int(cuit_raw))
+			except Exception:
+				errores.append(f"Fila {i}: 'socio' no parece CUIT válido ({cuit_raw})")
+				continue
+			try:
+				imp = self._to_decimal(imp_raw)
+			except Exception:
+				errores.append(f"Fila {i}: 'importe' inválido ({imp_raw})")
+				continue
+
+			agrupados[cuit_str] = (agrupados.get(cuit_str, Decimal("0.00")) + imp).quantize(Decimal("0.01"))
+			if cuit_str not in socios_mapeados:
+				try:
+					socios_mapeados[cuit_str] = Socio.objects.get(consorcio=cons, cuit=cuit_str)
+				except Socio.DoesNotExist:
+					errores.append(f"Fila {i}: no se encontró Socio con CUIT {cuit_str} en el consorcio")
+
+		return agrupados, socios_mapeados, errores
+
+	# ---------- Lógica de priorización / imputación ----------
+	def ordenar_creditos_por_antiguedad(self, qs):
+		"""
+		Orden por antigüedad: vencimiento, luego periodo, luego fecha, luego id
+		(algunos pueden tener nulos, por eso usamos tuplas seguras)
+		"""
+		def key(c):
+			vto = c.vencimiento or date.min
+			per = c.periodo or date.min
+			fec = c.fecha or date.min
+			return (vto, per, fec, c.id)
+		return sorted(qs, key=key)
+
+	def obtener_creditos_priorizados(self, socio, fecha_operacion):
+		"""
+		Devuelve lista ordenada:
+		  1) cuotas sociales (Ingreso.es_cuota_social=True) por antigüedad
+		  2) resto por antigüedad
+		Solo créditos con saldo > 0 a la fecha_operacion y no finalizados a esa fecha.
+		"""
+		cons = consorcio(self.request)
+		base = (Credito.objects
+				.filter(consorcio=cons, socio=socio, padre__isnull=True)
+				.select_related('ingreso'))
+
+		# Filtrado por saldo a nivel Python (método saldo_en_fecha)
+		vivos = [c for c in base if c.saldo_en_fecha(fecha_operacion) > Decimal('0.00')]
+
+		sociales = [c for c in vivos if getattr(c.ingreso, 'es_cuota_social', False)]
+		resto    = [c for c in vivos if not getattr(c.ingreso, 'es_cuota_social', False)]
+
+		sociales = self.ordenar_creditos_por_antiguedad(sociales)
+		resto    = self.ordenar_creditos_por_antiguedad(resto)
+
+		return sociales + resto
+
+	def imputar(self, socio, monto, fecha_operacion, aceptar_parciales=False):
+		"""
+		Devuelve (cobros, remanente)
+		cobros = [{"credito": c, "subtotal": Decimal}, ...]
+		Remanente si no alcanza para un crédito completo (o si no aceptamos parciales).
+		"""
+		rem = Decimal(monto)
+		cobros = []
+		for c in self.obtener_creditos_priorizados(socio, fecha_operacion):
+			if rem <= 0:
+				break
+			subtotal = c.subtotal(fecha_operacion=fecha_operacion, condonacion=False)
+			if subtotal <= 0:
+				continue
+
+			if rem >= subtotal:
+				cobros.append({"credito": c, "subtotal": subtotal})
+				rem -= subtotal
+			else:
+				if aceptar_parciales:
+					cobros.append({"credito": c, "subtotal": rem})
+					rem = Decimal('0.00')
+				else:
+					# no aceptamos parcial: dejamos remanente tal cual y pasamos al siguiente socio
+					break
+		return cobros, rem
+
+	# ---------- Wizard plumbing ----------
+	def get_template_names(self):
+		return [self.TEMPLATES[self.steps.current]]
+
+	def get_form_kwargs(self, step):
+		kwargs = super().get_form_kwargs(step)
+		if step == 'parametros':
+			kwargs['consorcio'] = consorcio(self.request)
+		return kwargs
+
+	def get_context_data(self, form, **kwargs):
+		context = super().get_context_data(form=form, **kwargs)
+		extension = 'comprobantes/nuevo/Recibo.html'
+		tipo = "Recibo X masivo"
+
+		archivo_data = self.get_cleaned_data_for_step('importacion')
+		if archivo_data:
+			datos = self.leer_datos(archivo_data['archivo'])
+			agrupados, socios_mapeados, errores = self.limpiar_totales(datos)
+		else:
+			agrupados = socios_mapeados = errores = None
+
+		preview = []
+		if self.steps.current == 'revision' and agrupados and socios_mapeados:
+			params = self.get_cleaned_data_for_step('parametros') or {}
+			caja = params.get('caja')
+			punto = params.get('punto')
+			fecha_op = params.get('fecha_operacion') or date.today()
+			aceptar_parciales = bool(params.get('aceptar_parciales') or False)
+
+			# Armar pre-visualización por socio
+			for cuit_str, total in agrupados.items():
+				socio = socios_mapeados.get(cuit_str)
+				if not socio:
+					continue
+				cobros, rem = self.imputar(
+					socio=socio,
+					monto=total,
+					fecha_operacion=fecha_op,
+					aceptar_parciales=aceptar_parciales,
+				)
+				preview.append({
+					"socio": socio,
+					"cuit": cuit_str,
+					"importe_total": total,
+					"items": cobros,            # lista de {"credito", "subtotal"}
+					"remanente": rem,
+					"caja": caja,
+					"punto": punto,
+					"fecha": fecha_op,
+				})
+
+		context.update({
+			"extension": extension,
+			"tipo": tipo,
+			"agrupados": agrupados,
+			"socios_mapeados": socios_mapeados,
+			"errores": errores,
+			"preview": preview,
+		})
+		return context
+
+	@transaction.atomic
+	def done(self, form_list, **kwargs):
+		# Releer archivo
+		archivo = self.get_cleaned_data_for_step('importacion')['archivo']
+		datos = self.leer_datos(archivo)
+		agrupados, socios_mapeados, errores = self.limpiar_totales(datos)
+
+		if not agrupados or not socios_mapeados:
+			messages.error(self.request, "No hay datos válidos para procesar.")
+			return redirect('cobranzas')
+
+		params = self.get_cleaned_data_for_step('parametros') or {}
+		caja = params.get('caja')
+		punto = params.get('punto')
+		fecha_op = params.get('fecha_operacion') or date.today()
+		aceptar_parciales = bool(params.get('aceptar_parciales') or False)
+		descripcion_base = params.get('descripcion_base') or ""
+
+		cons = consorcio(self.request)
+		ok, errs = 0, 0
+
+		for cuit_str, total in agrupados.items():
+			socio = socios_mapeados.get(cuit_str)
+			if not socio:
+				continue
+
+			cobros, rem = self.imputar(
+				socio=socio,
+				monto=total,
+				fecha_operacion=fecha_op,
+				aceptar_parciales=aceptar_parciales,
+			)
+
+			data_inicial = {
+				"punto": punto,
+				"fecha_operacion": fecha_op,
+				"concepto": None,
+				"fecha_factura": None,
+				"tipo": "Recibo X masivo",
+				"socio": socio,
+			}
+			data_cajas = [{
+				"subtotal": total,
+				"referencia": "",
+				"caja": caja,
+			}]
+			desc = (descripcion_base or "Cobro total importado")
+			descripcion = f"{desc} - Socio: {socio} - Fecha: {fecha_op} - Caja: {caja}"
+
+			documento = ComprobanteCreator(
+				data_inicial=data_inicial,
+				data_descripcion=descripcion,
+				data_cobros=cobros,
+				data_nuevo_saldo=(rem if rem > 0 else None),
+				data_cajas=data_cajas,
+			)
+			evaluacion = documento.guardar(masivo=True)
+			if isinstance(evaluacion, list):
+				errs += 1
+				messages.error(self.request, evaluacion[0])
+			else:
+				ok += 1
+
+		if ok:
+			messages.success(self.request, f"Se generaron {ok} recibos masivos.")
+		if errs:
+			messages.warning(self.request, f"{errs} recibos no pudieron generarse. Revisá los mensajes de error.")
+
+		return redirect('cobranzas')

@@ -15,6 +15,7 @@ urlpatterns = [
 	path('NCC/', NCCWizard.as_view(), name='nuevo-ncc'),
 	path('NCNF/', NCNFWizard.as_view(), name='nuevo-ncnf'),
 	path('cobros/importacion/', CobrosImportacionWizard.as_view(), name='nuevo-cobros-importacion'),
+	path('cobros/importacion_totales/', CobrosImportacionTotalesWizard.as_view(), name='cobros-importacion-totales'),
 
 
 	# Registros

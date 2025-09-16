@@ -327,88 +327,90 @@ def obtener_precio_producto(request):
 
 
 class CrearCompraView(View):
-    template_name = 'crear_compra.html'
+	template_name = 'crear_compra.html'
 
-    def get_form_kwargs(self):
-        return {
-            'request': self.request,
-            **self.request.POST.dict(),
-        }
+	def get_form_kwargs(self):
+		return {
+			'request': self.request,
+			**self.request.POST.dict(),
+		}
 
-    def get(self, request):
-        form = CompraForm(request=self.request)
-        formset = CompraProductoFormSet(
-            queryset=Compra_Producto.objects.none(),
-            form_kwargs={'request': request}   # <-- clave para filtrar productos por consorcio
-        )
-        return render(request, self.template_name, {'form': form, 'formset': formset})
+	def get(self, request):
+		form = CompraForm(request=self.request)
+		formset = CompraProductoFormSet(
+			queryset=Compra_Producto.objects.none(),
+			form_kwargs={'request': request}   # <-- clave para filtrar productos por consorcio
+		)
+		return render(request, self.template_name, {'form': form, 'formset': formset})
 
-    @transaction.atomic
-    def post(self, request):
-        form = CompraForm(request.POST, request=request)
-        formset = CompraProductoFormSet(
-            request.POST,
-            form_kwargs={'request': request}   # <-- también en POST
-        )
+	@transaction.atomic
+	def post(self, request):
+		form = CompraForm(request.POST, request=request)
+		formset = CompraProductoFormSet(
+			request.POST,
+			form_kwargs={'request': request}   # <-- también en POST
+		)
 
-        if form.is_valid() and formset.is_valid():
-            cons = consorcio(request)
-            acreedor = form.cleaned_data['acreedor']
-            fecha = form.cleaned_data['fecha']
-            numero = form.cleaned_data['numero']
-            observacion = form.cleaned_data.get('observacion')
-            deposito = form.cleaned_data['deposito']
+		if form.is_valid() and formset.is_valid():
+			cons = consorcio(request)
+			acreedor = form.cleaned_data['acreedor']
+			fecha = form.cleaned_data['fecha']
+			deposito = form.cleaned_data['deposito']
+			observacion = form.cleaned_data.get('observacion')
 
-            total = Decimal('0.00')
+			# número final (compacto) ya armado por el form:
+			numero_fmt = form.cleaned_data['numero']   # ej: B000100000005
 
-            for linea in formset:
-                if linea.cleaned_data:
-                    precio = linea.cleaned_data.get('precio') or 0
-                    cantidad = linea.cleaned_data.get('cantidad') or 0
-                    total += precio * cantidad
+			# evitar duplicados por consorcio + acreedor + numero
+			if Deuda.objects.filter(consorcio=cons, acreedor=acreedor, numero=numero_fmt).exists():
+				messages.error(request, "Ya existe una deuda con ese número.")
+				return redirect('deudas')
 
-            if Deuda.objects.filter(numero=numero, acreedor=acreedor).exists():
-                messages.error(request, "Ya existe una deuda con ese número y acreedor.")
-                return redirect('deudas')
+			total = Decimal('0.00')
+			for linea in formset:
+				if linea.cleaned_data:
+					precio = linea.cleaned_data.get('precio') or 0
+					cantidad = linea.cleaned_data.get('cantidad') or 0
+					total += precio * cantidad
 
-            deuda = Deuda.objects.create(
-                consorcio=cons,
-                acreedor=acreedor,
-                numero=numero,
-                fecha=fecha,
-                total=total,
-                observacion=observacion,
-                confirmado=True
-            )
+			deuda = Deuda.objects.create(
+				consorcio=cons,
+				acreedor=acreedor,
+				fecha=fecha,
+				numero=numero_fmt,     # <<— sólo este campo del modelo
+				total=total,
+				observacion=observacion,
+				confirmado=True
+			)
 
-            gasto_default = Gasto.objects.filter(consorcio=cons, es_proveeduria=True).first()
-            if not gasto_default:
-                messages.error(request, f"No hay gastos de proveeduría asociados a la mutual {acreedor}.")
-                raise Exception("Gasto faltante")
+			gasto_default = Gasto.objects.filter(consorcio=cons, es_proveeduria=True).first()
+			if not gasto_default:
+				messages.error(request, "No hay gastos de proveeduría configurados.")
+				raise Exception("Gasto faltante")
 
-            for linea in formset:
-                if linea.cleaned_data:
-                    compra = linea.save(commit=False)
-                    compra.consorcio = cons
-                    compra.save()
+			for linea in formset:
+				if linea.cleaned_data:
+					compra = linea.save(commit=False)
+					compra.consorcio = cons
+					compra.save()
 
-                    MovimientoStock.objects.create(
-                        producto=compra.producto,
-                        deposito=deposito,
-                        cantidad=compra.cantidad,
-                        compra_producto=compra,
-                        fecha=fecha
-                    )
+					MovimientoStock.objects.create(
+						producto=compra.producto,
+						deposito=deposito,
+						cantidad=compra.cantidad,
+						compra_producto=compra,
+						fecha=fecha
+					)
 
-                    GastoDeuda.objects.create(
-                        deuda=deuda,
-                        gasto=gasto_default,
-                        valor=compra.total,
-                        fecha=fecha
-                    )
+					GastoDeuda.objects.create(
+						deuda=deuda,
+						gasto=gasto_default,
+						valor=compra.total,
+						fecha=fecha
+					)
 
-            asiento = asiento_deuda(deuda)
-            messages.success(request, "Compra y deuda creadas correctamente.")
-            return redirect('deudas')
+			asiento = asiento_deuda(deuda)
+			messages.success(request, "Compra y deuda creadas correctamente.")
+			return redirect('deudas')
 
-        return render(request, self.template_name, {'form': form, 'formset': formset})
+		return render(request, self.template_name, {'form': form, 'formset': formset})
