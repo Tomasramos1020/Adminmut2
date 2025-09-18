@@ -11,10 +11,39 @@ from django.db.models.functions import Coalesce
 class LiquidacionFilter(django_filters.FilterSet):
     numero = django_filters.NumberFilter(label="Numero de liquidacion", lookup_expr="exact")
     fecha = django_filters.DateRangeFilter(label="Fecha de liquidacion", lookup_expr="icontains")
+    convenio = django_filters.CharFilter(method='filter_convenio', label='Convenio')
 
     class Meta:
         model = Liquidacion
         fields = ['estado']
+
+    def filter_convenio(self, queryset, name, value):
+        """
+        - 'varios' / 'varias'  -> liquidaciones con 2+ convenios distintos
+        - 'sin convenio'       -> liquidaciones con 0 convenios
+        - otro texto           -> match icontains por nombre de convenio
+        """
+        if not value:
+            return queryset
+
+        v = value.strip().lower()
+
+        if v in ('varios', 'varias'):
+            return (
+                queryset
+                .annotate(_cant_conv=Count('credito__socio__convenio', distinct=True))
+                .filter(_cant_conv__gte=2)
+            )
+
+        if v in ('sin convenio', 'sin_convenio', 'ninguno', 'ninguna'):
+            return (
+                queryset
+                .annotate(_cant_conv=Count('credito__socio__convenio', distinct=True))
+                .filter(_cant_conv=0)
+            )
+
+        # nombre de convenio
+        return queryset.filter(credito__socio__convenio__nombre__icontains=value).distinct()
 
 
 

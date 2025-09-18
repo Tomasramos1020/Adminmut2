@@ -1,12 +1,37 @@
+{% load static %}
 {% load humanize %}
-{% load staticfiles %}
-  <table class="anopa table display nowrap" style="width:100%">
+
+<form id="form-creditos" method="post" action="{% url 'rcx-desde-creditos' %}">
+  {% csrf_token %}
+
+  <!-- Toolbar sticky -->
+  <div class="am-toolbar shadow-sm rounded-2 mb-3">
+    <div class="am-toolbar-left">
+      <label class="am-checkall">
+        <input type="checkbox" id="check-all">
+        <span>Seleccionar todos</span>
+      </label>
+    </div>
+
+    <div class="am-toolbar-right">
+      <span class="am-total" id="label-total" aria-live="polite" aria-atomic="true">
+        Total: $ 0,00
+      </span>
+      <button type="submit" class="btn btn-primary btn-sm am-btn-cta" id="btn-hacer-recibos" disabled>
+        <i class="fa fa-receipt" aria-hidden="true"></i>
+        <span class="am-btn-text">Hacer recibos</span>
+      </button>
+    </div>
+  </div>
+
+  <table id="tabla-creditos" class="anopa table" style="width:100%">
     <thead>
       <tr>
+        <th></th> {# checks #}
         <th>Factura</th>
         {% if user.groups.first.name == "socio" and expensas_pagas %}
           <th>Cupon ExpensasPagas</th>
-        {% endif %}        
+        {% endif %}
         <th>Fecha</th>
         {% if not user.groups.first.name == "socio" %}
           <th class="text-right">Nª de Asoc.</th>
@@ -29,75 +54,276 @@
     </thead>
     <tbody>
       {% for credito in creditos %}
-          <tr>
-            <td>
-              {% if credito.factura %}
-                <a href="{% url 'pdf-factura' pk=credito.factura.pk %}" target="_blank">{{ credito.factura.formatoAfip }}</a>
-              {% endif %}
-            </td>
-            {% if user.groups.first.name == "socio" and expensas_pagas %}
-              <td>
-                {% with cupon=credito.factura.exp.first %}
-                  {% if cupon.pdf %}
-                    <a href="{{cupon.pdf.url}}" target="_blank">Ver Cupon</a>                
-                  {% endif %}
-                {% endwith %}
-              </td>
-            {% endif %}                    
-            <td>{{credito.fecha|date:"d/m/Y"}}</td>
-            {% if not user.groups.first.name == "socio" %}
-              <td class="text-center">{{ credito.socio.numero_asociado }}</td>
-            {% endif %}
-            {% if not user.groups.first.name == "socio" %}
-              <td>{{ credito.socio }}</td>
-            {% endif %}
-            {% if not user.groups.first.name == "socio" and credito.consorcio.convenios%}
-              <td>{{ credito.socio.convenio|default:"" }}</td>
-            {% endif %}
-
-            <td>{{ credito.ingreso }}</td>
-            <td>{{ credito.periodo|date:"Y-m" }}</td>
-            <td class="text-right">
-                {{ credito.capital|intcomma }}
-            </td>
-            <td class="text-right">
-                {{ credito.bruto|intcomma }}
-            </td>
-            <td class="text-right warning total_individual">
-            {% if user.groups.first.name == "socio" %}
-              {% if bloqueo_descuento %}
-                {{credito.saldo_socio}}
+        <tr>
+          <td>
+            <input
+              type="checkbox"
+              name="creditos[]"
+              value="{% if credito.ultimo_hijo %}{{ credito.ultimo_hijo.id }}{% else %}{{ credito.id }}{% endif %}"
+              class="row-check"
+              data-importe="{% if user.groups.first.name == 'socio' and bloqueo_descuento %}{{ credito.saldo_socio|default:'0'|floatformat:2 }}{% else %}{{ credito.saldo|default:'0'|floatformat:2 }}{% endif %}"
+              {% if user.groups.first.name == "socio" and bloqueo_descuento %}
+                {% if not credito.saldo_socio or credito.saldo_socio|floatformat:2 == '0.00' %}disabled{% endif %}
               {% else %}
-                {{credito.saldo}}
+                {% if not credito.saldo or credito.saldo|floatformat:2 == '0.00' %}disabled{% endif %}
               {% endif %}
-            {% else %}
-              {{credito.saldo}}
+            />
+          </td>
+
+          <td>
+            {% if credito.factura %}
+              <a href="{% url 'pdf-factura' pk=credito.factura.pk %}" target="_blank">{{ credito.factura.formatoAfip }}</a>
             {% endif %}
+          </td>
+
+          {% if user.groups.first.name == "socio" and expensas_pagas %}
+            <td>
+              {% with cupon=credito.factura.exp.first %}
+                {% if cupon.pdf %}
+                  <a href="{{ cupon.pdf.url }}" target="_blank">Ver Cupon</a>
+                {% endif %}
+              {% endwith %}
             </td>
-            {% if user.groups.first.name == "socio" and mercado_pago %}
-              <td class="text-right">
-                {% if not credito.saldo == 0 %}
-                  {% with pago=credito.actual.cobro_set.first %}
-                    {% if pago %}
-                      {% if not pago.preference.paid %}
-                        <a href="{% url 'preference-delete' pk=pago.preference.id %}" class="btn btn-danger btn-xs btn-bordered" title="Eliminar peticion de pago a MercadoPago"><i class="fa fa-trash"></i></a>
+          {% endif %}
+
+          <td>{{ credito.fecha|date:"d/m/Y" }}</td>
+
+          {% if not user.groups.first.name == "socio" %}
+            <td class="text-center">{{ credito.socio.numero_asociado }}</td>
+          {% endif %}
+          {% if not user.groups.first.name == "socio" %}
+            <td>{{ credito.socio }}</td>
+          {% endif %}
+          {% if not user.groups.first.name == "socio" and credito.consorcio.convenios %}
+            <td>{{ credito.socio.convenio|default:"" }}</td>
+          {% endif %}
+
+          <td>{{ credito.ingreso }}</td>
+          <td>{{ credito.periodo|date:"Y-m" }}</td>
+          <td class="text-right">{{ credito.capital|intcomma }}</td>
+          <td class="text-right">{{ credito.bruto|intcomma }}</td>
+          <td class="text-right warning total_individual">
+            {% if user.groups.first.name == "socio" and bloqueo_descuento %}
+              {{ credito.saldo_socio }}
+            {% else %}
+              {{ credito.saldo }}
+            {% endif %}
+          </td>
+
+          {% if user.groups.first.name == "socio" and mercado_pago %}
+            <td class="text-right">
+              {% if not credito.saldo == 0 %}
+                {% with pago=credito.actual.cobro_set.first %}
+                  {% if pago %}
+                    {% if not pago.preference.paid %}
+                      <a href="{% url 'preference-delete' pk=pago.preference.id %}" class="btn btn-danger btn-xs btn-bordered" title="Eliminar petición de pago a MercadoPago">
+                        <i class="fa fa-trash"></i>
+                      </a>
+                    {% endif %}
+                  {% else %}
+                    {% if bloqueo %}
+                      {% if credito.ingreso.prioritario %}
+                        <input type="checkbox" class="credclass" value="{% if credito.ultimo_hijo %}{{ credito.ultimo_hijo.id }}{% else %}{{ credito.id }}{% endif %}">
+                      {% else %}
+                        <i title="Debe abonar otros conceptos pendientes." class="fa fa-warning"></i>
                       {% endif %}
                     {% else %}
-                      {% if bloqueo %}
-                        {% if credito.ingreso.prioritario %}
-                          <input type="checkbox" class="credclass" id="select_one" value="{% if credito.ultimo_hijo %}{{ credito.ultimo_hijo.id }}{% else %}{{ credito.id }}{% endif %}">
-                        {% else %}
-                          <i title="Debe abonar otros conceptos pendientes." class="fa fa-warning"></i>
-                        {% endif %}
-                      {% else %}
-                        <input type="checkbox" class="credclass" id="select_one" value="{% if credito.ultimo_hijo %}{{ credito.ultimo_hijo.id }}{% else %}{{ credito.id }}{% endif %}">
-                      {% endif %}
+                      <input type="checkbox" class="credclass" value="{% if credito.ultimo_hijo %}{{ credito.ultimo_hijo.id }}{% else %}{{ credito.id }}{% endif %}">
                     {% endif %}
-                  {% endwith %}
-                {% endif %}
-              </td>
-            {% endif %}
-          </tr>
+                  {% endif %}
+                {% endwith %}
+              {% endif %}
+            </td>
+          {% endif %}
+        </tr>
       {% endfor %}
     </tbody>
   </table>
+</form>
+
+<script>
+(function() {
+  // ---- Offset para no tapar la navbar fija ----
+  function computeNavOffset() {
+    const nav = document.querySelector(
+      '.navbar-fixed-top, .navbar.sticky-top, header .navbar, header.navbar, .navbar'
+    );
+    let h = 0;
+    if (nav) {
+      const cs = getComputedStyle(nav);
+      const pos = cs.position;
+      if (pos === 'fixed' || pos === 'sticky') {
+        h = Math.ceil(nav.getBoundingClientRect().height);
+      }
+    }
+    document.documentElement.style.setProperty('--nav-h', h + 'px');
+  }
+  window.addEventListener('load', computeNavOffset);
+  window.addEventListener('resize', computeNavOffset);
+
+  const checkAll   = document.getElementById('check-all');
+  const tabla      = document.getElementById('tabla-creditos');
+  const submitBtn  = document.getElementById('btn-hacer-recibos');
+  const totalLabel = document.getElementById('label-total');
+
+  const fmtARS = new Intl.NumberFormat('es-AR', {
+    style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2
+  });
+
+  function parseMoney(val) {
+    if (val == null) return 0;
+    let s = String(val).trim();
+    if (!s) return 0;
+    if (s.includes(',') && s.includes('.')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else if (s.includes(',')) {
+      s = s.replace(',', '.');
+    }
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function getRowChecks() {
+    return Array.from(document.querySelectorAll('#tabla-creditos .row-check'));
+  }
+
+  function totalSeleccionado() {
+    let total = 0;
+    for (const ch of getRowChecks()) {
+      if (ch.checked && !ch.disabled) total += parseMoney(ch.dataset.importe || '0');
+    }
+    return total;
+  }
+
+  function cantidadSeleccionada() {
+    return getRowChecks().filter(ch => ch.checked && !ch.disabled).length;
+  }
+
+  function animatePulse(el) {
+    el.classList.remove('am-pulse');
+    void el.offsetWidth;
+    el.classList.add('am-pulse');
+  }
+
+  function refreshUI() {
+    const cant  = cantidadSeleccionada();
+    const total = totalSeleccionado();
+
+    totalLabel.textContent = `Total: ${fmtARS.format(total)}`;
+
+    const any = cant > 0;
+    submitBtn.disabled = !any;
+
+    if (any) {
+      animatePulse(submitBtn);
+      animatePulse(totalLabel);
+    }
+  }
+
+  // Delegación: cambios en cualquier .row-check
+  tabla.addEventListener('change', (ev) => {
+    if (ev.target && ev.target.classList && ev.target.classList.contains('row-check')) {
+      refreshUI();
+    }
+  });
+
+  // Seleccionar todos
+  if (checkAll) {
+    checkAll.addEventListener('change', () => {
+      getRowChecks().forEach(ch => { if (!ch.disabled) ch.checked = checkAll.checked; });
+      refreshUI();
+    });
+  }
+
+  // DataTables sin paginación
+  if (window.jQuery && jQuery.fn && jQuery.fn.DataTable) {
+    const $ = jQuery;
+    const $tabla = $('#tabla-creditos');
+    if ($.fn.dataTable.isDataTable($tabla)) {
+      $tabla.DataTable().destroy();
+    }
+    $tabla.DataTable({
+      paging: false,
+      info: false,
+      searching: false,
+      ordering: true,
+      language: { url: "{% static 'datatables/spanish.json' %}" }
+    });
+    $tabla.on('draw.dt', refreshUI);
+  }
+
+  // Estado inicial
+  computeNavOffset();
+  refreshUI();
+})();
+
+
+
+
+</script>
+
+<style>
+  :root{ --nav-h: 0px; }
+
+  /* ===== Toolbar / total / CTA ===== */
+  .am-toolbar{
+    position: sticky;
+    /* se ubica justo debajo de la navbar fija */
+    top: var(--nav-h);
+    /* z-index menor que la navbar (Bootstrap fixed-top ~1030) */
+    z-index: 1020;
+    background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+    border: 1px solid rgba(0,0,0,.06);
+    padding: .75rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    border-radius: .75rem;
+    backdrop-filter: blur(4px);
+  }
+  .am-toolbar-left, .am-toolbar-right{
+    display: flex; align-items: center; gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  .am-checkall{
+    display: inline-flex; align-items: center; gap: .5rem;
+    margin: 0; font-weight: 600;
+  }
+  .am-checkall input[type="checkbox"]{
+    width: 1.1rem; height: 1.1rem; accent-color: #0d6efd;
+  }
+
+  .am-total{
+    font-weight: 700; font-size: .95rem; color: #0a3622;
+    background: #e7f5ee; border: 1px solid #cfe9de; padding: .35rem .6rem;
+    border-radius: .5rem;
+  }
+
+  .am-btn-cta{
+    display: inline-flex; align-items: center; gap: .5rem;
+    font-weight: 700;
+    border-radius: .65rem;
+    box-shadow: 0 2px 8px rgba(13,110,253,.2);
+    transition: transform .08s ease, box-shadow .2s ease;
+  }
+  .am-btn-cta:active{ transform: translateY(1px); box-shadow: 0 1px 4px rgba(13,110,253,.25); }
+  .am-btn-cta[disabled]{ opacity: .65; box-shadow: none; }
+
+  .am-pulse{ animation: amPulse .35s ease; }
+  @keyframes amPulse {
+    0%{ transform: scale(1); }
+    50%{ transform: scale(1.02); }
+    100%{ transform: scale(1); }
+  }
+
+  /* ===== Tabla: columna warning ===== */
+  #tabla-creditos th.warning,
+  #tabla-creditos td.warning {
+    background: #fff3cd;
+    color: #856404;
+  }
+  #tabla-creditos.table-striped tbody tr td.warning { background: #ffefbf; }
+  #tabla-creditos.dataTable tbody tr:hover td.warning { background: #ffeaa6; }
+</style>

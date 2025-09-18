@@ -26,4 +26,6 @@ urlpatterns = [
 	path('ver/<int:pk>/', Ver.as_view(), name='ver-comprobante'),
 	path('anular/<int:pk>/', Anular.as_view(), name='anular-comprobante'),
 
+	path('rcx/desde-creditos/', RCXDesdeCreditosWizard.as_view(), name='rcx-desde-creditos'),
+
 ]

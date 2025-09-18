@@ -11,6 +11,9 @@ from django_mercadopago.models import Preference
 
 from admincu.forms import *
 
+from collections import defaultdict
+
+
 class FormControl(forms.Form):
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
@@ -273,3 +276,58 @@ class ParametrosTotalesForm(FormControl, forms.Form):
 		super().__init__(*args, **kwargs)
 		self.fields['punto'].queryset = PointOfSales.objects.filter(owner=cons.contribuyente)
 		self.fields['caja'].queryset = Caja.objects.filter(consorcio=cons)
+
+
+# comprobantes/forms.py
+from django import forms
+from django_afip.models import PointOfSales
+from arquitectura.models import Caja
+
+class ParametrosDesdeCredForm(forms.Form):
+    punto = forms.ModelChoiceField(
+        queryset=PointOfSales.objects.none(),
+        label="Punto de venta",
+        required=True,
+    )
+    fecha_operacion = forms.DateField(
+        label="Fecha de operación",
+        required=True,
+        widget=forms.DateInput(attrs={"type": "date"})
+    )
+    caja = forms.ModelChoiceField(
+        queryset=Caja.objects.none(),
+        label="Caja",
+        required=True,
+    )
+    descripcion_base = forms.CharField(
+        label="Descripción (opcional)",
+        required=False,
+        widget=forms.TextInput(attrs={"placeholder": "Texto que se agregará en la descripción del recibo"})
+    )
+    aceptar_parciales = forms.BooleanField(
+        label="Aceptar pagos parciales por crédito",
+        required=False,
+        initial=False,
+        help_text="Si está tildado, imputará parcialmente cuando el crédito no se cubra completo."
+    )
+
+    def __init__(self, *args, **kwargs):
+        # >>> Acepto el kwarg extra que me manda el Wizard
+        consorcio = kwargs.pop('consorcio', None)
+        super().__init__(*args, **kwargs)
+
+        # Seteo querysets filtrados por consorcio (si lo recibí)
+        if consorcio is not None:
+            # Punto de venta del contribuyente del consorcio
+            contribuyente = getattr(consorcio, 'contribuyente', None)
+            if contribuyente:
+                self.fields['punto'].queryset = PointOfSales.objects.filter(owner=contribuyente)
+            else:
+                self.fields['punto'].queryset = PointOfSales.objects.none()
+
+            # Cajas del consorcio
+            self.fields['caja'].queryset = Caja.objects.filter(consorcio=consorcio)
+        else:
+            # fallback genérico (evitá dejarlo así en producción)
+            self.fields['punto'].queryset = PointOfSales.objects.all()
+            self.fields['caja'].queryset = Caja.objects.all()

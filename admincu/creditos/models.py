@@ -234,6 +234,20 @@ class Liquidacion(models.Model):
 		super().save(*args, **kw)
 
 
+
+	@property
+	def saldo_adeudado(self):
+		"""
+		Saldo adeudado 'hoy' de los créditos de la liquidación.
+		Usa Credito.saldo (que ya contempla hijos, intereses/descuentos al día de hoy).
+		"""
+		total = Decimal('0.00')
+		for c in self.credito_set.filter(padre__isnull=True):
+			total += Decimal(c.saldo)  # c.saldo ya es Decimal en tus métodos
+		return total
+
+
+
 class Factura(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	receipt = models.ForeignKey(Receipt, blank=True, null=True ,on_delete=models.CASCADE)

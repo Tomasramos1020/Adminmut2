@@ -1656,3 +1656,189 @@ class CobrosImportacionTotalesWizard(WizardComprobanteManager, SessionWizardView
 			messages.warning(self.request, f"{errs} recibos no pudieron generarse. Revisá los mensajes de error.")
 
 		return redirect('cobranzas')
+
+
+SESSION_KEY_IDS = "rcx_desde_creditos_ids"
+@method_decorator(group_required('administrativo'), name='dispatch')
+class RCXDesdeCreditosWizard(WizardComprobanteManager, SessionWizardView):
+    """
+    Paso 1: parámetros (punto, fecha, caja, etc.)
+    Paso 2: confirmación (preview de lo que se va a generar)
+    Luego genera 1 recibo por socio con los créditos seleccionados.
+    """
+    form_list = [
+        ('parametros', ParametrosDesdeCredForm),   # ya la tenés
+        ('confirmacion', forms.Form),              # pantalla de confirmación simple
+    ]
+
+    TEMPLATES = {
+        'parametros': 'comprobantes/nuevo/parametros_desde_creditos.html',
+        'confirmacion': 'comprobantes/nuevo/confirmacion_desde_creditos.html',
+    }
+
+    # ---------- Hook clave para evitar el error del ManagementForm ----------
+    def post(self, request, *args, **kwargs):
+        """
+        Si llega un POST desde el listado (con creditos[]), guardo esos IDs en sesión
+        y redirijo con GET al wizard. Así el wizard ya renderiza su propio ManagementForm.
+        """
+        if 'creditos[]' in request.POST and request.POST.getlist('creditos[]'):
+            ids = request.POST.getlist('creditos[]')
+            request.session['rcx_desde_creditos_ids'] = ids
+            return redirect('rcx-desde-creditos')
+        # Si ya estoy dentro del wizard (tiene current_step), sigo flujo normal
+        return super().post(request, *args, **kwargs)
+
+    # ---------- Utilidades ----------
+    def get_template_names(self):
+        return [self.TEMPLATES[self.steps.current]]
+
+    def get_selected_creditos(self):
+        """
+        Obtiene los créditos elegidos (guardados en sesión por el POST inicial).
+        """
+        ids = self.request.session.get('rcx_desde_creditos_ids', [])
+        if not ids:
+            return Credito.objects.none()
+        # Podés filtrar por consorcio(self.request) si querés acotar
+        return (Credito.objects
+                .filter(id__in=ids)
+                .select_related('socio', 'ingreso', 'factura'))
+
+    def imputar_credito(self, credito, fecha_op, aceptar_parciales):
+        """
+        Devuelve el subtotal a cobrar para este crédito según fecha.
+        Si aceptar_parciales=False, cobra el total del subtotal de ese crédito
+        o nada si no alcanza (pero como no tenemos el monto por socio acá,
+        usamos siempre el subtotal completo del crédito).
+        """
+        subtotal = credito.subtotal(fecha_operacion=fecha_op, condonacion=False)
+        # Si querés lógica más fina de parciales por crédito, ajustá acá.
+        return max(Decimal('0.00'), Decimal(subtotal or 0))
+
+    # ---------- Contexto de cada paso ----------
+    def get_context_data(self, form, **kwargs):
+        context = super().get_context_data(form=form, **kwargs)
+        extension = 'comprobantes/nuevo/Recibo.html'
+        tipo = "Recibo X"
+        creditos = self.get_selected_creditos()
+
+        if self.steps.current == 'confirmacion':
+            params = self.get_cleaned_data_for_step('parametros') or {}
+            fecha_op = params.get('fecha_operacion') or now().date()
+            aceptar_parciales = bool(params.get('aceptar_parciales') or False)
+
+            # Armar preview agrupado por socio
+            preview = []
+            por_socio = defaultdict(list)
+            for c in creditos:
+                por_socio[c.socio_id].append(c)
+
+            for socio_id, lista in por_socio.items():
+                socio = lista[0].socio
+                items = []
+                total = Decimal('0.00')
+                for cred in lista:
+                    sub = self.imputar_credito(cred, fecha_op, aceptar_parciales)
+                    if sub > 0:
+                        items.append({'credito': cred, 'subtotal': sub})
+                        total += sub
+
+                preview.append({
+                    'socio': socio,
+                    'items': items,
+                    'total': total,
+                })
+
+            context.update({
+                'preview': preview,
+                'fecha_op': fecha_op,
+                'extension': extension,
+                'tipo': tipo,
+            })
+        else:
+            context.update({
+                'extension': extension,
+                'tipo': tipo,
+                'creditos': creditos,
+            })
+        return context
+
+    def get_form_kwargs(self, step):
+        kwargs = super().get_form_kwargs(step)
+        if step == 'parametros':
+            kwargs['consorcio'] = consorcio(self.request)
+        return kwargs
+
+    # ---------- Ejecución ----------
+    @transaction.atomic
+    def done(self, form_list, **kwargs):
+        params = self.get_cleaned_data_for_step('parametros') or {}
+        punto = params.get('punto')
+        caja = params.get('caja')
+        fecha_op = params.get('fecha_operacion') or now().date()
+        desc_base = params.get('descripcion_base') or ""
+        aceptar_parciales = bool(params.get('aceptar_parciales') or False)
+
+        creditos = self.get_selected_creditos()
+        if not creditos.exists():
+            messages.error(self.request, "No hay créditos seleccionados.")
+            return redirect('cobranzas')
+
+        # Agrupar por socio
+        por_socio = defaultdict(list)
+        for c in creditos:
+            por_socio[c.socio_id].append(c)
+
+        ok = err = 0
+        for socio_id, lista in por_socio.items():
+            socio = lista[0].socio
+
+            # Armo data_cobros con los subtotales calculados por crédito
+            data_cobros = []
+            total_recibo = Decimal('0.00')
+            for cred in lista:
+                sub = self.imputar_credito(cred, fecha_op, aceptar_parciales)
+                if sub > 0:
+                    data_cobros.append({'credito': cred, 'subtotal': sub})
+                    total_recibo += sub
+
+            if total_recibo <= 0:
+                continue
+
+            data_inicial = {
+                'punto': punto,
+                'socio': socio,
+                'fecha_operacion': fecha_op,
+                'condonacion': False,
+                'tipo': 'Recibo X',
+            }
+            data_cajas = [{
+                'caja': caja,
+                'referencia': '',
+                'subtotal': total_recibo,
+            }]
+            descripcion = f"{desc_base} - Socio: {socio} - Fecha: {fecha_op}"
+
+            documento = ComprobanteCreator(
+                data_inicial=data_inicial,
+                data_descripcion=descripcion,
+                data_cobros=data_cobros,
+                data_nuevo_saldo=None,
+                data_cajas=data_cajas,
+            )
+            evaluacion = documento.guardar(masivo=True)
+            if isinstance(evaluacion, list):
+                err += 1
+                messages.error(self.request, evaluacion[0])
+            else:
+                ok += 1
+
+        # Limpio la selección para no reusar por error
+        self.request.session.pop('rcx_desde_creditos_ids', None)
+
+        if ok:
+            messages.success(self.request, f"Se generaron {ok} recibos.")
+        if err:
+            messages.warning(self.request, f"{err} recibos no pudieron generarse. Revisá los mensajes.")
+        return redirect('cobranzas')

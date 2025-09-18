@@ -1,0 +1,89 @@
+{% extends extension %}
+{% load static %}
+{% load humanize %}
+
+{% block panel-body %}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+      <p class="text-muted mb-4">Completá los parámetros. En el siguiente paso veras un detalle de los recibos a generar y te solicitaremos una confirmacion.</p>
+
+      <form id="rcx-form" method="post" novalidate>
+        {% csrf_token %}
+        {{ wizard.management_form }}
+
+        <div class="row">
+          <div class="col-12 col-md-6 mb-3">
+            <label for="{{ wizard.form.punto.id_for_label }}" class="form-label">Punto de venta</label>
+            {{ wizard.form.punto }}
+            {% if wizard.form.punto.errors %}
+              <div class="invalid-feedback d-block">{{ wizard.form.punto.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12 col-md-6 mb-3">
+            <label for="{{ wizard.form.fecha_operacion.id_for_label }}" class="form-label">Fecha de operación</label>
+            {{ wizard.form.fecha_operacion }}
+            {% if wizard.form.fecha_operacion.errors %}
+              <div class="invalid-feedback d-block">{{ wizard.form.fecha_operacion.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12 col-md-6 mb-3">
+            <label for="{{ wizard.form.caja.id_for_label }}" class="form-label">Caja</label>
+            {{ wizard.form.caja }}
+            {% if wizard.form.caja.errors %}
+              <div class="invalid-feedback d-block">{{ wizard.form.caja.errors }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-12 col-md-6 mb-1">
+            <label for="{{ wizard.form.descripcion_base.id_for_label }}" class="form-label">Descripción (opcional)</label>
+            {{ wizard.form.descripcion_base }}
+            {% if wizard.form.descripcion_base.errors %}
+              <div class="invalid-feedback d-block">{{ wizard.form.descripcion_base.errors }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Acciones: un solo bloque, alineado a la derecha -->
+
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block js %}
+  {% include 'comunes/datepicker.html' %}
+
+  <style>
+    /* (2) Oculta cualquier submit extra que pueda inyectar la base/wizard */
+    #rcx-form [type="submit"]:not(.js-primary-submit) { display: none !important; }
+
+    /* Detalle estético uniforme */
+    .form-label { margin-bottom: .4rem; font-weight: 600; }
+    .btn { border-radius: .6rem; padding: .55rem 1.1rem; }
+    .gap-2 { gap: .5rem; }
+    .card-body input[type="text"],
+    .card-body input[type="date"],
+    .card-body input[type="number"],
+    .card-body input[type="email"],
+    .card-body select,
+    .card-body textarea {
+      display:block; width:100%;
+      padding:.5rem .75rem; border:1px solid #ced4da; border-radius:.5rem; background:#fff;
+    }
+  </style>
+
+  <script>
+    // (3) Fallback por si el extra no es <button> sino <input> o está fuera de la card
+    (function() {
+      var form = document.getElementById('rcx-form');
+      if (!form) return;
+      var prim = form.querySelector('.js-primary-submit');
+      var submits = form.querySelectorAll('[type="submit"]');
+      submits.forEach(function(s) {
+        if (s !== prim) s.parentNode && s.parentNode.removeChild(s);
+      });
+    })();
+  </script>
+{% endblock %}
