@@ -9,6 +9,8 @@
       {% if not user.groups.all.0.name == "socio" %}
         <th>Socio</th>
       {% endif %}
+      <th class="text-right">Ha reales</th>
+      <th class="text-right">Total Suscripción</th>
       <th></th>
     </tr>
   </thead>
@@ -20,6 +22,12 @@
         {% if not user.groups.all.0.name == "socio" %}
           <td style="white-space: nowrap;" title="{{ solicitud.socio }}">{{ solicitud.socio|truncatechars:70 }}</td>
         {% endif %}
+        <td class="text-right">
+          {{ solicitud.hectareas_reales|default:solicitud.hectareas_reales_calc|default_if_none:"0.00"|floatformat:2 }}
+        </td>
+        <td class="text-right">
+          $ {{ solicitud.total_suscripcion|default:solicitud.total_suscripcion_calc|default_if_none:"0.00"|floatformat:2|intcomma }}
+        </td>        
         <td class="text-right">
           <!-- Editar -->
           <a href="{% url 'solicitud_editar' solicitud.pk %}"

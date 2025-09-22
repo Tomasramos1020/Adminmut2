@@ -31,7 +31,6 @@ from arquitectura.forms import EstablecimientoForm
 from .filters import *
 
 
-
 class _NoFilter:
 	def __init__(self, data=None, queryset=None, **kwargs):
 		self.qs = queryset
@@ -51,6 +50,70 @@ class IndexSolicitud(OrderQS):
 		qs = super().get_queryset(**kwargs)
 		return qs.filter(consorcio=consorcio(self.request)).order_by('-id')
 
+	def get_context_data(self, **kwargs):
+		ctx = super().get_context_data(**kwargs)
+
+		# asegurar que 'lista' sea lo que consume la tabla
+		page_obj = ctx.get('page_obj')
+		lista = list(page_obj.object_list) if page_obj else list(ctx.get('object_list', []))
+		ctx['lista'] = lista
+
+		if not lista:
+			return ctx
+
+		# === cálculo liviano por Python, sin Prefetch problemático ===
+		# 1) Traer líneas solo con lo necesario
+		ids = [s.pk for s in lista]
+		lineas = (SolicitudLinea.objects
+					.filter(solicitud_id__in=ids)
+					.values('solicitud_id', 'hectarea', 'participacion'))
+
+		agrup = defaultdict(list)
+		for l in lineas:
+			agrup[l['solicitud_id']].append((
+				Decimal(l['hectarea'] or 0),
+				Decimal(l['participacion'] or 0),
+			))
+
+		# 2) Mapa consorcio -> última cotización de Soja
+		cons_ids = {getattr(s.consorcio, 'id', None) for s in lista if getattr(s, 'consorcio', None)}
+		cons_ids.discard(None)
+
+		valor_soja_por_cons = {}
+		if cons_ids:
+			cot_qs = (Cotizacion.objects
+						.filter(consorcio_id__in=cons_ids, producto__nombre__iexact='Soja')
+						.only('consorcio_id', 'fecha', 'cotizacion')
+						.order_by('consorcio_id', '-fecha'))
+			for c in cot_qs:
+				if c.consorcio_id not in valor_soja_por_cons:
+					valor_soja_por_cons[c.consorcio_id] = Decimal(c.cotizacion or 0)
+
+		# 3) Inyectar valores calculados en cada solicitud de la lista
+		for s in lista:
+			pares = agrup.get(s.pk, ())
+			hect_reales = Decimal('0')
+			for ha, part in pares:
+				hect_reales += (ha * part / Decimal('100'))
+			hect_reales = hect_reales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+			cons_id = getattr(s.consorcio, 'id', None)
+			valor_soja = valor_soja_por_cons.get(cons_id, Decimal('0'))
+			suscripcion = Decimal(getattr(s, 'suscripcion', 0) or 0)
+
+			if valor_soja:
+				valor_hec_real = ((valor_soja / Decimal('100')) * suscripcion).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+				total_suscripcion = (hect_reales * valor_hec_real).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			else:
+				valor_hec_real = Decimal('0.00')
+				total_suscripcion = Decimal('0.00')
+
+			# atributos que consume la tabla-reutilizable
+			s.hectareas_reales_calc = hect_reales
+			s.total_suscripcion_calc = total_suscripcion
+
+		return ctx
+
 
 def get_soja_id_por_consorcio(cons):
 	return (Cultivo.objects
@@ -62,59 +125,59 @@ def get_soja_id_por_consorcio(cons):
 # views.py
 # views.py
 class CrearSolicitudView(View):
-    template_name = 'crear_solicitud.html'
+	template_name = 'crear_solicitud.html'
 
-    def get(self, request):
-        cons = consorcio(request)
-        form = SolicitudForm(request=request)
-        tmp = Solicitud(consorcio=cons)
-        formset = SolicitudLineaFormSet(
-            instance=tmp,
-            prefix='form',
-            form_kwargs={'request': request, 'consorcio': cons}
-        )
-        ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
-        return render(request, self.template_name, ctx)
+	def get(self, request):
+		cons = consorcio(request)
+		form = SolicitudForm(request=request)
+		tmp = Solicitud(consorcio=cons)
+		formset = SolicitudLineaFormSet(
+			instance=tmp,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons}
+		)
+		ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
+		return render(request, self.template_name, ctx)
 
-    def post(self, request):
-        cons = consorcio(request)
-        accion = request.POST.get('accion', 'guardar')
-        form = SolicitudForm(request.POST, request=request)
+	def post(self, request):
+		cons = consorcio(request)
+		accion = request.POST.get('accion', 'guardar')
+		form = SolicitudForm(request.POST, request=request)
 
-        if form.is_valid():
-            solicitud = form.save(commit=False)
-            solicitud.consorcio = cons
+		if form.is_valid():
+			solicitud = form.save(commit=False)
+			solicitud.consorcio = cons
 
-            formset = SolicitudLineaFormSet(
-                request.POST,
-                instance=solicitud,
-                prefix='form',
-                form_kwargs={'request': request, 'consorcio': cons}
-            )
-            if formset.is_valid():
-                with transaction.atomic():
-                    solicitud.save()
-                    formset.save()
-                solicitud.refresh_from_db()
-                if accion == 'imprimir':
-                    return solicitud_pdf_response(solicitud, request)
-                if accion == 'pagare':
-                    return redirect('pagare_solicitud', pk=solicitud.pk)
-                return redirect('fosea')
+			formset = SolicitudLineaFormSet(
+				request.POST,
+				instance=solicitud,
+				prefix='form',
+				form_kwargs={'request': request, 'consorcio': cons}
+			)
+			if formset.is_valid():
+				with transaction.atomic():
+					solicitud.save()
+					formset.save()
+				solicitud.refresh_from_db()
+				if accion == 'imprimir':
+					return solicitud_pdf_response(solicitud, request)
+				if accion == 'pagare':
+					return redirect('pagare_solicitud', pk=solicitud.pk)
+				return redirect('fosea')
 
-            ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
-            return render(request, self.template_name, ctx)
+			ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
+			return render(request, self.template_name, ctx)
 
-        # form inválido → rearmar formset conservando filas + filtrado
-        tmp = Solicitud(consorcio=cons)
-        formset = SolicitudLineaFormSet(
-            request.POST,
-            instance=tmp,
-            prefix='form',
-            form_kwargs={'request': request, 'consorcio': cons}
-        )
-        ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
-        return render(request, self.template_name, ctx)
+		# form inválido → rearmar formset conservando filas + filtrado
+		tmp = Solicitud(consorcio=cons)
+		formset = SolicitudLineaFormSet(
+			request.POST,
+			instance=tmp,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons}
+		)
+		ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
+		return render(request, self.template_name, ctx)
 
 
 @login_required
@@ -260,47 +323,47 @@ def obtener_subsidio_max(request):
 # views.py
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')
 class EditarSolicitudView(View):
-    template_name = 'editar_solicitud.html'
+	template_name = 'editar_solicitud.html'
 
-    def get(self, request, pk):
-        cons = consorcio(request)
-        solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
-        form = SolicitudForm(instance=solicitud, request=request)
-        formset = SolicitudLineaFormSet(
-            instance=solicitud,
-            prefix='form',
-            form_kwargs={'request': request, 'consorcio': cons}
-        )
-        ctx = {'form': form, 'formset': formset, 'solicitud': solicitud, 'soja_id': get_soja_id_por_consorcio(cons)}
-        return render(request, self.template_name, ctx)
+	def get(self, request, pk):
+		cons = consorcio(request)
+		solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
+		form = SolicitudForm(instance=solicitud, request=request)
+		formset = SolicitudLineaFormSet(
+			instance=solicitud,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons}
+		)
+		ctx = {'form': form, 'formset': formset, 'solicitud': solicitud, 'soja_id': get_soja_id_por_consorcio(cons)}
+		return render(request, self.template_name, ctx)
 
-    def post(self, request, pk):
-        cons = consorcio(request)
-        accion = request.POST.get('accion', 'guardar')
-        solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
+	def post(self, request, pk):
+		cons = consorcio(request)
+		accion = request.POST.get('accion', 'guardar')
+		solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
 
-        form = SolicitudForm(request.POST, instance=solicitud, request=request)
-        formset = SolicitudLineaFormSet(
-            request.POST,
-            instance=solicitud,
-            prefix='form',
-            form_kwargs={'request': request, 'consorcio': cons}
-        )
+		form = SolicitudForm(request.POST, instance=solicitud, request=request)
+		formset = SolicitudLineaFormSet(
+			request.POST,
+			instance=solicitud,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons}
+		)
 
-        if form.is_valid() and formset.is_valid():
-            with transaction.atomic():
-                solicitud = form.save()
-                formset.save()
-            solicitud.refresh_from_db()
+		if form.is_valid() and formset.is_valid():
+			with transaction.atomic():
+				solicitud = form.save()
+				formset.save()
+			solicitud.refresh_from_db()
 
-            if accion == 'imprimir':
-                return solicitud_pdf_response(solicitud, request)
-            if accion == 'pagare':
-                return redirect('pagare_solicitud', pk=solicitud.pk)
-            return redirect('fosea')
+			if accion == 'imprimir':
+				return solicitud_pdf_response(solicitud, request)
+			if accion == 'pagare':
+				return redirect('pagare_solicitud', pk=solicitud.pk)
+			return redirect('fosea')
 
-        ctx = {'form': form, 'formset': formset, 'solicitud': solicitud, 'soja_id': get_soja_id_por_consorcio(cons)}
-        return render(request, self.template_name, ctx)
+		ctx = {'form': form, 'formset': formset, 'solicitud': solicitud, 'soja_id': get_soja_id_por_consorcio(cons)}
+		return render(request, self.template_name, ctx)
 
 # views.py
  # ajustá el import
@@ -630,12 +693,77 @@ def solicitud_pdf(request, pk):
 	return solicitud_pdf_response(solicitud, request)
 
 
+
+
+from collections import defaultdict
+
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')
 class Registro(OrderQS):
-
-	""" Registro de solicitudes """
-
 	model = Solicitud
 	filterset_class = SolicitudFilter
 	template_name = 'registros/solicitudes.html'
 	paginate_by = 50
+
+	def get_context_data(self, **kwargs):
+		ctx = super().get_context_data(**kwargs)
+
+		# asegurar 'lista'
+		page_obj = ctx.get('page_obj')
+		lista = list(page_obj.object_list) if page_obj else list(ctx.get('object_list', []))
+		ctx['lista'] = lista
+		if not lista:
+			return ctx
+
+		# --- 1) Traer TODAS las líneas necesarias en UNA query liviana ---
+		ids = [s.pk for s in lista]
+		lineas = (SolicitudLinea.objects
+				.filter(solicitud_id__in=ids)
+				.values('solicitud_id', 'hectarea', 'participacion'))
+
+		agrup = defaultdict(list)
+		for l in lineas:
+			agrup[l['solicitud_id']].append((
+				Decimal(l['hectarea'] or 0),
+				Decimal(l['participacion'] or 0),
+			))
+
+		# --- 2) Mapa consorcio -> última cotización de Soja ---
+		cons_ids = {getattr(s.consorcio, 'id', None) for s in lista if getattr(s, 'consorcio', None)}
+		cons_ids.discard(None)
+
+		valor_soja_por_cons = {}
+		if cons_ids:
+			# ordenamos por consorcio y fecha desc; nos quedamos con la primera por consorcio
+			cot_qs = (Cotizacion.objects
+					.filter(consorcio_id__in=cons_ids, producto__nombre__iexact='Soja')
+					.only('consorcio_id', 'fecha', 'cotizacion')
+					.order_by('consorcio_id', '-fecha'))
+			for c in cot_qs:
+				if c.consorcio_id not in valor_soja_por_cons:
+					valor_soja_por_cons[c.consorcio_id] = Decimal(c.cotizacion or 0)
+
+		# --- 3) Calcular y "inyectar" en cada solicitud ---
+		for s in lista:
+			pares = agrup.get(s.pk, ())
+			hect_reales = Decimal('0')
+			for ha, part in pares:
+				hect_reales += (ha * part / Decimal('100'))
+			hect_reales = hect_reales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+			cons_id = getattr(s.consorcio, 'id', None)
+			valor_soja = valor_soja_por_cons.get(cons_id, Decimal('0'))
+			suscripcion = Decimal(getattr(s, 'suscripcion', 0) or 0)
+
+			if valor_soja:
+				valor_hec_real = ((valor_soja / Decimal('100')) * suscripcion).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+				total_suscripcion = (hect_reales * valor_hec_real).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			else:
+				valor_hec_real = Decimal('0.00')
+				total_suscripcion = Decimal('0.00')
+
+			# atributos para el template
+			s.hectareas_reales_calc = hect_reales
+			s.total_suscripcion_calc = total_suscripcion
+
+		return ctx
+
