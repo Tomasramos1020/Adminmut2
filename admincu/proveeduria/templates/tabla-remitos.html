@@ -1,6 +1,8 @@
 {# templates/remitos/registros/tabla-remitos.html #}
 {% load humanize %}
 
+{# templates/remitos/registros/tabla-remitos.html #}
+
 <table id="tabla-remitos" class="anopa table table-sm display nowrap" style="width:100%">
   <thead>
     <tr>
@@ -25,32 +27,26 @@
         <td>{{ r.deposito }}</td>
         <td style="white-space:nowrap;">
           {% if r.socio %}
-            {{ r.socio.apellido }}, {{ r.socio.nombre }}
-            {% if r.sucursal %} · {{ r.sucursal }}{% endif %}
+            {{ r.socio.apellido }}, {{ r.socio.nombre }}{% if r.sucursal %} · {{ r.sucursal }}{% endif %}
           {% else %}-{% endif %}
         </td>
         <td>{{ r.items.count|intcomma }}</td>
-
         <td class="text-right" style="white-space:nowrap;">
           <a href="{% url 'remito-pdf' pk=r.pk %}" target="_blank"
-             class="btn btn-icon btn-xs btn-purple btn-bordered waves-efect waves-light" title="Imprimir">
+             class="btn btn-icon btn-xs btn-purple btn-bordered" title="Imprimir">
             <i class="fa fa-print"></i>
           </a>
-
           {% if not r.anulado %}
-            {# Botón rojo que abre el modal de confirmación #}
             <button type="button"
-                    class="btn btn-icon btn-xs btn-danger btn-bordered waves-efect waves-light abrir-modal-anular"
-                    data-url="{% url 'remito-anular' pk=r.pk %}"
-                    title="Anular remito">
+                    class="btn btn-icon btn-xs btn-danger btn-bordered abrir-modal-anular"
+                    data-url="{% url 'remito-anular' pk=r.pk %}" title="Anular remito">
               <i class="fa fa-times"></i>
             </button>
           {% endif %}
         </td>
       </tr>
-    {% empty %}
-      <tr><td colspan="6">No hay remitos.</td></tr>
     {% endfor %}
+    {# IMPORTANTE: no uses {% empty %} con colspan en <tbody> para DataTables #}
   </tbody>
 </table>
 
@@ -82,18 +78,23 @@
 
 <script>
   (function(){
-    // Al clicar el botón rojo de una fila, abrimos el modal y seteamos la URL del POST
+    // Abrir modal y setear action del POST
     document.querySelectorAll('.abrir-modal-anular').forEach(function(btn){
       btn.addEventListener('click', function(){
         var url = this.getAttribute('data-url');
         var form = document.getElementById('formAnular');
         form.setAttribute('action', url);
-        // Abrir modal (Bootstrap)
         $('#confirmAnularModal').modal('show');
       });
     });
+
+    // Si usás stateSave en tu init, puede quedar un estado viejo guardado.
+    // Si el warning persistiera, limpiá el estado una sola vez:
+    // try { $('#tabla-remitos').DataTable().state.clear(); } catch(e){}
   })();
 </script>
+
+
 
 
   
