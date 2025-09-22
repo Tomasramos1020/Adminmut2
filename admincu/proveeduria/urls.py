@@ -11,6 +11,11 @@ urlpatterns = [
 
 	path('crear-compra/', CrearCompraView.as_view(), name='compras-proveeduria'),
 
+	path('remitos/nuevo/', CrearRemitoView.as_view(), name='remitos-crear'),
+	path('remitos/', RegistroRemitos.as_view(), name='remitos-registro'),
+	path('remitos/<int:pk>/pdf/', remito_pdf, name='remito-pdf'),
+	path('remitos/<int:pk>/anular/', remito_anular, name='remito-anular'),
+
 
 	path('<str:modelo>/', Listado.as_view(), name='elemento'),
 	path('<str:modelo>/nuevo', Crear.as_view(), name='crear_proveeduria'),

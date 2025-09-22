@@ -1,0 +1,99 @@
+{# templates/remitos/registros/tabla-remitos.html #}
+{% load humanize %}
+
+<table id="tabla-remitos" class="anopa table table-sm display nowrap" style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:90px;">Nº</th>
+      <th>Fecha</th>
+      <th>Depósito</th>
+      <th>Destinatario</th>
+      <th>Ítems</th>
+      <th class="text-right" style="width:170px;">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in remitos %}
+      <tr class="{% if r.anulado %}text-muted{% endif %}">
+        <td>
+          {{ r.numero|default:r.id }}
+          {% if r.anulado %}
+            <span class="label label-danger" style="margin-left:6px;">Anulado</span>
+          {% endif %}
+        </td>
+        <td>{{ r.fecha|date:"d/m/Y" }}</td>
+        <td>{{ r.deposito }}</td>
+        <td style="white-space:nowrap;">
+          {% if r.socio %}
+            {{ r.socio.apellido }}, {{ r.socio.nombre }}
+            {% if r.sucursal %} · {{ r.sucursal }}{% endif %}
+          {% else %}-{% endif %}
+        </td>
+        <td>{{ r.items.count|intcomma }}</td>
+
+        <td class="text-right" style="white-space:nowrap;">
+          <a href="{% url 'remito-pdf' pk=r.pk %}" target="_blank"
+             class="btn btn-icon btn-xs btn-purple btn-bordered waves-efect waves-light" title="Imprimir">
+            <i class="fa fa-print"></i>
+          </a>
+
+          {% if not r.anulado %}
+            {# Botón rojo que abre el modal de confirmación #}
+            <button type="button"
+                    class="btn btn-icon btn-xs btn-danger btn-bordered waves-efect waves-light abrir-modal-anular"
+                    data-url="{% url 'remito-anular' pk=r.pk %}"
+                    title="Anular remito">
+              <i class="fa fa-times"></i>
+            </button>
+          {% endif %}
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="6">No hay remitos.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{# Modal de confirmación (una sola vez por página) #}
+<div class="modal fade" id="confirmAnularModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <form id="formAnular" method="post" action="">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">¿Estás seguro?</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p>Se <strong>anulará el remito</strong> y se <strong>revertirá el stock</strong>.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default btn-bordered" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger btn-bordered">
+            Sí, anular
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    // Al clicar el botón rojo de una fila, abrimos el modal y seteamos la URL del POST
+    document.querySelectorAll('.abrir-modal-anular').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var url = this.getAttribute('data-url');
+        var form = document.getElementById('formAnular');
+        form.setAttribute('action', url);
+        // Abrir modal (Bootstrap)
+        $('#confirmAnularModal').modal('show');
+      });
+    });
+  })();
+</script>
+
+
+  

@@ -5,7 +5,11 @@ from creditos.models import Credito, Factura, Liquidacion
 from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Sum
 from django.utils.functional import cached_property
+from django.utils import timezone
 
+from decimal import Decimal
+from django.db import transaction
+from django.core.exceptions import ValidationError
 
 
 class Sucursal(models.Model):
@@ -200,7 +204,78 @@ class Compra_Producto(models.Model):
 			return self.precio * self.cantidad
 		return Decimal('0.00')
 
+class Remito(models.Model):
+	"""Comprobante de salida de mercadería que SOLO baja stock."""
+	consorcio   = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	socio       = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.SET_NULL)
+	sucursal    = models.ForeignKey(Sucursal, blank=True, null=True, on_delete=models.SET_NULL)
+	deposito    = models.ForeignKey(Deposito, on_delete=models.PROTECT)
+	transporte  = models.ForeignKey(Transporte, blank=True, null=True, on_delete=models.SET_NULL)
+	vendedor    = models.ForeignKey(Vendendor, blank=True, null=True, on_delete=models.SET_NULL)
+	fecha       = models.DateField()
+	observacion = models.TextField(blank=True, null=True)
+	anulado = models.BooleanField(default=False)
 
+
+	# Si querés numeración visible (sencilla, por consorcio):
+	numero      = models.PositiveIntegerField(blank=True, null=True, editable=False)
+
+	class Meta:
+		ordering = ['-id']
+
+	def __str__(self):
+		return f"Remito #{self.numero or self.pk} – {self.fecha} – {self.deposito}"
+
+	def asignar_numero_si_falta(self):
+		if self.numero:
+			return
+		last = Remito.objects.filter(consorcio=self.consorcio).order_by('-numero').first()
+		self.numero = (last.numero + 1) if (last and last.numero) else 1
+
+	@transaction.atomic
+	def anular(self, usuario=None, motivo=''):
+		"""
+		Anula el remito y genera movimientos de stock inversos por cada ítem.
+		Idempotente: si ya está anulado, lanza ValidationError.
+		"""
+		if self.anulado:
+			raise ValidationError("El remito ya está anulado.")
+
+		# Si tenés reglas (p.ej. no anular si está facturado), validalas acá:
+		# if self.factura_set.exists():
+		#     raise ValidationError("No se puede anular: el remito ya está facturado.")
+
+		# Revertir stock de cada ítem
+		for item in self.items.select_related('producto').all():
+			# El alta original hizo una salida (cantidad negativa). Ahora hacemos la contraria (entrada).
+			# Si tu lógica original ya guarda cantidad negativa en MovimientoStock, acá guardamos la opuesta.
+			# Asumo tu MovimientoStock tiene campos: producto, deposito, fecha, cantidad, remito_item
+			MovimientoStock.objects.create(
+				producto=item.producto,
+				deposito=self.deposito,
+				fecha=timezone.localdate(),
+				cantidad=(item.cantidad_salida * Decimal('-1')),  # opuesto
+				remito_item=item,
+			)
+
+		self.anulado = True
+		self.save(update_fields=['anulado'])
+
+class RemitoItem(models.Model):
+	remito   = models.ForeignKey(Remito, on_delete=models.CASCADE, related_name='items')
+	producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+	cantidad = models.DecimalField(max_digits=9, decimal_places=2)  # permitir decimales
+	costo    = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)  # snapshot opcional
+	detalle  = models.CharField(max_length=200, blank=True, null=True)
+
+	def clean(self):
+		if self.cantidad is None or self.cantidad <= 0:
+			raise ValidationError("La cantidad debe ser mayor a 0.")
+
+	@property
+	def cantidad_salida(self):
+		# Siempre salida (negativo)
+		return (self.cantidad * Decimal('-1')).quantize(Decimal('0.01'))
 
 class MovimientoStock(models.Model):
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
@@ -209,9 +284,15 @@ class MovimientoStock(models.Model):
 	cantidad = models.DecimalField(max_digits=9, decimal_places=2)
 	venta_producto = models.ForeignKey(Venta_Producto, on_delete=models.SET_NULL, null=True, blank=True)
 	compra_producto = models.ForeignKey(Compra_Producto, on_delete=models.SET_NULL, null=True, blank=True)
+	remito_item = models.ForeignKey(RemitoItem, on_delete=models.SET_NULL, null=True, blank=True)
 
 	def __str__(self):
 		return f"{self.fecha} - {self.producto.nombre} -  {self.cantidad}"
+
+# inventario/models.py (o donde tengas Producto/MovimientoStock)
+
+
+
 
 
 

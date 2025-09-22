@@ -60,50 +60,62 @@ def get_soja_id_por_consorcio(cons):
 
 # Create your views here.
 # views.py
+# views.py
 class CrearSolicitudView(View):
-	template_name = 'crear_solicitud.html'
+    template_name = 'crear_solicitud.html'
 
-	def get(self, request):
-		cons = consorcio(request)
-		form = SolicitudForm(request=request)
-		tmp = Solicitud(consorcio=cons)
-		formset = SolicitudLineaFormSet(instance=tmp, prefix='form') # usa tmp con consorcio seteado
-		ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
-		return render(request, self.template_name, ctx)
+    def get(self, request):
+        cons = consorcio(request)
+        form = SolicitudForm(request=request)
+        tmp = Solicitud(consorcio=cons)
+        formset = SolicitudLineaFormSet(
+            instance=tmp,
+            prefix='form',
+            form_kwargs={'request': request, 'consorcio': cons}
+        )
+        ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
+        return render(request, self.template_name, ctx)
 
-	def post(self, request):
-		cons = consorcio(request)
-		accion = request.POST.get('accion', 'guardar')
-		form = SolicitudForm(request.POST, request=request)
+    def post(self, request):
+        cons = consorcio(request)
+        accion = request.POST.get('accion', 'guardar')
+        form = SolicitudForm(request.POST, request=request)
 
-		if form.is_valid():
-			solicitud = form.save(commit=False)
-			solicitud.consorcio = cons
+        if form.is_valid():
+            solicitud = form.save(commit=False)
+            solicitud.consorcio = cons
 
-			formset = SolicitudLineaFormSet(request.POST, instance=solicitud, prefix='form')
-			if formset.is_valid():
-				with transaction.atomic():
-					solicitud.save()
-					formset.save()
-				solicitud.refresh_from_db()
-				if accion == 'imprimir':
-					# devuelve PDF en una pestaña nueva gracias a formtarget="_blank"
-					return solicitud_pdf_response(solicitud, request)
-				if accion == 'pagare':
-					# Pestaña nueva gracias a formtarget="_blank"
-					return redirect('pagare_solicitud', pk=solicitud.pk)
-				# acción por defecto: guardar y volver al índice
-				return redirect('fosea')
+            formset = SolicitudLineaFormSet(
+                request.POST,
+                instance=solicitud,
+                prefix='form',
+                form_kwargs={'request': request, 'consorcio': cons}
+            )
+            if formset.is_valid():
+                with transaction.atomic():
+                    solicitud.save()
+                    formset.save()
+                solicitud.refresh_from_db()
+                if accion == 'imprimir':
+                    return solicitud_pdf_response(solicitud, request)
+                if accion == 'pagare':
+                    return redirect('pagare_solicitud', pk=solicitud.pk)
+                return redirect('fosea')
 
-			# form ok / formset con errores
-			ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
-			return render(request, self.template_name, ctx)
+            ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
+            return render(request, self.template_name, ctx)
 
-		# form inválido: rearmar formset con tmp para no perder filas
-		tmp = Solicitud(consorcio=cons)
-		formset = SolicitudLineaFormSet(request.POST, instance=tmp, prefix='form')
-		ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
-		return render(request, self.template_name, ctx)
+        # form inválido → rearmar formset conservando filas + filtrado
+        tmp = Solicitud(consorcio=cons)
+        formset = SolicitudLineaFormSet(
+            request.POST,
+            instance=tmp,
+            prefix='form',
+            form_kwargs={'request': request, 'consorcio': cons}
+        )
+        ctx = {'form': form, 'formset': formset, 'soja_id': get_soja_id_por_consorcio(cons)}
+        return render(request, self.template_name, ctx)
+
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -248,48 +260,47 @@ def obtener_subsidio_max(request):
 # views.py
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')
 class EditarSolicitudView(View):
-	template_name = 'editar_solicitud.html'
+    template_name = 'editar_solicitud.html'
 
-	def get(self, request, pk):
-		cons = consorcio(request)
-		solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
-		form = SolicitudForm(instance=solicitud, request=request)
-		formset = SolicitudLineaFormSet(instance=solicitud, prefix='form')
-		ctx = {'form': form, 'formset': formset, 'solicitud': solicitud,
-               'soja_id': get_soja_id_por_consorcio(cons)}
-		return render(request, self.template_name, ctx)
+    def get(self, request, pk):
+        cons = consorcio(request)
+        solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
+        form = SolicitudForm(instance=solicitud, request=request)
+        formset = SolicitudLineaFormSet(
+            instance=solicitud,
+            prefix='form',
+            form_kwargs={'request': request, 'consorcio': cons}
+        )
+        ctx = {'form': form, 'formset': formset, 'solicitud': solicitud, 'soja_id': get_soja_id_por_consorcio(cons)}
+        return render(request, self.template_name, ctx)
 
-	def post(self, request, pk):
-		cons = consorcio(request)
-		accion = request.POST.get('accion', 'guardar')
-		solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
+    def post(self, request, pk):
+        cons = consorcio(request)
+        accion = request.POST.get('accion', 'guardar')
+        solicitud = get_object_or_404(Solicitud, pk=pk, consorcio=cons)
 
-		form = SolicitudForm(request.POST, instance=solicitud, request=request)
-		formset = SolicitudLineaFormSet(request.POST, instance=solicitud, prefix='form')
+        form = SolicitudForm(request.POST, instance=solicitud, request=request)
+        formset = SolicitudLineaFormSet(
+            request.POST,
+            instance=solicitud,
+            prefix='form',
+            form_kwargs={'request': request, 'consorcio': cons}
+        )
 
-		if form.is_valid() and formset.is_valid():
-			with transaction.atomic():
-				# Guardar cambios del form principal
-				solicitud = form.save()   # <- IMPORTANTE
-				# Guardar líneas
-				formset.save()
-			solicitud.refresh_from_db()
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                solicitud = form.save()
+                formset.save()
+            solicitud.refresh_from_db()
 
-			if accion == 'imprimir':
-				return solicitud_pdf_response(solicitud, request)
+            if accion == 'imprimir':
+                return solicitud_pdf_response(solicitud, request)
+            if accion == 'pagare':
+                return redirect('pagare_solicitud', pk=solicitud.pk)
+            return redirect('fosea')
 
-			if accion == 'pagare':
-				# Si tenés una función que devuelve el PDF del pagaré:
-				url = reverse('pagare_solicitud', args=[solicitud.pk])
-				return redirect(url)
-				# Alternativa si el pagaré es una vista por URL:
-				# from django.urls import reverse
-				# return redirect(reverse('pagare_solicitud', args=[solicitud.id]))
-
-			return redirect('fosea')
-		ctx = {'form': form, 'formset': formset, 'solicitud': solicitud,
-               'soja_id': get_soja_id_por_consorcio(cons)}
-		return render(request, self.template_name, ctx)
+        ctx = {'form': form, 'formset': formset, 'solicitud': solicitud, 'soja_id': get_soja_id_por_consorcio(cons)}
+        return render(request, self.template_name, ctx)
 
 # views.py
  # ajustá el import

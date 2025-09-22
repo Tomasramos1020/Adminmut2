@@ -1,0 +1,118 @@
+{% extends 'raiz.html' %}
+{% load static %}
+
+{% block titulo %}Nuevo Remito (Salida de stock){% endblock %}
+{% block header %}Nuevo Remito{% endblock %}
+
+{% block contenido %}
+<style>
+  .contenido-interno{background:#fff;padding:20px;border-radius:8px;max-width:1400px;margin:auto}
+  .form-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}
+  .form-row .form-group{flex:1}
+  label{display:block;font-weight:600;margin-bottom:6px}
+  select,input[type="text"],input[type="date"],input[type="number"],textarea{
+    width:100%;padding:8px;border:1px solid #ccc;border-radius:4px
+  }
+  .formset-linea{display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .formset-linea>*{flex:1}
+  .eliminar{background:#e74c3c;color:#fff;border:none;padding:6px 10px;border-radius:4px;cursor:pointer;flex:none}
+  .btn{padding:10px 20px;border:none;border-radius:5px;cursor:pointer}
+  .btn-guardar{background:#3498db;color:#fff}
+  .btn-agregar{background:#2ecc71;color:#fff;margin-bottom:10px}
+  .btn-cancelar{background:#95a5a6;color:#fff}
+  input[type="checkbox"][name$="-DELETE"]{ display:none !important; }
+  label[for$="-DELETE"]{ display:none !important; }
+</style>
+
+<div class="contenido-interno">
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="form-row">
+      <div class="form-group">{{ form.fecha.label_tag }}{{ form.fecha }}</div>
+      <div class="form-group">{{ form.deposito.label_tag }}{{ form.deposito }}</div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">{{ form.transporte.label_tag }}{{ form.transporte }}</div>
+      <div class="form-group">{{ form.vendedor.label_tag }}{{ form.vendedor }}</div>
+    </div>
+
+    <div class="form-group">{{ form.socio.label_tag }}{{ form.socio }}</div>
+    <div class="form-group">{{ form.sucursal.label_tag }}{{ form.sucursal }}</div>
+
+    <div class="form-group">{{ form.observacion.label_tag }}{{ form.observacion }}</div>
+
+    <hr>
+    <h3>Ítems del Remito</h3>
+    <div id="formset">
+      {{ formset.management_form }}
+      {% for f in formset %}
+        <div class="formset-linea">
+          {{ f.producto.label_tag }} {{ f.producto }}
+          {{ f.cantidad.label_tag }} {{ f.cantidad }}
+          {{ f.detalle.label_tag }} {{ f.detalle }}
+          <button type="button" class="eliminar">Eliminar</button>
+          {{ f.id }}
+          {% if f.DELETE %}{{ f.DELETE }}{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <div id="formset-empty" style="display:none;">
+      <div class="formset-linea">
+        {{ formset.empty_form.producto.label_tag }} {{ formset.empty_form.producto }}
+        {{ formset.empty_form.cantidad.label_tag }} {{ formset.empty_form.cantidad }}
+        {{ formset.empty_form.detalle.label_tag }}  {{ formset.empty_form.detalle }}
+        <button type="button" class="eliminar">Eliminar</button>
+        {{ formset.empty_form.id }}                {# oculto #}
+        {{ formset.empty_form.DELETE }}            {# oculto, el CSS lo esconde #}
+      </div>
+    </div>
+
+    <button type="button" id="agregar-linea" class="btn btn-agregar">Agregar línea</button>
+
+    <div class="botones" style="margin-top:16px;display:flex;justify-content:space-between">
+      <a href="{% url 'facturacion-proveeduria' %}" class="btn btn-cancelar">Cancelar</a>
+      <button type="submit" class="btn btn-guardar">Guardar</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  function actualizarSucursales(socioId){
+    $.get("{% url 'obtener_sucursales' %}", {socio_id: socioId}, function(data){
+      const $sel = $("#id_sucursal");
+      $sel.empty().append($("<option>").val("").text("---------"));
+      data.sucursales.forEach(s => $sel.append($("<option>").val(s.id).text(s.nombre)));
+    });
+  }
+
+  $(function(){
+    let totalForms = parseInt($('#id_form-TOTAL_FORMS').val() || '0');
+
+    $("#id_socio").on('change', function(){
+      const v = $(this).val();
+      if(v){ actualizarSucursales(v); }
+    });
+
+    $("#formset").on("click", ".eliminar", function(){
+      const $linea = $(this).closest(".formset-linea");
+      // Si existe checkbox DELETE, marcarlo. Si no, remover y ajustar TOTAL_FORMS.
+      const $del = $linea.find('input[type="checkbox"][name$="-DELETE"]');
+      if($del.length){ $del.prop('checked', true); $linea.hide(); }
+      else{ $linea.remove(); totalForms--; $('#id_form-TOTAL_FORMS').val(totalForms); }
+    });
+
+    $("#agregar-linea").on('click', function(){
+      const html = $("#formset-empty").html().replace(/__prefix__/g, totalForms);
+      $("#formset").append(html);
+      totalForms++;
+      $("#id_form-TOTAL_FORMS").val(totalForms);
+    });
+  });
+</script>
+{% endblock %}

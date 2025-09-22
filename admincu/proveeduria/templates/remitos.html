@@ -1,0 +1,33 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+
+{% block titulo %}Registro de Remitos{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="proveeduria" bhijo1="remitos" %}
+{% endblock %}
+
+{% block header %}Registro de Remitos{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-md-3">
+    {# Reutilizamos tu panel de filtros estándar #}
+    {% include 'comunes/filtro.html' %}
+  </div>
+  <div class="col-md-9">
+    <div class="card-box">
+      {% include 'comunes/paginador.html' %}
+      <div class="table-responsive">
+        {% include 'tabla-remitos.html' with remitos=lista %}
+      </div>
+      {% include 'comunes/paginador.html' %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+  {# Reutiliza tu snippet de tabla/export/print si lo tenés #}
+  {% include 'comunes/js_datatable_print_excel.html' %}
+{% endblock %}

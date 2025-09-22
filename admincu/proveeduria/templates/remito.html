@@ -1,0 +1,101 @@
+{% load staticfiles %}
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>REMITO {{ remito.numero|default:remito.id }}</title>
+    <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <div class="receipt">
+
+      <header>
+        <div class="taxpayer-details group">
+          <address>
+            {% if remito.consorcio.contribuyente.extras.logo_as_data_uri %}
+              <img src="{{ remito.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+            {% else %}
+              <h3>{{ remito.consorcio.nombre_completo }}</h3>
+            {% endif %}
+            {{ remito.consorcio.domicilio }} - {{ remito.consorcio.provincia }}<br>
+            Matrícula INAES: {{ remito.consorcio.matricula }}
+          </address>
+
+          <div class="receipt-details">
+            <div class="receipt-type-description">
+              REMITO {% if remito.anulado %}<strong style="color:#FF0000;">| ANULADO |</strong>{% endif %}
+            </div>
+            <strong>Nº</strong> {{ remito.numero|default:remito.id }}<br>
+            Fecha: {{ remito.fecha|date:"d/m/Y" }}<br>
+            <small>
+              C.U.I.T.: {{ remito.consorcio.cuit }}<br>
+              IVA: Exento<br>
+              Inicio de actividad: {{ remito.consorcio.contribuyente.active_since|date:"d/m/Y" }}
+            </small>
+          </div>
+        </div>
+
+        <hr>
+
+
+        <div class="client">
+          <div class="client-data">
+            <strong>{% if remito.consorcio.id == 10 %}CLIENTE:{% else %}ASOCIADO:{% endif %}</strong>
+            {% if remito.socio %}
+              {{ remito.socio }}{% if remito.sucursal %} · {{ remito.sucursal }}{% endif %}
+            {% else %}
+              -
+            {% endif %}<br>
+
+            <strong>Depósito:</strong> {{ remito.deposito }}<br>
+            <strong>Transporte:</strong> {{ remito.transporte|default:"-" }}<br>
+            <strong>Vendedor:</strong> {{ remito.vendedor|default:"-" }}<br>
+          </div>
+        </div>
+
+        <hr>
+      </header>
+
+      {% if remito.observacion %}
+        <p><strong>Observación:</strong> {{ remito.observacion }}</p>
+      {% endif %}
+
+      <p><strong>Detalle de ítems:</strong></p>
+      <table>
+        <thead>
+          <tr>
+            <th style="width:55%;">Producto</th>
+            <th style="width:15%;">Unidad</th>
+            <th style="width:15%;">Cantidad</th>
+            <th>Detalle</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in remito.items.all %}
+            <tr>
+              <td>{{ it.producto.nombre }}</td>
+              <td>{{ it.producto.get_unidad_medida_display }}</td>
+              <td>{{ it.cantidad|floatformat:2 }}</td>
+              <td>{{ it.detalle|default:"" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <div class="taxpayer-details group" style="margin-top: 10px;">
+        <div class="receipt-details">
+          <table>
+            <tr>
+              <th>Total de ítems:</th>
+              <th>{{ remito.items.count }}</th>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <p style="margin-top:12px;"><small>Este remito no constituye factura.</small></p>
+
+    </div>
+  </body>
+</html>

@@ -18,6 +18,13 @@ from django.views.generic import View
 from op.models import Deuda, GastoDeuda
 from arquitectura.models import Gasto, Acreedor
 from decimal import Decimal
+# views.py
+from django.views.generic import ListView
+from .filters import RemitoFilter
+from admincu.generic import OrderQS
+from django.utils.decorators import method_decorator
+from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 
 
 
@@ -414,3 +421,128 @@ class CrearCompraView(View):
 			return redirect('deudas')
 
 		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+
+class CrearRemitoView(View):
+	template_name = 'crear_remito.html'
+
+	def get_form_kwargs(self):
+		return {'request': self.request, **self.request.POST.dict()}
+
+	def get(self, request):
+		form = RemitoForm(request=self.request)
+		formset = RemitoItemFormSet(queryset=RemitoItem.objects.none())
+		# Limitar productos por consorcio en formset
+		cons = consorcio(request)
+		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+	@transaction.atomic
+	def post(self, request):
+		form    = RemitoForm(request.POST, request=request)
+		formset = RemitoItemFormSet(request.POST, queryset=RemitoItem.objects.none())
+
+		cons = consorcio(request)
+		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
+
+		if form.is_valid() and formset.is_valid():
+			socio      = form.cleaned_data.get('socio')
+			sucursal   = form.cleaned_data.get('sucursal')
+			fecha      = form.cleaned_data['fecha']
+			deposito   = form.cleaned_data['deposito']
+			transporte = form.cleaned_data.get('transporte')
+			vendedor   = form.cleaned_data.get('vendedor')
+			obs        = form.cleaned_data.get('observacion')
+
+			# Crear Remito (con numeración simple por consorcio)
+			remito = Remito(
+				consorcio=cons,
+				socio=socio, sucursal=sucursal,
+				deposito=deposito, transporte=transporte, vendedor=vendedor,
+				fecha=fecha, observacion=obs
+			)
+			remito.asignar_numero_si_falta()
+			remito.save()
+
+			# Crear ítems + descarga de stock
+			lineas_cargadas = 0
+			for linea in formset:
+				if not linea.cleaned_data or linea.cleaned_data.get('DELETE', False):
+					continue
+				item = linea.save(commit=False)
+				item.remito = remito
+				# snapshot de costo (opcional)
+				if item.producto.costo is not None:
+					item.costo = Decimal(item.producto.costo)
+				item.full_clean()
+				item.save()
+				lineas_cargadas += 1
+
+				# Registrar movimiento de stock (salida)
+				MovimientoStock.objects.create(
+					producto = item.producto,
+					deposito = deposito,
+					fecha    = fecha,
+					cantidad = item.cantidad_salida,  # NEGATIVO
+					remito_item = item
+				)
+
+			if lineas_cargadas == 0:
+				# Sin líneas, revertir
+				raise ValidationError("Cargá al menos un producto con cantidad.")
+
+			return redirect('facturacion-proveeduria')  # definí una vista de listado
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+
+
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class RegistroRemitos(OrderQS):
+	"""Registro de remitos (solo imprimir)."""
+	model = Remito
+	filterset_class = RemitoFilter
+	template_name = 'remitos.html'
+	paginate_by = 50
+
+	def get_queryset(self, **kwargs):
+		qs = super().get_queryset(**kwargs).select_related('consorcio','deposito','socio','sucursal','vendedor','transporte')
+		# limitar por consorcio actual (como en tus otras vistas)
+		try:
+			from admincu.funciones import consorcio
+			c = consorcio(self.request)
+			qs = qs.filter(consorcio=c)
+		except Exception:
+			pass
+		return qs
+
+def remito_pdf(request, pk):
+    remito = get_object_or_404(
+        Remito.objects.select_related(
+            'consorcio','deposito','socio','sucursal','vendedor','transporte',
+            'consorcio__contribuyente','consorcio__contribuyente__extras'
+        ).prefetch_related('items__producto'),
+        pk=pk
+    )
+    html = render_to_string('remito.html', {'remito': remito})
+    pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+
+    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+    # inline = abrir en el visor del navegador (muestra los botones)
+    resp['Content-Disposition'] = f'inline; filename="remito_{remito.numero or remito.pk}.pdf"'
+    return resp
+
+# views.py
+
+@transaction.atomic
+def remito_anular(request, pk):
+    remito = get_object_or_404(Remito.objects.prefetch_related('items__producto'), pk=pk)
+    try:
+        remito.anular()
+        messages.success(request, f"Remito #{remito.numero or remito.pk} anulado y stock revertido.")
+    except ValidationError as e:
+        messages.error(request, f"No se pudo anular: {e}")
+    except Exception as e:
+        messages.error(request, f"Error al anular: {e}")
+
+    return redirect('remitos-registro')

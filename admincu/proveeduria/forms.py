@@ -7,6 +7,7 @@ from django.forms.widgets import DateInput
 from django_afip.models import PointOfSales
 from arquitectura.models import Acreedor
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
+from django.forms import ModelForm
 
 
 class sucursalForm(FormControl, forms.ModelForm):
@@ -404,6 +405,50 @@ class CompraProductoForm(forms.ModelForm):
 CompraProductoFormSet = modelformset_factory(
 	Compra_Producto,
 	form=CompraProductoForm,
+	extra=1,
+	can_delete=True
+)
+
+class RemitoForm(forms.Form):
+	socio      = forms.ModelChoiceField(queryset=Socio.objects.none(), required=False)
+	sucursal   = forms.ModelChoiceField(queryset=Sucursal.objects.none(), required=False)
+	fecha      = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+	deposito   = forms.ModelChoiceField(queryset=Deposito.objects.none())
+	transporte = forms.ModelChoiceField(queryset=Transporte.objects.none(), required=False)
+	vendedor   = forms.ModelChoiceField(queryset=Vendendor.objects.none(), required=False)
+	observacion = forms.CharField(widget=forms.Textarea(attrs={'rows':3}), required=False)
+
+	def __init__(self, *args, **kwargs):
+		request = kwargs.pop('request', None)
+		super().__init__(*args, **kwargs)
+		if request:
+			cons = consorcio(request)
+			self.fields['socio'].queryset      = Socio.objects.filter(consorcio=cons, baja__isnull=True)
+			self.fields['deposito'].queryset   = Deposito.objects.filter(consorcio=cons)
+			self.fields['transporte'].queryset = Transporte.objects.filter(consorcio=cons)
+			self.fields['vendedor'].queryset   = Vendendor.objects.filter(consorcio=cons)
+			# sucursal depende del socio (AJAX como ya usás)
+			self.fields['sucursal'].queryset   = Sucursal.objects.none()
+			if 'socio' in self.data:
+				try:
+					socio_id = int(self.data.get('socio'))
+					self.fields['sucursal'].queryset = Sucursal.objects.filter(socio_id=socio_id)
+				except (ValueError, TypeError):
+					pass
+
+class RemitoItemForm(ModelForm):
+	class Meta:
+		model = RemitoItem
+		fields = ['producto', 'cantidad', 'detalle']
+		widgets = {
+			'producto': forms.Select(attrs={'class': 'form-control'}),
+			'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
+			'detalle':  forms.TextInput(attrs={'class': 'form-control'}),
+		}
+
+RemitoItemFormSet = modelformset_factory(
+	RemitoItem,
+	form=RemitoItemForm,
 	extra=1,
 	can_delete=True
 )

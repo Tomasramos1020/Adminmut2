@@ -65,6 +65,17 @@ class Compra_ProductoAdmin(admin.ModelAdmin):
 	list_filter = ['consorcio']	    
 class MovimientoStockAdmin(admin.ModelAdmin):
 	list_display = ['__str__']
+# admin.py (opcional)
+@admin.register(Remito)
+class RemitoAdmin(admin.ModelAdmin):
+    list_display = ('id','numero','consorcio','fecha','deposito','socio')
+    search_fields = ('numero',)
+    list_filter = ('consorcio','deposito','fecha')
+
+@admin.register(RemitoItem)
+class RemitoItemAdmin(admin.ModelAdmin):
+    list_display = ('remito','producto','cantidad')
+    search_fields = ('remito__numero','producto__nombre')
 
 
 
