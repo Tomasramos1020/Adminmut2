@@ -1,0 +1,52 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Ajuste {{ ajuste.numero|default:ajuste.id }}</title>
+<style>
+  body{font-family: sans-serif; font-size: 12px;}
+  h1{font-size:18px;margin:0 0 8px}
+  table{width:100%;border-collapse:collapse;margin-top:10px}
+  th,td{border:1px solid #777;padding:6px}
+  th{text-align:left;background:#eee}
+  .muted{color:#666}
+</style>
+</head>
+<body>
+  <h1>Ajuste de Stock #{{ ajuste.numero|default:ajuste.id }}</h1>
+  <div>
+    <strong>Consorcio:</strong> {{ ajuste.consorcio }}<br>
+    <strong>Depósito:</strong> {{ ajuste.deposito }}<br>
+    <strong>Fecha:</strong> {{ ajuste.fecha|date:"d/m/Y" }}<br>
+    <strong>Motivo:</strong> {{ ajuste.motivo|default:"-" }}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Producto</th>
+        <th>Sentido</th>
+        <th>Cantidad</th>
+        <th>Detalle</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for it in ajuste.items.all %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ it.producto }}</td>
+          <td>{{ it.get_sentido_display }}</td>
+          <td style="text-align:right">{{ it.cantidad|floatformat:2 }}</td>
+          <td>{{ it.detalle|default:"-" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if ajuste.anulado %}
+    <p class="muted"><em>Comprobante anulado.</em></p>
+  {% endif %}
+</body>
+</html>

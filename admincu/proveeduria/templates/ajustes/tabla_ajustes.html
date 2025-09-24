@@ -1,0 +1,47 @@
+{% load humanize %}
+<table id="tabla-ajustes" class="anopa table table-sm display nowrap" style="width:100%">
+  <thead>
+    <tr>
+      <th style="width:90px;">Nº</th>
+      <th>Fecha</th>
+      <th>Depósito</th>
+      <th>Ítems</th>
+      <th>Motivo</th>
+      <th class="text-right" style="width:170px;">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in ajustes %}
+      <tr class="{% if a.anulado %}text-muted{% endif %}">
+        <td>
+          {{ a.numero|default:a.id }}
+          {% if a.anulado %}
+            <span class="label label-danger" style="margin-left:6px;">Anulado</span>
+          {% endif %}
+        </td>
+        <td>{{ a.fecha|date:"d/m/Y" }}</td>
+        <td>{{ a.deposito }}</td>
+        <td>{{ a.items.count|intcomma }}</td>
+        <td style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+          {{ a.motivo|default:"-" }}
+        </td>
+        <td class="text-right" style="white-space:nowrap;">
+          <a href="{% url 'ajuste-pdf' pk=a.pk %}" target="_blank"
+             class="btn btn-icon btn-xs btn-purple btn-bordered" title="Imprimir">
+            <i class="fa fa-print"></i>
+          </a>
+          {% if not a.anulado %}
+            <form method="post" action="{% url 'ajuste-anular' pk=a.pk %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit"
+                      class="btn btn-icon btn-xs btn-danger btn-bordered"
+                      title="Anular ajuste">
+                <i class="fa fa-times"></i>
+              </button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

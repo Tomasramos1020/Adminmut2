@@ -92,9 +92,14 @@ class IndexSolicitud(OrderQS):
 		# 3) Inyectar valores calculados en cada solicitud de la lista
 		for s in lista:
 			pares = agrup.get(s.pk, ())
+			hect_totales = Decimal('0')
 			hect_reales = Decimal('0')
 			for ha, part in pares:
+				ha = ha or Decimal('0')
+				part = part or Decimal('0')
+				hect_totales += ha
 				hect_reales += (ha * part / Decimal('100'))
+			hect_totales = hect_totales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 			hect_reales = hect_reales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 			cons_id = getattr(s.consorcio, 'id', None)
@@ -109,6 +114,7 @@ class IndexSolicitud(OrderQS):
 				total_suscripcion = Decimal('0.00')
 
 			# atributos que consume la tabla-reutilizable
+			s.hectareas_totales_calc = hect_totales
 			s.hectareas_reales_calc = hect_reales
 			s.total_suscripcion_calc = total_suscripcion
 
@@ -745,9 +751,14 @@ class Registro(OrderQS):
 		# --- 3) Calcular y "inyectar" en cada solicitud ---
 		for s in lista:
 			pares = agrup.get(s.pk, ())
-			hect_reales = Decimal('0')
+			hect_totales = Decimal('0')
+			hect_reales = Decimal('0')			
 			for ha, part in pares:
+				ha = ha or Decimal('0')
+				part = part or Decimal('0')
+				hect_totales += ha				
 				hect_reales += (ha * part / Decimal('100'))
+			hect_totales = hect_totales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)	
 			hect_reales = hect_reales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 			cons_id = getattr(s.consorcio, 'id', None)
@@ -762,6 +773,7 @@ class Registro(OrderQS):
 				total_suscripcion = Decimal('0.00')
 
 			# atributos para el template
+			s.hectareas_totales_calc = hect_totales
 			s.hectareas_reales_calc = hect_reales
 			s.total_suscripcion_calc = total_suscripcion
 

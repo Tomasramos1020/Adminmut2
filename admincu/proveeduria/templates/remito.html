@@ -38,7 +38,6 @@
 
         <hr>
 
-
         <div class="client">
           <div class="client-data">
             <strong>{% if remito.consorcio.id == 10 %}CLIENTE:{% else %}ASOCIADO:{% endif %}</strong>
@@ -65,20 +64,27 @@
       <table>
         <thead>
           <tr>
-            <th style="width:55%;">Producto</th>
-            <th style="width:15%;">Unidad</th>
-            <th style="width:15%;">Cantidad</th>
+            <th style="width:37%;">Producto</th>
+            <th style="width:12%;">Unidad</th>
+            <th style="width:12%;">Cantidad</th>
+            <th style="width:14%;">Precio</th>
+            <th style="width:14%;">Importe</th>
             <th>Detalle</th>
           </tr>
         </thead>
         <tbody>
-          {% for it in remito.items.all %}
-            <tr>
-              <td>{{ it.producto.nombre }}</td>
-              <td>{{ it.producto.get_unidad_medida_display }}</td>
-              <td>{{ it.cantidad|floatformat:2 }}</td>
-              <td>{{ it.detalle|default:"" }}</td>
-            </tr>
+          {# Usamos items_data para tener precio/subtotal precalculados #}
+          {% for row in items_data %}
+            {% with it=row.it precio=row.precio subtotal=row.subtotal %}
+              <tr>
+                <td>{{ it.producto.nombre }}</td>
+                <td>{{ it.producto.get_unidad_medida_display }}</td>
+                <td style="text-align:right;">{{ it.cantidad|floatformat:2 }}</td>
+                <td style="text-align:right;">${{ precio|floatformat:2|intcomma }}</td>
+                <td style="text-align:right;">${{ subtotal|floatformat:2|intcomma }}</td>
+                <td>{{ it.detalle|default:"" }}</td>
+              </tr>
+            {% endwith %}
           {% endfor %}
         </tbody>
       </table>
@@ -90,6 +96,10 @@
               <th>Total de ítems:</th>
               <th>{{ remito.items.count }}</th>
             </tr>
+            <tr>
+              <th>Total general:</th>
+              <th>${{ total_general|floatformat:2|intcomma }}</th>
+            </tr>
           </table>
         </div>
       </div>
@@ -99,3 +109,4 @@
     </div>
   </body>
 </html>
+

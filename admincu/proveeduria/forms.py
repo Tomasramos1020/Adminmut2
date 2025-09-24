@@ -437,18 +437,61 @@ class RemitoForm(forms.Form):
 					pass
 
 class RemitoItemForm(ModelForm):
-	class Meta:
-		model = RemitoItem
-		fields = ['producto', 'cantidad', 'detalle']
-		widgets = {
-			'producto': forms.Select(attrs={'class': 'form-control'}),
-			'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
-			'detalle':  forms.TextInput(attrs={'class': 'form-control'}),
-		}
+    # Campo informativo/editarle: NO está en el modelo
+    precio = forms.DecimalField(
+        required=False, min_value=0, decimal_places=2, max_digits=12,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+
+    class Meta:
+        model = RemitoItem
+        fields = ['producto', 'cantidad', 'detalle']  # el formset igual va a traer 'precio' porque está declarado arriba
+        widgets = {
+            'producto': forms.Select(attrs={'class': 'form-control producto-select'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control cantidad-input', 'step': '0.01', 'min': '0.01'}),
+            'detalle':  forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+    def clean_precio(self):
+        # Opcional: si no viene precio, lo dejamos en None (lo rellenará el JS al elegir producto)
+        p = self.cleaned_data.get('precio')
+        return p
+
 
 RemitoItemFormSet = modelformset_factory(
 	RemitoItem,
 	form=RemitoItemForm,
 	extra=1,
 	can_delete=True
+)
+
+class AjusteForm(forms.Form):
+    fecha    = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+    deposito = forms.ModelChoiceField(queryset=Deposito.objects.none())
+    motivo   = forms.CharField(widget=forms.Textarea(attrs={'rows':3}), required=False)
+
+    def __init__(self, *args, **kwargs):
+        request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+        if request:
+            cons = consorcio(request)
+            self.fields['deposito'].queryset = Deposito.objects.filter(consorcio=cons)
+
+
+class AjusteItemForm(ModelForm):
+    class Meta:
+        model = AjusteStockItem
+        fields = ['producto', 'sentido', 'cantidad', 'detalle']
+        widgets = {
+            'producto': forms.Select(attrs={'class':'form-control'}),
+            'sentido':  forms.Select(attrs={'class':'form-control'}),
+            'cantidad': forms.NumberInput(attrs={'class':'form-control', 'step':'0.01', 'min':'0.01'}),
+            'detalle':  forms.TextInput(attrs={'class':'form-control'}),
+        }
+
+AjusteItemFormSet = modelformset_factory(
+    AjusteStockItem,
+    form=AjusteItemForm,
+    extra=1,
+    can_delete=True
 )

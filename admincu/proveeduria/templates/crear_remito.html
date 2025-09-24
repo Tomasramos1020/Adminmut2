@@ -51,24 +51,45 @@
         <div class="formset-linea">
           {{ f.producto.label_tag }} {{ f.producto }}
           {{ f.cantidad.label_tag }} {{ f.cantidad }}
+    
+          <label for="">Precio</label>
+          {{ f.precio }}  {# campo extra #}
+    
           {{ f.detalle.label_tag }} {{ f.detalle }}
+    
+          <label>Total</label>
+          <input type="text" class="form-control total-linea" value="" readonly>
+    
           <button type="button" class="eliminar">Eliminar</button>
           {{ f.id }}
           {% if f.DELETE %}{{ f.DELETE }}{% endif %}
         </div>
       {% endfor %}
     </div>
-
+    
     <div id="formset-empty" style="display:none;">
       <div class="formset-linea">
         {{ formset.empty_form.producto.label_tag }} {{ formset.empty_form.producto }}
         {{ formset.empty_form.cantidad.label_tag }} {{ formset.empty_form.cantidad }}
+    
+        <label for="">Precio</label>
+        {{ formset.empty_form.precio }}
+    
         {{ formset.empty_form.detalle.label_tag }}  {{ formset.empty_form.detalle }}
+    
+        <label>Total</label>
+        <input type="text" class="form-control total-linea" value="" readonly>
+    
         <button type="button" class="eliminar">Eliminar</button>
-        {{ formset.empty_form.id }}                {# oculto #}
-        {{ formset.empty_form.DELETE }}            {# oculto, el CSS lo esconde #}
+        {{ formset.empty_form.id }}
+        {{ formset.empty_form.DELETE }}
       </div>
     </div>
+    
+    <div style="margin-top:10px; text-align:right; font-weight:600;">
+      Total general: <span id="total-general">0.00</span>
+    </div>
+    
 
     <button type="button" id="agregar-linea" class="btn btn-agregar">Agregar línea</button>
 
@@ -83,6 +104,12 @@
 {% block js %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+  // -------- Utilidades --------
+  function toNum(x){
+    const v = parseFloat((x || "").toString().replace(",", "."));
+    return isNaN(v) ? 0 : v;
+  }
+
   function actualizarSucursales(socioId){
     $.get("{% url 'obtener_sucursales' %}", {socio_id: socioId}, function(data){
       const $sel = $("#id_sucursal");
@@ -91,28 +118,90 @@
     });
   }
 
-  $(function(){
-    let totalForms = parseInt($('#id_form-TOTAL_FORMS').val() || '0');
+  function recalcularLinea($linea){
+    const qty    = toNum($linea.find(".cantidad-input").val());
+    const precio = toNum($linea.find("input[name$='-precio']").val());
+    const total  = qty * precio;
+    $linea.find(".total-linea").val(total.toFixed(2));
+  }
 
+  function recalcularTotalGeneral(){
+    let suma = 0;
+    $("#formset .formset-linea:visible").each(function(){
+      const v = toNum($(this).find(".total-linea").val());
+      suma += v;
+    });
+    $("#total-general").text(suma.toFixed(2));
+  }
+
+  function wireLinea($linea){
+    // Al cambiar el producto, traer precio_1 desde tu helper
+    $linea.on("change", ".producto-select", function(){
+      const pid = $(this).val();
+      if(!pid){ return; }
+      $.get("{% url 'obtener_precio_producto_remito' %}", {producto_id: pid}, function(data){
+        const $precio = $linea.find("input[name$='-precio']");
+        // Solo autocompletar si no hay precio cargado o es 0
+        if($precio.val() === "" || toNum($precio.val()) === 0){
+          $precio.val((data && typeof data.precio_1 !== "undefined") ? data.precio_1 : "");
+          recalcularLinea($linea);
+          recalcularTotalGeneral();
+        }
+      });
+    });
+
+    // Recalcular en vivo al cambiar cantidad o precio
+    $linea.on("input", ".cantidad-input, input[name$='-precio']", function(){
+      recalcularLinea($linea);
+      recalcularTotalGeneral();
+    });
+
+    // Inicial
+    recalcularLinea($linea);
+  }
+
+  $(function(){
+    let totalForms = parseInt($('#id_form-TOTAL_FORMS').val() || '0', 10);
+
+    // Wire inicial de líneas existentes
+    $("#formset .formset-linea").each(function(){ wireLinea($(this)); });
+    recalcularTotalGeneral();
+
+    // Cambio de socio => actualizar sucursales
     $("#id_socio").on('change', function(){
       const v = $(this).val();
       if(v){ actualizarSucursales(v); }
     });
 
+    // Eliminar línea
     $("#formset").on("click", ".eliminar", function(){
       const $linea = $(this).closest(".formset-linea");
-      // Si existe checkbox DELETE, marcarlo. Si no, remover y ajustar TOTAL_FORMS.
       const $del = $linea.find('input[type="checkbox"][name$="-DELETE"]');
-      if($del.length){ $del.prop('checked', true); $linea.hide(); }
-      else{ $linea.remove(); totalForms--; $('#id_form-TOTAL_FORMS').val(totalForms); }
+
+      if($del.length){
+        // Formset estándar: marcar DELETE y ocultar
+        $del.prop('checked', true);
+        $linea.hide();
+      }else{
+        // Línea clonada del empty_form
+        $linea.remove();
+        totalForms--;
+        $('#id_form-TOTAL_FORMS').val(totalForms);
+      }
+      recalcularTotalGeneral();
     });
 
+    // Agregar línea nueva
     $("#agregar-linea").on('click', function(){
       const html = $("#formset-empty").html().replace(/__prefix__/g, totalForms);
-      $("#formset").append(html);
+      const $nuevo = $(html);
+      $("#formset").append($nuevo);
+      wireLinea($nuevo);
       totalForms++;
       $("#id_form-TOTAL_FORMS").val(totalForms);
+      recalcularTotalGeneral();
     });
   });
 </script>
 {% endblock %}
+

@@ -277,6 +277,74 @@ class RemitoItem(models.Model):
 		# Siempre salida (negativo)
 		return (self.cantidad * Decimal('-1')).quantize(Decimal('0.01'))
 
+# inventario/models.py
+
+class AjusteStock(models.Model):
+    """Comprobante interno que ajusta stock (entradas/salidas) con un motivo."""
+    consorcio   = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+    deposito    = models.ForeignKey(Deposito, on_delete=models.PROTECT)
+    fecha       = models.DateField()
+    motivo      = models.TextField(blank=True, null=True)
+    anulado     = models.BooleanField(default=False)
+
+    # numeración simple por consorcio (como Remito)
+    numero      = models.PositiveIntegerField(blank=True, null=True, editable=False)
+
+    class Meta:
+        ordering = ['-id']
+
+    def __str__(self):
+        return f"Ajuste #{self.numero or self.pk} – {self.fecha} – {self.deposito}"
+
+    def asignar_numero_si_falta(self):
+        if self.numero:
+            return
+        last = AjusteStock.objects.filter(consorcio=self.consorcio).order_by('-numero').first()
+        self.numero = (last.numero + 1) if (last and last.numero) else 1
+
+    @transaction.atomic
+    def anular(self, usuario=None, motivo_extra=''):
+        if self.anulado:
+            raise ValidationError("El ajuste ya está anulado.")
+
+        # Reversa: crear movimiento opuesto por cada ítem
+        for item in self.items.select_related('producto').all():
+            MovimientoStock.objects.create(
+                producto=item.producto,
+                deposito=self.deposito,
+                fecha=timezone.localdate(),
+                cantidad=(item.cantidad_entrada_salida * Decimal('-1')),  # opuesto
+                ajuste_item=item
+            )
+
+        self.anulado = True
+        self.save(update_fields=['anulado'])
+
+
+class AjusteStockItem(models.Model):
+    SENTIDO = (
+        ('E', 'Entrada'),
+        ('S', 'Salida'),
+    )
+    ajuste   = models.ForeignKey(AjusteStock, on_delete=models.CASCADE, related_name='items')
+    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+    sentido  = models.CharField(max_length=1, choices=SENTIDO)
+    cantidad = models.DecimalField(max_digits=9, decimal_places=2)  # > 0
+    detalle  = models.CharField(max_length=200, blank=True, null=True)
+
+    def clean(self):
+        if self.cantidad is None or self.cantidad <= 0:
+            raise ValidationError("La cantidad debe ser mayor a 0.")
+
+    @property
+    def cantidad_entrada_salida(self):
+        # Entrada = +cantidad ; Salida = -cantidad
+        sign = Decimal('1') if self.sentido == 'E' else Decimal('-1')
+        return (self.cantidad * sign).quantize(Decimal('0.01'))
+
+
+
+
 class MovimientoStock(models.Model):
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
 	deposito = models.ForeignKey(Deposito, on_delete=models.CASCADE, blank=True, null=True)
@@ -285,11 +353,11 @@ class MovimientoStock(models.Model):
 	venta_producto = models.ForeignKey(Venta_Producto, on_delete=models.SET_NULL, null=True, blank=True)
 	compra_producto = models.ForeignKey(Compra_Producto, on_delete=models.SET_NULL, null=True, blank=True)
 	remito_item = models.ForeignKey(RemitoItem, on_delete=models.SET_NULL, null=True, blank=True)
+	ajuste_item = models.ForeignKey(AjusteStockItem, on_delete=models.SET_NULL, null=True, blank=True)
 
 	def __str__(self):
 		return f"{self.fecha} - {self.producto.nombre} -  {self.cantidad}"
 
-# inventario/models.py (o donde tengas Producto/MovimientoStock)
 
 
 

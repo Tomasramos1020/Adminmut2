@@ -422,6 +422,23 @@ class CrearCompraView(View):
 
 		return render(request, self.template_name, {'form': form, 'formset': formset})
 
+@group_required('administrativo', 'contable')
+def obtener_precio_producto_remito(request):
+    pid = request.GET.get('producto_id')
+    precio = None
+    if pid:
+        try:
+            prod = Producto.objects.get(id=pid)
+            # Elegí la fuente del precio:
+            # primero intento precio_venta, si no, precio, si no, costo
+            for attr in ('precio_venta', 'precio', 'costo'):
+                if hasattr(prod, attr) and getattr(prod, attr) is not None:
+                    precio = Decimal(getattr(prod, attr))
+                    break
+        except Producto.DoesNotExist:
+            pass
+    return JsonResponse({'precio': f"{precio:.2f}" if precio is not None else ""})
+
 
 class CrearRemitoView(View):
 	template_name = 'crear_remito.html'
@@ -524,13 +541,49 @@ def remito_pdf(request, pk):
         ).prefetch_related('items__producto'),
         pk=pk
     )
-    html = render_to_string('remito.html', {'remito': remito})
+
+    # Armar datos con precio_1 y subtotal calculados al vuelo (sin tocar DB)
+    items_data = []
+    total_general = Decimal('0.00')
+    for it in remito.items.all():
+        # Fuente de precio informativo
+        precio = getattr(it.producto, 'precio_1', None) or Decimal('0.00')
+        # Asegurar Decimal
+        if not isinstance(precio, Decimal):
+            try:
+                precio = Decimal(str(precio))
+            except Exception:
+                precio = Decimal('0.00')
+
+        cantidad = it.cantidad or Decimal('0.00')
+        if not isinstance(cantidad, Decimal):
+            try:
+                cantidad = Decimal(str(cantidad))
+            except Exception:
+                cantidad = Decimal('0.00')
+
+        subtotal = (precio * cantidad).quantize(Decimal('0.01'))
+        total_general += subtotal
+
+        items_data.append({
+            'it': it,
+            'precio': precio.quantize(Decimal('0.01')),
+            'subtotal': subtotal,
+        })
+
+    context = {
+        'remito': remito,
+        'items_data': items_data,
+        'total_general': total_general.quantize(Decimal('0.01')),
+    }
+
+    html = render_to_string('remito.html', context)
     pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
 
     resp = HttpResponse(pdf_bytes, content_type='application/pdf')
-    # inline = abrir en el visor del navegador (muestra los botones)
     resp['Content-Disposition'] = f'inline; filename="remito_{remito.numero or remito.pk}.pdf"'
     return resp
+
 
 # views.py
 
@@ -546,3 +599,125 @@ def remito_anular(request, pk):
         messages.error(request, f"Error al anular: {e}")
 
     return redirect('remitos-registro')
+
+class CrearAjusteView(View):
+    template_name = 'ajustes/crear_ajuste.html'
+
+    def get_form_kwargs(self):
+        return {'request': self.request, **self.request.POST.dict()}
+
+    def get(self, request):
+        form = AjusteForm(request=self.request)
+        formset = AjusteItemFormSet(queryset=AjusteStockItem.objects.none())
+        # limitar productos por consorcio
+        cons = consorcio(request)
+        formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
+        return render(request, self.template_name, {'form': form, 'formset': formset})
+
+    @transaction.atomic
+    def post(self, request):
+        form    = AjusteForm(request.POST, request=request)
+        formset = AjusteItemFormSet(request.POST, queryset=AjusteStockItem.objects.none())
+
+        cons = consorcio(request)
+        formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
+
+        if form.is_valid() and formset.is_valid():
+            fecha    = form.cleaned_data['fecha']
+            deposito = form.cleaned_data['deposito']
+            motivo   = form.cleaned_data.get('motivo')
+
+            ajuste = AjusteStock(
+                consorcio=cons,
+                deposito=deposito,
+                fecha=fecha,
+                motivo=motivo
+            )
+            ajuste.asignar_numero_si_falta()
+            ajuste.save()
+
+            lineas_cargadas = 0
+            for linea in formset:
+                if not linea.cleaned_data or linea.cleaned_data.get('DELETE', False):
+                    continue
+
+                item = linea.save(commit=False)
+                item.ajuste = ajuste
+                item.full_clean()
+                item.save()
+                lineas_cargadas += 1
+
+                # Movimiento de stock (E=+ ; S=-)
+                MovimientoStock.objects.create(
+                    producto=item.producto,
+                    deposito=deposito,
+                    fecha=fecha,
+                    cantidad=item.cantidad_entrada_salida,
+                    ajuste_item=item
+                )
+
+            if lineas_cargadas == 0:
+                raise ValidationError("Cargá al menos un producto con cantidad.")
+
+            return redirect('registro-ajustes')  # definí esta url
+        return render(request, self.template_name, {'form': form, 'formset': formset})
+
+
+# proveeduria/views.py
+from .filters import AjusteFilter
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class RegistroAjustes(OrderQS):
+    model = AjusteStock
+    filterset_class = AjusteFilter              # <— clave
+    template_name = 'ajustes/ajustes.html'
+    paginate_by = 50
+
+    def get_queryset(self, **kwargs):
+        qs = super().get_queryset(**kwargs).select_related('consorcio','deposito')
+        try:
+            from admincu.funciones import consorcio
+            c = consorcio(self.request)
+            qs = qs.filter(consorcio=c)
+        except Exception:
+            pass
+        return qs
+
+    # si tu OrderQS NO pasa request al FilterSet, podés sobreescribir así:
+    def get(self, request, *args, **kwargs):
+        # esto fuerza que el FilterSet reciba request
+        datos = self.model.objects.all()
+        try:
+            from admincu.funciones import consorcio
+            c = consorcio(request)
+            datos = datos.filter(consorcio=c)
+        except Exception:
+            pass
+        self.filter = self.filterset_class(request.GET or None, queryset=datos, request=request)
+        self.object_list = self.order_queryset(self.filter.qs) if hasattr(self, 'order_queryset') else self.filter.qs
+        context = self.get_context_data(object_list=self.object_list)
+        return self.render_to_response(context)
+
+
+
+def ajuste_pdf(request, pk):
+    ajuste = get_object_or_404(
+        AjusteStock.objects.select_related(
+            'consorcio','deposito','consorcio__contribuyente','consorcio__contribuyente__extras'
+        ).prefetch_related('items__producto'),
+        pk=pk
+    )
+    html = render_to_string('ajustes/ajuste_pdf.html', {'ajuste': ajuste})
+    pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+
+    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+    resp['Content-Disposition'] = f'inline; filename="ajuste_{ajuste.numero or ajuste.pk}.pdf"'
+    return resp
+
+
+@group_required('administrativo', 'contable')
+def ajuste_anular(request, pk):
+    ajuste = get_object_or_404(AjusteStock, pk=pk)
+    ajuste.anular(usuario=request.user)
+    messages.success(request, "Ajuste anulado y stock revertido.")
+    return redirect('registro-ajustes')
