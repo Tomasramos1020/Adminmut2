@@ -1,0 +1,178 @@
+{% extends 'raiz.html' %}
+{% load static %}
+
+{% block titulo %}Nueva Factura en USD{% endblock %}
+{% block header %}Nueva Factura en USD{% endblock %}
+
+{% block contenido %}
+<style>
+    .contenido-interno {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 1200px;
+        margin: auto;
+    }
+    .form-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    .form-row .form-group { flex: 1; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; font-weight: bold; margin-bottom: 5px; }
+    select, input[type="text"], input[type="date"], input[type="number"] {
+        width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;
+    }
+    .formset-linea {
+        display: flex; gap: 6px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .formset-linea > * { flex: 1; }
+    .eliminar {
+        background: #e74c3c; color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; flex: none;
+    }
+    .botones { margin-top: 20px; display: flex; justify-content: space-between; }
+    .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-guardar { background-color: #3498db; color: white; }
+    .btn-agregar { background-color: #2ecc71; color: white; margin-bottom: 10px; }
+    .btn-cancelar { background-color: #95a5a6; color: white; }
+    .totales-box { text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px; }
+    .totales-box input { background: #eee; font-size: 18px; width: 220px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; text-align: right; }
+</style>
+
+<div class="contenido-interno">
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-row">
+            <div class="form-group col-3">
+                {{ form.punto.label_tag }}
+                {{ form.punto }}
+            </div>
+            <div class="form-group col-3">
+                {{ form.fecha.label_tag }}
+                {{ form.fecha }}
+            </div>
+            <div class="form-group col-3">
+                {{ form.socio.label_tag }}
+                {{ form.socio }}
+            </div>
+            <div class="form-group col-3">
+                {{ form.cotizacion.label_tag }}
+                {{ form.cotizacion }}
+                <small class="text-muted">ARS por USD (histórica)</small>
+            </div>
+        </div>
+
+        <hr>
+        <h3>Créditos en USD</h3>
+        <div id="formset">
+            {{ formset.management_form }}
+            {% for f in formset %}
+                <div class="formset-linea">
+                    {{ f.ingreso.label_tag }} {{ f.ingreso }}
+                    {{ f.periodo.label_tag }} {{ f.periodo }}
+                    {{ f.capital_usd.label_tag }} {{ f.capital_usd }}
+                    {{ f.detalle.label_tag }} {{ f.detalle }}
+                    {% if formset.can_delete %}{{ f.DELETE }} <button type="button" class="eliminar">Eliminar</button>{% endif %}
+                </div>
+                {% if f.non_field_errors %}
+                    <div class="alert alert-danger">{{ f.non_field_errors }}</div>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div id="formset-empty" style="display:none;">
+            <div class="formset-linea">
+                {{ formset.empty_form.ingreso.label_tag }} {{ formset.empty_form.ingreso }}
+                {{ formset.empty_form.periodo.label_tag }} {{ formset.empty_form.periodo }}
+                {{ formset.empty_form.capital_usd.label_tag }} {{ formset.empty_form.capital_usd }}
+                {{ formset.empty_form.detalle.label_tag }} {{ formset.empty_form.detalle }}
+                {% if formset.can_delete %}{{ formset.empty_form.DELETE }} <button type="button" class="eliminar">Eliminar</button>{% endif %}
+            </div>
+        </div>
+
+        <button type="button" id="agregar-linea" class="btn btn-agregar">Agregar línea</button>
+
+        <div class="totales-box">
+            <label for="total-final-usd">Total Final (USD):</label>
+            <input type="number" id="total-final-usd" readonly />
+        </div>
+
+        <div class="botones">
+            <a href="{% url 'registro-de-facturas' %}" class="btn btn-cancelar">Cancelar</a>
+            <button type="submit" class="btn btn-guardar">Guardar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+(function(){
+
+    function calcularTotalFinal() {
+        let total = 0;
+        // suma capital_usd de todas las líneas
+        $('#formset .formset-linea').each(function(){
+            const v = parseFloat($(this).find('input[name$="-capital_usd"]').val());
+            if (!isNaN(v)) total += v;
+        });
+        $('#total-final-usd').val(total.toFixed(2));
+    }
+
+    function bindEventosLinea($linea){
+        $linea.find('input[name$="-capital_usd"]').on('input', calcularTotalFinal);
+        $linea.find('.eliminar').on('click', function(){
+            // Si hay checkbox DELETE, marcarlo y ocultar; si no, remover
+            const $chkDel = $linea.find('input[type="checkbox"][name$="-DELETE"]');
+            if ($chkDel.length){
+                $chkDel.prop('checked', true);
+                $linea.hide();
+            } else {
+                $linea.remove();
+                const totalForms = parseInt($('#id_' + formPrefix + '-TOTAL_FORMS').val(), 10) - 1;
+                $('#id_' + formPrefix + '-TOTAL_FORMS').val(totalForms);
+            }
+            calcularTotalFinal();
+        });
+    }
+
+    const formPrefix = "{{ formset.prefix|default:'form' }}";
+
+    $(document).ready(function(){
+        // bind inicial
+        $("#formset .formset-linea").each(function(){ bindEventosLinea($(this)); });
+        calcularTotalFinal();
+
+        // Agregar línea
+        $("#agregar-linea").on('click', function(){
+            let totalForms = parseInt($('#id_' + formPrefix + '-TOTAL_FORMS').val(), 10);
+            const html = $("#formset-empty").html().replace(/__prefix__/g, totalForms);
+            $("#formset").append(html);
+            bindEventosLinea($("#formset .formset-linea").last());
+            $('#id_' + formPrefix + '-TOTAL_FORMS').val(totalForms + 1);
+        });
+
+        // Validación mínima antes de enviar (al menos una línea con capital > 0)
+        $('form').on('submit', function(e){
+            let hayLinea = false;
+            $('#formset .formset-linea').each(function(){
+                const v = parseFloat($(this).find('input[name$="-capital_usd"]').val());
+                const del = $(this).find('input[type="checkbox"][name$="-DELETE"]').prop('checked');
+                if (!del && !isNaN(v) && v > 0) {
+                    hayLinea = true;
+                }
+            });
+            if (!hayLinea) {
+                e.preventDefault();
+                alert("Cargá al menos un crédito con capital USD > 0.");
+            }
+        });
+
+    });
+})();
+</script>
+{% endblock %}

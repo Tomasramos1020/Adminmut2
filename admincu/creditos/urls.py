@@ -45,5 +45,8 @@ urlpatterns = [
 
 	path('Proveeduria/', IndexProveeduria.as_view(), name='facturacion-proveeduria'),
 
+	path('nuevo/factura_usd/', FacturaUSDCreateView.as_view(), name='nuevo-factura-usd'),
+	path('registro/facturas_usd/', RegistroFacturasUSD.as_view(), name='registro-facturas-usd'),
+	path('factura_usd/pdf/<int:pk>/', PDFFacturaUSD.as_view(), name='pdf-factura-usd'),
 
 ]

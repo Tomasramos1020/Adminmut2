@@ -305,3 +305,61 @@ class CuotaConvenioForm(FormControl, forms.Form):
 	def __init__(self, consorcio, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.fields['convenios'].queryset = Convenio.objects.filter(consorcio=consorcio)
+
+
+
+from django.forms import inlineformset_factory
+
+
+class FacturaUSDForm(forms.ModelForm):
+    class Meta:
+        model = FacturaUSD
+        # ¡SACAMOS consorcio del form!
+        fields = ['fecha', 'socio', 'cotizacion', 'punto']
+        widgets = {
+            'fecha': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        # el consorcio viene desde la view
+        self.consorcio = kwargs.pop('consorcio')
+        super().__init__(*args, **kwargs)
+
+        # filtrar punto y socio por consorcio
+        self.fields['punto'].queryset = PuntoUSD.objects.filter(consorcio=self.consorcio)
+        self.fields['socio'].queryset = Socio.objects.filter(
+            consorcio=self.consorcio,
+            baja__isnull=True
+        )
+
+    def clean_socio(self):
+        socio = self.cleaned_data.get('socio')
+        if socio and socio.consorcio_id != self.consorcio.id:
+            raise forms.ValidationError("El socio no pertenece al consorcio activo.")
+        return socio
+
+
+class CreditoUSDForm(forms.ModelForm):
+    class Meta:
+        model = CreditoUSD
+        # el consorcio y cotización se setean desde la view/factura
+        fields = ['ingreso', 'periodo', 'capital_usd', 'detalle']
+        widgets = {
+            'periodo': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.consorcio = kwargs.pop('consorcio')
+        super().__init__(*args, **kwargs)
+        # filtrar ingresos por consorcio
+        self.fields['ingreso'].queryset = Ingreso.objects.filter(consorcio=self.consorcio)
+
+
+CreditoUSDFormSet = inlineformset_factory(
+    parent_model=FacturaUSD,
+    model=CreditoUSD,
+    form=CreditoUSDForm,
+    fields=['ingreso', 'periodo', 'capital_usd', 'detalle'],
+    extra=1,
+    can_delete=True,
+)

@@ -1,0 +1,137 @@
+{% load staticfiles %}
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ factura.receipt.receipt_type }} {{ factura.formatoAfip }}</title>
+    <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <div class="receipt">
+
+      <header>
+        <div class="taxpayer-details group">
+          <address>
+            <img src="{{ factura.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+            <h3>{{ factura.consorcio.nombre_completo }}</h3>
+            {{ factura.consorcio.domicilio }} - {{ factura.consorcio.provincia }}<br>
+            Matrícula INAES: {{ factura.consorcio.matricula }}
+          </address>
+
+          <div class="receipt-details">
+            <div class="receipt-type-description">COMPROBANTE</div>
+            <strong>
+              Res. Gral. Nº1415 AFIP-ANEXO I<br>
+              Apartado A-Inciso K
+            </strong><br>
+            <strong>Nº</strong> {{ factura.formatoAfip }}<br>
+            Fecha: {{ factura.receipt.issued_date|date:"d/m/Y" }}<br>
+            <small>
+              C.U.I.T.: {{ factura.consorcio.cuit }}<br>
+              IVA: Exento<br>
+              Inicio de actividad: {{ factura.consorcio.contribuyente.active_since|date:"d/m/Y" }}
+            </small>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="client">
+          <div class="client-data">
+            <strong>{% if factura.consorcio.id == 10 %}CLIENTE:{% else %}ASOCIADO:{% endif %}</strong>
+            {{ factura.socio }} <br>
+            <strong>CUIT:</strong> {{ factura.socio.cuit }} <br>
+            <strong>N° DE ASOCIADO:</strong> {{ factura.socio.numero_asociado }} <br>
+          </div>
+        </div>
+
+        <hr>
+      </header>
+
+      <p><strong>Detalle de creditos:</strong></p>
+      <table>
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th>Periodo</th>
+            <th>Subtotal</th>
+            <th>Bonificacion</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for credito in factura.creditos_usd.all %}
+            <tr>
+              <td>{{ credito.ingreso }}{% if credito.detalle_limpio_usd %}*{% endif %}</td>
+              <td>
+                {% if credito.periodo %}
+                  {{ credito.periodo|date:"Y-m" }}
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                {% if credito.capital_usd %}
+                  U$D {{ credito.capital_usd|floatformat:2|intcomma }}
+                {% else %}
+                U$D 0.00
+                {% endif %}
+              </td>
+              <td>U$D 0</td>
+              <td>
+                {% if credito.capital_usd %}
+                U$D {{ credito.capital_usd|floatformat:2|intcomma }}
+                {% else %}
+                U$D 0.00
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+{% for credito in factura.creditos_usd.all %}
+      {% if credito.detalle %}
+          <ul>
+            
+              <li>{{ credito.detalle }}</li>
+            
+          </ul>
+          {% endif %}
+          {% endfor %}
+        </p>
+
+
+      {% if factura.descuentos %}
+        <p><strong>** Descuentos:</strong></p>
+        <p>
+          <ul>
+            {% for descuento in factura.descuentos %}
+              <li>{{ descuento }}</li>
+            {% endfor %}
+          </ul>
+        </p>
+      {% endif %}
+
+      <div class="taxpayer-details group">
+        <div class="receipt-details">
+          <table>
+            <tr>
+              <th>Subtotal Comprobante:</th>
+              <th>U$D {{ factura.total_usd|floatformat:2|intcomma }}</th>
+            </tr>
+            <tr>
+              <th>Bonificaciones:</th>
+              <th>U$D 0</th>
+            </tr>
+            <tr>
+              <th>Total del Comprobante:</th>
+              <th>U$D {{ factura.total_usd|floatformat:2|intcomma }}</th>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </body>
+</html>

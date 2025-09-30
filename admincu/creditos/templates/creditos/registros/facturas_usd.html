@@ -1,0 +1,38 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+
+{% block titulo %}
+  Registro de facturas en USD
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="Recursos" bhijo1="registro de facturas en USD" %}
+{% endblock %}
+
+{% block header %}
+  Registro de facturas en USD
+{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-md-3">
+    {# usa el mismo filtro genérico que ya tenés #}
+    {% include 'comunes/filtro.html' %}
+  </div>
+  <div class="col-md-9">
+    <div class="card-box">
+      {% include 'comunes/paginador.html' %}
+      <div class="table-responsive">
+        {# 'lista' viene del OrderQS como en liquidaciones #}
+        {% include 'creditos/registros/tabla-facturas-usd.html' with facturas=lista %}
+      </div>
+      {% include 'comunes/paginador.html' %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+  {# mismo pack de botones imprimir/excel si lo querés igual #}
+  {% include 'comunes/js_datatable_print_excel.html' %}
+{% endblock %}

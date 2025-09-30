@@ -1,0 +1,52 @@
+{% load staticfiles %}
+{% load humanize %}
+
+<table class="anopa table display nowrap" style="width:100%">
+  <thead>
+    <tr>
+      <th>Número</th>
+      <th>Fecha</th>
+      <th>Socio</th>
+      <th>Punto</th>
+      <th class="text-right">Cotización</th>
+      <th class="text-right">Total USD</th>
+      <th>Observación</th>
+      <th class="text-right">Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for f in facturas %}
+      <tr>
+        {# Número: usa receipt.numero si existe, si no el ID #}
+            <td>{{ f.formatoAfip|default:"—" }}</td>
+
+        <td>{{ f.fecha|date:"d/m/Y" }}</td>
+        <td>{{ f.socio|default:"—" }}</td>
+        <td>{{ f.puntof|default:"—" }}</td>
+
+        <td class="text-right">{{ f.cotizacion|floatformat:4 }}</td>
+        <td class="text-right">{{ f.total_usd|floatformat:2 }}</td>
+
+        <td>
+          {% if f.observacion %}
+            {{ f.observacion|truncatechars:90 }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+
+        <td class="text-right">
+            <a href="{% url 'pdf-factura-usd' pk=f.pk %}" target="_blank"
+               class="btn btn-icon btn-xs btn-purple btn-bordered waves-efect waves-light" title="PDF">
+              <i class="fa fa-print"></i>
+            </a>
+          </td>
+          
+      </tr>
+    {% empty %}
+      <tr>
+        <td colspan="9" class="text-center text-muted">No hay facturas en USD para los filtros aplicados.</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

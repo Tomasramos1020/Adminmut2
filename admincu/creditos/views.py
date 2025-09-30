@@ -1733,3 +1733,118 @@ class IndexProveeduria(OrderQS):
 		ultima_liquidacion = ""
 		context.update(locals())
 		return context
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class FacturaUSDCreateView(View):
+    template_name = 'creditos/usd/nueva_factura_usd.html'
+
+    def get(self, request, *args, **kwargs):
+        c = consorcio(self.request)
+        factura = FacturaUSD(consorcio=c, fecha=date.today())
+        form = FacturaUSDForm(instance=factura, consorcio=c)
+        formset = CreditoUSDFormSet(instance=factura, form_kwargs={'consorcio': c})
+        return render(request, self.template_name, {'form': form, 'formset': formset})
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        c = consorcio(self.request)
+        factura = FacturaUSD(consorcio=c)
+        form = FacturaUSDForm(request.POST, instance=factura, consorcio=c)
+        formset = CreditoUSDFormSet(request.POST, instance=factura, form_kwargs={'consorcio': c})
+
+        if not (form.is_valid() and formset.is_valid()):
+            return render(request, self.template_name, {'form': form, 'formset': formset})
+
+        # 1) guardar primero la factura
+        factura = form.save(commit=False)
+        factura.consorcio = c
+        factura.total_usd = Decimal('0.00')
+        # (opcional) exigir fecha
+        if not factura.fecha:
+            messages.error(request, "Indicá la fecha de la factura.")
+            return render(request, self.template_name, {'form': form, 'formset': formset})
+        factura.save()
+
+        # 2) hijos
+        total = Decimal('0')
+        creditos = formset.save(commit=False)
+
+        for obj in formset.deleted_objects:
+            obj.delete()
+
+        for cr in creditos:
+            cr.consorcio = c
+            cr.factura_usd = factura
+            cr.fecha = factura.fecha            # 👈 copiar fecha de la factura a cada crédito
+            if not getattr(cr, 'socio_id', None):
+                cr.socio = factura.socio
+            if factura.cotizacion and not getattr(cr, 'cotizacion', None):
+                cr.cotizacion = factura.cotizacion
+            cr.save()
+            if cr.capital_usd:
+                total += cr.capital_usd
+
+        factura.total_usd = total
+        factura.save()
+
+        messages.success(request, "Factura en USD creada correctamente.")
+        return redirect('registro-facturas-usd')
+
+
+class FacturaUSDFilter(django_filters.FilterSet):
+    # Rango de fechas
+    fecha = django_filters.DateFromToRangeFilter(
+        label="Fecha (desde / hasta)",
+        field_name="fecha"
+    )
+    # Filtros por consorcio y socio
+
+    class Meta:
+        model = FacturaUSD
+        fields = [  'fecha']
+
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class RegistroFacturasUSD(OrderQS):
+    """
+    Registro de facturas en USD
+    """
+    model = FacturaUSD
+    template_name = "creditos/registros/facturas_usd.html"
+    filterset_class = FacturaUSDFilter
+    paginate_by = 50
+
+    # opcional: optimizar consultas
+    def get_queryset(self):
+        qs = super().get_queryset()
+        return qs.select_related('consorcio', 'socio', 'punto', 'receipt').order_by('-fecha', '-id')
+
+
+@method_decorator(group_required('administrativo', 'contable', 'socio'), name='dispatch')
+class PDFFacturaUSD(HeaderExeptMixin, generic.DetailView):
+    """Ver PDF de una Factura en USD"""
+    model = FacturaUSD
+    template_name = 'creditos/ver/liquidacion.html'  # dummy, para que no rompa DetailView
+
+    def get(self, request, *args, **kwargs):
+        factura = self.get_object()
+        pdf_bytes = factura.hacer_pdf_inst()
+
+        # Nombre del archivo: intenta usar el formateo AFIP; si no, usa el PK.
+        nombre = "USD_{}.pdf".format(
+            factura.formatoAfip() if hasattr(factura, "formatoAfip") and callable(factura.formatoAfip) else f"FacturaUSD_{factura.pk}"
+        )
+
+        resp = HttpResponse(pdf_bytes, content_type="application/pdf")
+        resp["Content-Disposition"] = f"inline; filename={nombre}"
+        return resp
+
+    def dispatch(self, request, *args, **kwargs):
+        disp = super().dispatch(request, *args, **kwargs)
+        if disp.status_code == 200:
+            # Mismo criterio de seguridad que usás para PDFFactura:
+            if request.user.groups.first().name == "socio":
+                if self.get_object().socio != request.user.socio_set.first():
+                    messages.error(request, 'No se pudo encontrar.')
+                    return redirect('home')
+        return disp

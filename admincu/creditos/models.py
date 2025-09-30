@@ -800,3 +800,171 @@ class PdfSocio(models.Model):
 	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.CASCADE)
 	liquidacion = models.ForeignKey(Liquidacion, on_delete=models.CASCADE)
 	pdf = models.FileField(upload_to="liquidaciones/pdf/")
+
+
+class PuntoUSD(models.Model):
+	numero = models.IntegerField(blank=True, null=True)
+	consorcio   = models.ForeignKey(Consorcio, blank=True, null=True, on_delete=models.CASCADE)	
+
+	def __str__(self):
+		return str(self.numero)
+
+
+# ---- NUEVOS MODELOS EN USD ----
+
+class FacturaUSD(models.Model):
+	punto       = models.ForeignKey(PuntoUSD, blank=True, null=True,on_delete=models.CASCADE)
+	fecha       = models.DateField(blank=True, null=True)
+	consorcio   = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	receipt     = models.ForeignKey(Receipt, blank=True, null=True, on_delete=models.CASCADE)
+	socio       = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.PROTECT)
+	observacion = models.TextField(blank=True, null=True)  # Observación devuelta por AFIP o validación
+
+	# Cotización aplicada a esta factura (histórica/inmutable una vez emitida)
+	cotizacion  = models.DecimalField(max_digits=12, decimal_places=4, help_text="Tipo de cambio aplicado (ARS/USD)")
+
+	# Totales en USD 
+	total_usd   = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal('0.00'))
+
+	class Meta:
+		verbose_name = "Factura en USD"
+		verbose_name_plural = "Facturas en USD"
+
+	def __str__(self):
+		nombre = f"Socio: {self.socio}. "
+		if self.receipt and self.receipt.receipt_number:
+			nombre += self.formatoAfip()
+		else:
+			nombre += "No validada"
+		return nombre
+
+	# ---- Formateo AFIP (reutiliza Receipt) ----
+	def puntof(self):
+		return str(self.receipt.point_of_sales).zfill(4) if self.receipt else "0000"
+
+	def numerof(self):
+		return str(self.receipt.receipt_number).zfill(8) if self.receipt else "00000000"
+
+	def formatoAfip(self):
+		return f"{self.puntof()}-{self.numerof()}"
+
+	# ---- Totales en ARS (derivados de USD * cotización) ----
+	@property
+	def total_ars(self):
+		if self.total_usd is None or self.cotizacion is None:
+			return None
+		return (self.total_usd * self.cotizacion).quantize(Decimal("0.01"))
+
+	def validar_factura(self):
+		"""
+		Igual que tu lógica: si es X (101/104) autoincrementa; si es C (11) valida con AFIP.
+		No generamos PDF acá para mantener la simetría con tu código original.
+		"""
+		if not self.receipt or not self.receipt.receipt_type:
+			self.observacion = "Receipt no configurado."
+			self.save()
+			return
+
+		code = self.receipt.receipt_type.code
+		if code in ["101", "104"]:
+			if not self.receipt.receipt_number:
+				last = Receipt.objects.filter(
+					receipt_type=self.receipt.receipt_type,
+					point_of_sales=self.receipt.point_of_sales,
+				).aggregate(Max('receipt_number'))['receipt_number__max'] or 0
+				self.receipt.receipt_number = last + 1
+				self.receipt.save()
+		else:
+			error = self.receipt.validate()
+			if error:
+				self.observacion = error
+				self.save()
+
+	# Si más adelante querés PDF específico para USD, podés clonar tu método y apuntar a otra template:
+	# def hacer_pdf_inst(self): ...
+	def hacer_pdf_inst(self):
+		"""Genera PDF de la factura USD y lo devuelve en memoria (bytes)."""
+		factura = self
+		html_string_pdf = render_to_string('creditos/usd/pdf_factura_usd.html', locals())
+		html = HTML(string=html_string_pdf, base_url='https://www.admincu.com/liquidaciones/')
+		pdf_bytes = html.write_pdf()
+		return pdf_bytes
+
+	def puntof(self):
+		agregado = "0"
+		numero = str(self.punto.numero)
+		largo = len(numero)
+		ceros = 4 - largo
+		ceros = agregado * ceros
+		numero = ceros + numero
+		return numero
+
+	def numerof(self):
+		agregado = "0"
+		numero = str(self.id)
+		largo = len(numero)
+		ceros = 8 - largo
+		ceros = agregado * ceros
+		numero = ceros + numero
+		return numero
+
+	def formatoAfip(self):
+		data = "%s-%s" % (self.puntof(), self.numerof())
+		return data
+
+class CreditoUSD(models.Model):
+	"""
+	Crédito expresado en USD. Guarda su propia cotización “vigente” (histórica),
+	para preservar el cálculo incluso si la factura aún no existe.
+	Si el crédito está vinculado a una FacturaUSD, por defecto usa la cotización de la factura.
+	"""
+	consorcio   = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	factura_usd = models.ForeignKey(FacturaUSD, blank=True, null=True, on_delete=models.CASCADE, related_name="creditos_usd")
+
+	fecha       = models.DateField(blank=True, null=True)
+	periodo     = models.DateField(blank=True, null=True)
+
+	ingreso     = models.ForeignKey(Ingreso, blank=True, null=True, on_delete=models.CASCADE)
+	socio       = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.CASCADE)
+
+	# Monto base del crédito en USD
+	capital_usd = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
+
+	detalle     = models.CharField(max_length=100, blank=True, null=True)
+	fin         = models.DateField(blank=True, null=True)
+
+	# Cotización propia (si no hay factura todavía / o si necesitás cerrarlo antes)
+	cotizacion  = models.DecimalField(max_digits=12, decimal_places=4, blank=True, null=True, help_text="Tipo de cambio (ARS/USD) vigente para este crédito")
+
+	class Meta:
+		verbose_name = "Crédito en USD"
+		verbose_name_plural = "Créditos en USD"
+
+	def __str__(self):
+		sujeto = self.socio
+		yy = self.periodo.year if self.periodo else "----"
+		mm = self.periodo.month if self.periodo else "--"
+		return f"{sujeto} {self.ingreso} {yy}-{mm} (USD)"
+
+	# ---- Utilidades de cotización ----
+	def cotizacion_vigente(self):
+		"""
+		Orden de precedencia:
+		1) Cotización de la factura_usd (si existe)
+		2) Cotización propia del crédito (si existe)
+		"""
+		if self.factura_usd and self.factura_usd.cotizacion:
+			return self.factura_usd.cotizacion
+		return self.cotizacion
+
+	# Mismo concepto que detalle_limpio, agregando (USD)
+	@property
+	def detalle_limpio_usd(self):
+		if self.detalle in ['cat', 'soc', 'gru'] or not self.detalle:
+			return
+		sujeto = self.socio
+		yy = self.periodo.year if self.periodo else "----"
+		mm = self.periodo.month if self.periodo else "--"
+		return f"{sujeto} {self.ingreso}. {yy}-{mm}: {self.detalle} (USD)"
+
+
