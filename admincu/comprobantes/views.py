@@ -41,6 +41,7 @@ from tablib import Dataset
 
 from admincu.funciones import consorcio
 from contabilidad.models import Cuenta
+from django.core.paginator import Paginator
 
 mensaje_success = "Comprobante generado con exito."
 
@@ -103,13 +104,72 @@ class IndexSocio(OrderQS):
 
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')
 class Registro(OrderQS):
+    """Registro de comprobantes"""
+    model = Comprobante
+    filterset_class = ComprobanteFilter
+    template_name = 'comprobantes/registros/comprobantes.html'
+    paginate_by = 50
 
-	""" Registro de comprobantes """
+    def get_queryset(self, **kwargs):
+        qs = super().get_queryset(**kwargs)
+        return (
+            qs.filter(consorcio=consorcio(self.request))
+              .select_related(
+                  'socio',
+                  'receipt', 'receipt__point_of_sales',
+                  'nota_credito', 'nota_credito__point_of_sales',
+                  'nota_credito_anulado', 'nota_credito_anulado__point_of_sales'
+              )
+              .order_by('-fecha', '-pk')
+        )
 
-	model = Comprobante
-	filterset_class = ComprobanteFilter
-	template_name = 'comprobantes/registros/comprobantes.html'
-	paginate_by = 50
+    # === Detecta si hay filtros "reales" activos (ignora rangos vacíos) ===
+    def _has_active_filters(self, filterset):
+        form = getattr(filterset, 'form', None)
+        if not form or not form.is_valid():
+            return False
+
+        cd = form.cleaned_data or {}
+        for val in cd.values():
+            if val in (None, "", [], (), {}):
+                continue
+            # Rango (DateFromToRange/Range): solo cuenta si tiene start o stop
+            if hasattr(val, 'start') or hasattr(val, 'stop'):
+                if getattr(val, 'start', None) or getattr(val, 'stop', None):
+                    return True
+                continue
+            # Cualquier otro valor no vacío activa filtros
+            return True
+        return False
+
+    # === GET con filtro + (no) paginación según filtros activos ===
+    def get(self, request, *args, **kwargs):
+        base_qs = self.get_queryset()
+        # Si tu FilterSet acepta request=..., podés pasarlo; si no, dejalo así:
+        self.filterset = self.filterset_class(request.GET or None, queryset=base_qs)
+        qs = self.filterset.qs
+
+        filtros_activos = self._has_active_filters(self.filterset)
+
+        if filtros_activos:
+            page = None
+            lista = qs            # iterable simple, sin paginar
+            is_paginated = False
+            paginator = None
+        else:
+            paginator = Paginator(qs, self.paginate_by)
+            page = paginator.get_page(request.GET.get('page'))
+            lista = page          # Page object, tu paginador.html lo maneja
+            is_paginated = page.has_other_pages()
+
+        ctx = {
+            'filter': self.filterset,
+            'lista': lista,
+            'page_obj': page,
+            'is_paginated': is_paginated,
+            'paginator': paginator,
+        }
+        return render(request, self.template_name, ctx)	
 
 
 class WizardComprobanteManager:
