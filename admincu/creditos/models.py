@@ -816,7 +816,6 @@ class FacturaUSD(models.Model):
 	punto       = models.ForeignKey(PuntoUSD, blank=True, null=True,on_delete=models.CASCADE)
 	fecha       = models.DateField(blank=True, null=True)
 	consorcio   = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
-	receipt     = models.ForeignKey(Receipt, blank=True, null=True, on_delete=models.CASCADE)
 	socio       = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.PROTECT)
 	observacion = models.TextField(blank=True, null=True)  # Observación devuelta por AFIP o validación
 
