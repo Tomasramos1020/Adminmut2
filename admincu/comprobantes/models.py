@@ -338,11 +338,11 @@ class Comprobante(models.Model):
 		saldos_utilizados = self.saldos_utilizados.filter(subtotal__lt=0)
 		if saldos_utilizados:
 			suma_saldos_utilizados = sum([-s.subtotal for s in saldos_utilizados])
-			operaciones.append([Cuenta.objects.get(numero=112103), suma_saldos_utilizados])
+			operaciones.append([Cuenta.objects.get(numero=112199), suma_saldos_utilizados])
 		saldos_nuevos = self.saldos.filter(subtotal__gt=0, padre__isnull=True)
 		if saldos_nuevos:
 			suma_saldos_nuevos = sum([s.subtotal for s in saldos_nuevos])
-			operaciones.append([Cuenta.objects.get(numero=112103), -suma_saldos_nuevos])
+			operaciones.append([Cuenta.objects.get(numero=112199), -suma_saldos_nuevos])
 
 		return operaciones
 
