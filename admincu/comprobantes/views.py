@@ -42,6 +42,9 @@ from tablib import Dataset
 from admincu.funciones import consorcio
 from contabilidad.models import Cuenta
 from django.core.paginator import Paginator
+from django.db.models import Sum, Q, Value, DecimalField, ExpressionWrapper
+from django.db.models.functions import Coalesce
+
 
 mensaje_success = "Comprobante generado con exito."
 
@@ -102,6 +105,7 @@ class IndexSocio(OrderQS):
 		)
 
 
+
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')
 class Registro(OrderQS):
     """Registro de comprobantes"""
@@ -112,6 +116,26 @@ class Registro(OrderQS):
 
     def get_queryset(self, **kwargs):
         qs = super().get_queryset(**kwargs)
+
+        # ▶️ Suma de NUEVOS saldos a favor (solo los "raíz": padre is null) – siempre positiva
+        nuevo_saldo_expr = Coalesce(
+            Sum(
+                'saldos__subtotal',
+                filter=Q(saldos__padre__isnull=True, saldos__subtotal__gt=0)
+            ),
+            Value(0, output_field=DecimalField(max_digits=20, decimal_places=2))
+        )
+
+        # ▶️ Suma de SALDOS UTILIZADOS (vienen negativos) → los mostramos como positivo
+        usados_bruto = Coalesce(
+            Sum('saldos_utilizados__subtotal', filter=Q(saldos_utilizados__subtotal__lt=0)),
+            Value(0, output_field=DecimalField(max_digits=20, decimal_places=2))
+        )
+        usados_positivos = ExpressionWrapper(
+            -usados_bruto,
+            output_field=DecimalField(max_digits=20, decimal_places=2)
+        )
+
         return (
             qs.filter(consorcio=consorcio(self.request))
               .select_related(
@@ -119,6 +143,10 @@ class Registro(OrderQS):
                   'receipt', 'receipt__point_of_sales',
                   'nota_credito', 'nota_credito__point_of_sales',
                   'nota_credito_anulado', 'nota_credito_anulado__point_of_sales'
+              )
+              .annotate(
+                  nuevo_saldo_a_favor=nuevo_saldo_expr,
+                  saldos_utilizados_total=usados_positivos,
               )
               .order_by('-fecha', '-pk')
         )
@@ -128,38 +156,32 @@ class Registro(OrderQS):
         form = getattr(filterset, 'form', None)
         if not form or not form.is_valid():
             return False
-
         cd = form.cleaned_data or {}
         for val in cd.values():
             if val in (None, "", [], (), {}):
                 continue
-            # Rango (DateFromToRange/Range): solo cuenta si tiene start o stop
             if hasattr(val, 'start') or hasattr(val, 'stop'):
                 if getattr(val, 'start', None) or getattr(val, 'stop', None):
                     return True
                 continue
-            # Cualquier otro valor no vacío activa filtros
             return True
         return False
 
-    # === GET con filtro + (no) paginación según filtros activos ===
     def get(self, request, *args, **kwargs):
         base_qs = self.get_queryset()
-        # Si tu FilterSet acepta request=..., podés pasarlo; si no, dejalo así:
         self.filterset = self.filterset_class(request.GET or None, queryset=base_qs)
         qs = self.filterset.qs
 
         filtros_activos = self._has_active_filters(self.filterset)
-
         if filtros_activos:
             page = None
-            lista = qs            # iterable simple, sin paginar
+            lista = qs
             is_paginated = False
             paginator = None
         else:
             paginator = Paginator(qs, self.paginate_by)
             page = paginator.get_page(request.GET.get('page'))
-            lista = page          # Page object, tu paginador.html lo maneja
+            lista = page
             is_paginated = page.has_other_pages()
 
         ctx = {
@@ -169,7 +191,8 @@ class Registro(OrderQS):
             'is_paginated': is_paginated,
             'paginator': paginator,
         }
-        return render(request, self.template_name, ctx)	
+        return render(request, self.template_name, ctx)
+	
 
 
 class WizardComprobanteManager:
