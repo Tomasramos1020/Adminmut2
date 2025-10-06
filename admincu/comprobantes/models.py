@@ -12,7 +12,6 @@ from django_afip.pdf import ReceiptBarcodeGenerator
 from django.core.files.uploadedfile import SimpleUploadedFile
 from weasyprint import HTML
 
-from admincu.funciones import armar_link, emisor_mail
 from consorcios.models import *
 from arquitectura.models import *
 from creditos.models import *
@@ -168,8 +167,8 @@ class Comprobante(models.Model):
 			texto_saldo = "Tu saldo total "
 			texto_saldo += "adeudado" if total_adeudado > 0 else "a favor"
 			texto_saldo += " a la fecha {} es de: ${}".format(
-            	fecha_ref.strftime("%d/%m/%Y"), abs(total_adeudado)
-        	)
+				fecha_ref.strftime("%d/%m/%Y"), abs(total_adeudado)
+			)
 		else:
 			texto_saldo = "Estas al día con tus pagos"
 		if not self.receipt:
@@ -184,16 +183,47 @@ class Comprobante(models.Model):
 
 			if self.nota_credito:
 				comprobante = self
-				if not self.nota_credito.receipt_type.code in ["102", "103","105"]:
+
+				# 1) Intento usar las líneas temporales si existen (caso POST inmediato)
+				lineas = getattr(self, "_lineas_nc", None)
+
+				# 2) Si no existen (caso 'Imprimir' desde la lista), las reconstruyo desde DB
+				if not lineas:
+					lineas = []
+					qs = (self.vps_nc
+						.select_related('producto')
+						.all())
+					for vp in qs:
+						precio = Decimal(vp.precio or 0)
+						cant = Decimal(vp.cantidad or 0)
+						lineas.append({
+							'producto': vp.producto.nombre,
+							'cantidad': cant,
+							'precio': precio,
+							'subtotal': (precio * cant),
+							'motivo': getattr(vp, 'motivo_nc', '') or 'Devolución',
+						})
+
+				# Elegir template: si hay renglones → 105_prov.html, si no → 105.html
+				tmpl = 'comprobantes/pdfs/105_ncprov.html' if lineas else \
+					f'comprobantes/pdfs/{self.nota_credito.receipt_type.code}.html'
+
+				# Mantener tu lógica de código de barras (no para 105)
+				if not self.nota_credito.receipt_type.code in ["102", "103", "105"]:
 					generator = ReceiptBarcodeGenerator(self.nota_credito)
 					barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
-					a=1
-				html_string = render_to_string('comprobantes/pdfs/{}.html'.format(self.nota_credito.receipt_type.code), locals())
+
+				html_string = render_to_string(tmpl, {
+					'comprobante': self,
+					'lineas': lineas,
+				})
 				html = HTML(string=html_string, base_url='https://www.admincu.com/comprobantes/')
 				pdfNCC = html.render()
 				enteros.append(pdfNCC)
 				for p in pdfNCC.pages:
 					archivo.append(p)
+
+
 
 			if self.nota_debito:
 				comprobante = self
@@ -258,6 +288,7 @@ class Comprobante(models.Model):
 #		self.save()
 
 	def enviar_mail(self):
+		from admincu.funciones import armar_link, emisor_mail
 		if self.consorcio.mails:
 			socio = self.socio
 			numero = self.nombre()
@@ -559,9 +590,9 @@ class Compensacion(models.Model):
 	fecha = models.DateField(blank=True, null=True)
 	punto = models.ForeignKey(PointOfSales, blank=True, null=True, on_delete=models.CASCADE)
 	numero = models.PositiveIntegerField(blank=True, null=True)
-	comprobante_origen = models.ForeignKey(Comprobante, blank=True, null=True, on_delete=models.CASCADE, related_name='compensacion_comprobante_origen')
-	credito_destino = models.ForeignKey(Credito, blank=True, null=True, on_delete=models.CASCADE)
-	comprobante_destino = models.ForeignKey(Comprobante, blank=True, null=True, on_delete=models.CASCADE, related_name='compensacion_comprobante_destino')
+	comprobante_origen  = models.ForeignKey('comprobantes.Comprobante', blank=True, null=True, on_delete=models.CASCADE, related_name='compensacion_comprobante_origen')
+	credito_destino     = models.ForeignKey('creditos.Credito',    blank=True, null=True, on_delete=models.CASCADE)
+	comprobante_destino = models.ForeignKey('comprobantes.Comprobante', blank=True, null=True, on_delete=models.CASCADE, related_name='compensacion_comprobante_destino')
 	valor = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
 	asiento = models.ForeignKey(Asiento, on_delete=models.SET_NULL, blank=True, null=True)
 	pdf = models.FileField(upload_to="compensacion/pdf/", blank=True, null=True)
@@ -625,7 +656,7 @@ class Cobro(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.SET_NULL)
 	fecha = models.DateField(blank=True, null=True)
-	credito = models.ForeignKey(Credito, blank=True, null=True, on_delete=models.CASCADE)
+	credito = models.ForeignKey('creditos.Credito',    blank=True, null=True, on_delete=models.CASCADE)
 	capital = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True) # Bruto
 	int_desc = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
 	subtotal = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)

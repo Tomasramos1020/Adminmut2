@@ -8,6 +8,8 @@ from django_afip.models import PointOfSales
 from arquitectura.models import Acreedor
 from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from django.forms import ModelForm
+from django.forms import formset_factory
+from creditos.models import Factura
 
 
 class sucursalForm(FormControl, forms.ModelForm):
@@ -495,3 +497,65 @@ AjusteItemFormSet = modelformset_factory(
     extra=1,
     can_delete=True
 )
+
+# forms_proveeduria_nc.py
+
+class NCProveeduriaInicialForm(forms.Form):
+    socio = forms.ModelChoiceField(queryset=Socio.objects.none(), empty_label="-- Seleccionar Socio --")
+    factura = forms.ModelChoiceField(queryset=Factura.objects.none(), empty_label="-- Seleccionar Factura (Proveeduría) --")
+
+    def __init__(self, *args, **kwargs):
+        cons = kwargs.pop('consorcio')
+        super().__init__(*args, **kwargs)
+
+        self.fields['socio'].queryset = Socio.objects.filter(
+            consorcio=cons, nombre_servicio_mutual__isnull=True
+        )
+        self.fields['factura'].queryset = Factura.objects.none()
+
+        # detectar socio seleccionado (POST o initial)
+        socio_id = None
+        if self.data.get('socio'):
+            socio_id = self.data.get('socio')
+        elif self.initial.get('socio'):
+            s = self.initial.get('socio')
+            socio_id = s.id if hasattr(s, 'id') else s
+
+        if socio_id:
+            # ✅ Facturas del socio que tengan al menos un Crédito de Proveeduría
+            qs = (Factura.objects
+                  .filter(
+                      consorcio=cons,
+                      socio_id=socio_id,
+                      credito__ingreso__es_proveeduria=True,   # <- criterio sólido
+                      liquidacion__estado='confirmado',        # opcional: solo confirmadas
+                  )
+                  .select_related('receipt')
+                  .order_by('-id')
+                  .distinct()
+                  )
+            self.fields['factura'].queryset = qs
+
+    def clean(self):
+        cleaned = super().clean()
+        socio = cleaned.get('socio')
+        factura = cleaned.get('factura')
+        if socio and factura:
+            if factura.socio_id != socio.id:
+                raise forms.ValidationError("La factura seleccionada no corresponde al socio elegido.")
+            # doble chequeo de Proveeduría por si alguien fuerza el POST
+            if not factura.credito_set.filter(ingreso__es_proveeduria=True).exists():
+                raise forms.ValidationError("La factura seleccionada no pertenece a Proveeduría.")
+        return cleaned
+
+
+class DevolucionForm(forms.Form):
+    vp_id = forms.IntegerField(widget=forms.HiddenInput())
+    producto = forms.CharField(disabled=True, required=False)
+    precio = forms.DecimalField(disabled=True, required=False, max_digits=9, decimal_places=2)
+    cantidad_original = forms.DecimalField(disabled=True, required=False, max_digits=12, decimal_places=2)
+    ya_devuelto = forms.DecimalField(disabled=True, required=False, max_digits=12, decimal_places=2)
+    devolver = forms.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal('0'))
+    motivo = forms.CharField(required=False, max_length=200)
+
+DevolucionFormSet = formset_factory(DevolucionForm, extra=0)

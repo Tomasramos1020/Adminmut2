@@ -16,7 +16,7 @@ from .forms import *
 from django.http import JsonResponse
 from django.views.generic import View
 from op.models import Deuda, GastoDeuda
-from arquitectura.models import Gasto, Acreedor
+from arquitectura.models import Gasto, Acreedor, Ingreso
 from decimal import Decimal
 # views.py
 from django.views.generic import ListView
@@ -26,6 +26,22 @@ from django.utils.decorators import method_decorator
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 
+from django.db import transaction
+from django.contrib import messages
+from decimal import Decimal
+from datetime import date
+
+from comprobantes.models import Comprobante, Cobro  # tu modelo
+from django_afip.models import *
+from creditos.models import Factura
+from contabilidad.asientos.manager import AsientoCreator
+from creditos.models import Credito, Factura
+from django.views.decorators.http import require_GET
+from django import forms as djforms
+from django.db.models import Max
+from django.core.exceptions import ObjectDoesNotExist
+from collections import defaultdict
+from django.db.models import Q
 
 
 
@@ -424,20 +440,20 @@ class CrearCompraView(View):
 
 @group_required('administrativo', 'contable')
 def obtener_precio_producto_remito(request):
-    pid = request.GET.get('producto_id')
-    precio = None
-    if pid:
-        try:
-            prod = Producto.objects.get(id=pid)
-            # Elegí la fuente del precio:
-            # primero intento precio_venta, si no, precio, si no, costo
-            for attr in ('precio_venta', 'precio', 'costo'):
-                if hasattr(prod, attr) and getattr(prod, attr) is not None:
-                    precio = Decimal(getattr(prod, attr))
-                    break
-        except Producto.DoesNotExist:
-            pass
-    return JsonResponse({'precio': f"{precio:.2f}" if precio is not None else ""})
+	pid = request.GET.get('producto_id')
+	precio = None
+	if pid:
+		try:
+			prod = Producto.objects.get(id=pid)
+			# Elegí la fuente del precio:
+			# primero intento precio_venta, si no, precio, si no, costo
+			for attr in ('precio_venta', 'precio', 'costo'):
+				if hasattr(prod, attr) and getattr(prod, attr) is not None:
+					precio = Decimal(getattr(prod, attr))
+					break
+		except Producto.DoesNotExist:
+			pass
+	return JsonResponse({'precio': f"{precio:.2f}" if precio is not None else ""})
 
 
 class CrearRemitoView(View):
@@ -534,133 +550,133 @@ class RegistroRemitos(OrderQS):
 		return qs
 
 def remito_pdf(request, pk):
-    remito = get_object_or_404(
-        Remito.objects.select_related(
-            'consorcio','deposito','socio','sucursal','vendedor','transporte',
-            'consorcio__contribuyente','consorcio__contribuyente__extras'
-        ).prefetch_related('items__producto'),
-        pk=pk
-    )
+	remito = get_object_or_404(
+		Remito.objects.select_related(
+			'consorcio','deposito','socio','sucursal','vendedor','transporte',
+			'consorcio__contribuyente','consorcio__contribuyente__extras'
+		).prefetch_related('items__producto'),
+		pk=pk
+	)
 
-    # Armar datos con precio_1 y subtotal calculados al vuelo (sin tocar DB)
-    items_data = []
-    total_general = Decimal('0.00')
-    for it in remito.items.all():
-        # Fuente de precio informativo
-        precio = getattr(it.producto, 'precio_1', None) or Decimal('0.00')
-        # Asegurar Decimal
-        if not isinstance(precio, Decimal):
-            try:
-                precio = Decimal(str(precio))
-            except Exception:
-                precio = Decimal('0.00')
+	# Armar datos con precio_1 y subtotal calculados al vuelo (sin tocar DB)
+	items_data = []
+	total_general = Decimal('0.00')
+	for it in remito.items.all():
+		# Fuente de precio informativo
+		precio = getattr(it.producto, 'precio_1', None) or Decimal('0.00')
+		# Asegurar Decimal
+		if not isinstance(precio, Decimal):
+			try:
+				precio = Decimal(str(precio))
+			except Exception:
+				precio = Decimal('0.00')
 
-        cantidad = it.cantidad or Decimal('0.00')
-        if not isinstance(cantidad, Decimal):
-            try:
-                cantidad = Decimal(str(cantidad))
-            except Exception:
-                cantidad = Decimal('0.00')
+		cantidad = it.cantidad or Decimal('0.00')
+		if not isinstance(cantidad, Decimal):
+			try:
+				cantidad = Decimal(str(cantidad))
+			except Exception:
+				cantidad = Decimal('0.00')
 
-        subtotal = (precio * cantidad).quantize(Decimal('0.01'))
-        total_general += subtotal
+		subtotal = (precio * cantidad).quantize(Decimal('0.01'))
+		total_general += subtotal
 
-        items_data.append({
-            'it': it,
-            'precio': precio.quantize(Decimal('0.01')),
-            'subtotal': subtotal,
-        })
+		items_data.append({
+			'it': it,
+			'precio': precio.quantize(Decimal('0.01')),
+			'subtotal': subtotal,
+		})
 
-    context = {
-        'remito': remito,
-        'items_data': items_data,
-        'total_general': total_general.quantize(Decimal('0.01')),
-    }
+	context = {
+		'remito': remito,
+		'items_data': items_data,
+		'total_general': total_general.quantize(Decimal('0.01')),
+	}
 
-    html = render_to_string('remito.html', context)
-    pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+	html = render_to_string('remito.html', context)
+	pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
 
-    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
-    resp['Content-Disposition'] = f'inline; filename="remito_{remito.numero or remito.pk}.pdf"'
-    return resp
+	resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+	resp['Content-Disposition'] = f'inline; filename="remito_{remito.numero or remito.pk}.pdf"'
+	return resp
 
 
 # views.py
 
 @transaction.atomic
 def remito_anular(request, pk):
-    remito = get_object_or_404(Remito.objects.prefetch_related('items__producto'), pk=pk)
-    try:
-        remito.anular()
-        messages.success(request, f"Remito #{remito.numero or remito.pk} anulado y stock revertido.")
-    except ValidationError as e:
-        messages.error(request, f"No se pudo anular: {e}")
-    except Exception as e:
-        messages.error(request, f"Error al anular: {e}")
+	remito = get_object_or_404(Remito.objects.prefetch_related('items__producto'), pk=pk)
+	try:
+		remito.anular()
+		messages.success(request, f"Remito #{remito.numero or remito.pk} anulado y stock revertido.")
+	except ValidationError as e:
+		messages.error(request, f"No se pudo anular: {e}")
+	except Exception as e:
+		messages.error(request, f"Error al anular: {e}")
 
-    return redirect('remitos-registro')
+	return redirect('remitos-registro')
 
 class CrearAjusteView(View):
-    template_name = 'ajustes/crear_ajuste.html'
+	template_name = 'ajustes/crear_ajuste.html'
 
-    def get_form_kwargs(self):
-        return {'request': self.request, **self.request.POST.dict()}
+	def get_form_kwargs(self):
+		return {'request': self.request, **self.request.POST.dict()}
 
-    def get(self, request):
-        form = AjusteForm(request=self.request)
-        formset = AjusteItemFormSet(queryset=AjusteStockItem.objects.none())
-        # limitar productos por consorcio
-        cons = consorcio(request)
-        formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
-        return render(request, self.template_name, {'form': form, 'formset': formset})
+	def get(self, request):
+		form = AjusteForm(request=self.request)
+		formset = AjusteItemFormSet(queryset=AjusteStockItem.objects.none())
+		# limitar productos por consorcio
+		cons = consorcio(request)
+		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
+		return render(request, self.template_name, {'form': form, 'formset': formset})
 
-    @transaction.atomic
-    def post(self, request):
-        form    = AjusteForm(request.POST, request=request)
-        formset = AjusteItemFormSet(request.POST, queryset=AjusteStockItem.objects.none())
+	@transaction.atomic
+	def post(self, request):
+		form    = AjusteForm(request.POST, request=request)
+		formset = AjusteItemFormSet(request.POST, queryset=AjusteStockItem.objects.none())
 
-        cons = consorcio(request)
-        formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
+		cons = consorcio(request)
+		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons, activo=True)
 
-        if form.is_valid() and formset.is_valid():
-            fecha    = form.cleaned_data['fecha']
-            deposito = form.cleaned_data['deposito']
-            motivo   = form.cleaned_data.get('motivo')
+		if form.is_valid() and formset.is_valid():
+			fecha    = form.cleaned_data['fecha']
+			deposito = form.cleaned_data['deposito']
+			motivo   = form.cleaned_data.get('motivo')
 
-            ajuste = AjusteStock(
-                consorcio=cons,
-                deposito=deposito,
-                fecha=fecha,
-                motivo=motivo
-            )
-            ajuste.asignar_numero_si_falta()
-            ajuste.save()
+			ajuste = AjusteStock(
+				consorcio=cons,
+				deposito=deposito,
+				fecha=fecha,
+				motivo=motivo
+			)
+			ajuste.asignar_numero_si_falta()
+			ajuste.save()
 
-            lineas_cargadas = 0
-            for linea in formset:
-                if not linea.cleaned_data or linea.cleaned_data.get('DELETE', False):
-                    continue
+			lineas_cargadas = 0
+			for linea in formset:
+				if not linea.cleaned_data or linea.cleaned_data.get('DELETE', False):
+					continue
 
-                item = linea.save(commit=False)
-                item.ajuste = ajuste
-                item.full_clean()
-                item.save()
-                lineas_cargadas += 1
+				item = linea.save(commit=False)
+				item.ajuste = ajuste
+				item.full_clean()
+				item.save()
+				lineas_cargadas += 1
 
-                # Movimiento de stock (E=+ ; S=-)
-                MovimientoStock.objects.create(
-                    producto=item.producto,
-                    deposito=deposito,
-                    fecha=fecha,
-                    cantidad=item.cantidad_entrada_salida,
-                    ajuste_item=item
-                )
+				# Movimiento de stock (E=+ ; S=-)
+				MovimientoStock.objects.create(
+					producto=item.producto,
+					deposito=deposito,
+					fecha=fecha,
+					cantidad=item.cantidad_entrada_salida,
+					ajuste_item=item
+				)
 
-            if lineas_cargadas == 0:
-                raise ValidationError("Cargá al menos un producto con cantidad.")
+			if lineas_cargadas == 0:
+				raise ValidationError("Cargá al menos un producto con cantidad.")
 
-            return redirect('registro-ajustes')  # definí esta url
-        return render(request, self.template_name, {'form': form, 'formset': formset})
+			return redirect('registro-ajustes')  # definí esta url
+		return render(request, self.template_name, {'form': form, 'formset': formset})
 
 
 # proveeduria/views.py
@@ -668,56 +684,481 @@ from .filters import AjusteFilter
 
 @method_decorator(group_required('administrativo', 'contable'), name='dispatch')
 class RegistroAjustes(OrderQS):
-    model = AjusteStock
-    filterset_class = AjusteFilter              # <— clave
-    template_name = 'ajustes/ajustes.html'
-    paginate_by = 50
+	model = AjusteStock
+	filterset_class = AjusteFilter              # <— clave
+	template_name = 'ajustes/ajustes.html'
+	paginate_by = 50
 
-    def get_queryset(self, **kwargs):
-        qs = super().get_queryset(**kwargs).select_related('consorcio','deposito')
-        try:
-            from admincu.funciones import consorcio
-            c = consorcio(self.request)
-            qs = qs.filter(consorcio=c)
-        except Exception:
-            pass
-        return qs
+	def get_queryset(self, **kwargs):
+		qs = super().get_queryset(**kwargs).select_related('consorcio','deposito')
+		try:
+			from admincu.funciones import consorcio
+			c = consorcio(self.request)
+			qs = qs.filter(consorcio=c)
+		except Exception:
+			pass
+		return qs
 
-    # si tu OrderQS NO pasa request al FilterSet, podés sobreescribir así:
-    def get(self, request, *args, **kwargs):
-        # esto fuerza que el FilterSet reciba request
-        datos = self.model.objects.all()
-        try:
-            from admincu.funciones import consorcio
-            c = consorcio(request)
-            datos = datos.filter(consorcio=c)
-        except Exception:
-            pass
-        self.filter = self.filterset_class(request.GET or None, queryset=datos, request=request)
-        self.object_list = self.order_queryset(self.filter.qs) if hasattr(self, 'order_queryset') else self.filter.qs
-        context = self.get_context_data(object_list=self.object_list)
-        return self.render_to_response(context)
+	# si tu OrderQS NO pasa request al FilterSet, podés sobreescribir así:
+	def get(self, request, *args, **kwargs):
+		# esto fuerza que el FilterSet reciba request
+		datos = self.model.objects.all()
+		try:
+			from admincu.funciones import consorcio
+			c = consorcio(request)
+			datos = datos.filter(consorcio=c)
+		except Exception:
+			pass
+		self.filter = self.filterset_class(request.GET or None, queryset=datos, request=request)
+		self.object_list = self.order_queryset(self.filter.qs) if hasattr(self, 'order_queryset') else self.filter.qs
+		context = self.get_context_data(object_list=self.object_list)
+		return self.render_to_response(context)
 
 
 
 def ajuste_pdf(request, pk):
-    ajuste = get_object_or_404(
-        AjusteStock.objects.select_related(
-            'consorcio','deposito','consorcio__contribuyente','consorcio__contribuyente__extras'
-        ).prefetch_related('items__producto'),
-        pk=pk
-    )
-    html = render_to_string('ajustes/ajuste_pdf.html', {'ajuste': ajuste})
-    pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
+	ajuste = get_object_or_404(
+		AjusteStock.objects.select_related(
+			'consorcio','deposito','consorcio__contribuyente','consorcio__contribuyente__extras'
+		).prefetch_related('items__producto'),
+		pk=pk
+	)
+	html = render_to_string('ajustes/ajuste_pdf.html', {'ajuste': ajuste})
+	pdf_bytes = HTML(string=html, base_url=request.build_absolute_uri('/')).write_pdf()
 
-    resp = HttpResponse(pdf_bytes, content_type='application/pdf')
-    resp['Content-Disposition'] = f'inline; filename="ajuste_{ajuste.numero or ajuste.pk}.pdf"'
-    return resp
+	resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+	resp['Content-Disposition'] = f'inline; filename="ajuste_{ajuste.numero or ajuste.pk}.pdf"'
+	return resp
 
 
 @group_required('administrativo', 'contable')
 def ajuste_anular(request, pk):
-    ajuste = get_object_or_404(AjusteStock, pk=pk)
-    ajuste.anular(usuario=request.user)
-    messages.success(request, "Ajuste anulado y stock revertido.")
-    return redirect('registro-ajustes')
+	ajuste = get_object_or_404(AjusteStock, pk=pk)
+	ajuste.anular(usuario=request.user)
+	messages.success(request, "Ajuste anulado y stock revertido.")
+	return redirect('registro-ajustes')
+
+@require_GET
+def facturas_por_socio(request):
+	cons = consorcio(request)
+	socio_id = request.GET.get('socio')
+	items = []
+	if socio_id:
+		qs = (Factura.objects
+			  .filter(consorcio=cons, socio_id=socio_id,
+					  credito__ingreso__es_proveeduria=True,
+					  liquidacion__estado='confirmado')
+			  .select_related('receipt', 'receipt__point_of_sales')
+			  .order_by('-id')
+			  .distinct())
+
+		for f in qs:
+			r = f.receipt
+			if not r:
+				continue
+			# POS: puede ser FK; tomamos number si existe, sino el propio valor
+			pos_val = getattr(r.point_of_sales, 'number', r.point_of_sales)
+			pos_str = str(pos_val).zfill(4)
+			nro_str = str(r.receipt_number or 0).zfill(8)
+			fecha = r.issued_date.strftime("%d/%m/%Y") if r.issued_date else ""
+			importe = r.total_amount or 0
+			etiqueta = f"{pos_str}-{nro_str} · {fecha} · ${importe}"
+			items.append({"id": f.id, "text": etiqueta})
+
+	return JsonResponse({"items": items})
+
+
+Q00 = Decimal('0.00')
+
+def q2(x: Decimal) -> Decimal:
+	return (x or Q00).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+class NCProveeduriaCreateView(View):
+	template_inicial = 'nc/ventas/nc_inicial.html'
+	template_renglones = 'nc/ventas/nc_renglones.html'
+	formset_prefix = 'dev'  # prefijo único
+
+	# ---------- Helpers ----------
+	def _rows_from_vps(self, vps):
+		rows = []
+		for vp in vps:
+			rows.append({
+				'producto': vp.producto.nombre,
+				'precio': vp.precio or Q00,
+				'cantidad_original': vp.cantidad or 0,
+				'ya_devuelto': getattr(vp, 'devuelto', 0),
+			})
+		return rows
+
+	def _rows_from_post(self, post):
+		total = int(post.get(f'{self.formset_prefix}-TOTAL_FORMS', 0) or 0)
+		rows = []
+		for i in range(total):
+			vp_id = post.get(f'{self.formset_prefix}-{i}-vp_id')
+			if not vp_id:
+				rows.append(None); continue
+			try:
+				vp = (Venta_Producto.objects
+					  .select_related('producto')
+					  .get(id=vp_id))
+				rows.append({
+					'producto': vp.producto.nombre,
+					'precio': vp.precio or Q00,
+					'cantidad_original': vp.cantidad or 0,
+					'ya_devuelto': getattr(vp, 'devuelto', 0),
+				})
+			except Venta_Producto.DoesNotExist:
+				rows.append(None)
+		return rows
+
+	def _socio_factura_from_post(self, post):
+		socio_obj = None
+		factura_obj = None
+		try:
+			socio_id = post.get('socio')
+			factura_id = post.get('factura')
+			if socio_id:
+				socio_obj = Socio.objects.get(id=socio_id)
+			if factura_id:
+				factura_obj = Factura.objects.select_related('receipt').get(id=factura_id)
+		except Exception:
+			pass
+		return socio_obj, factura_obj
+
+	# ---------- GET ----------
+	def get(self, request):
+		cons = consorcio(request)
+		form = NCProveeduriaInicialForm(consorcio=cons)
+		return render(request, self.template_inicial, {'form': form})
+
+	# ---------- POST ----------
+	def post(self, request):
+		cons = consorcio(request)
+
+		is_step2 = (
+			request.POST.get('step') == '2'
+			or f'{self.formset_prefix}-TOTAL_FORMS' in request.POST
+		)
+
+		# ===== PASO 1 =====
+		if not is_step2:
+			form = NCProveeduriaInicialForm(request.POST, consorcio=cons)
+			if not form.is_valid():
+				return render(request, self.template_inicial, {'form': form})
+
+			socio = form.cleaned_data['socio']
+			factura = form.cleaned_data['factura']
+
+			vps = (Venta_Producto.objects
+				   .filter(consorcio=cons, socio=socio, credito__factura=factura, es_nc=False)
+				   .select_related('producto'))
+
+			if not vps.exists():
+				messages.warning(request, "La factura seleccionada no tiene renglones de Proveeduría para devolver.")
+				return render(request, self.template_inicial, {'form': form})
+
+			# Inicial del formset
+			formset_initial = []
+			for vp in vps:
+				formset_initial.append({
+					'vp_id': vp.id,
+					'producto': vp.producto.nombre,
+					'precio': vp.precio or Q00,
+					'cantidad_original': vp.cantidad or 0,
+					'ya_devuelto': getattr(vp, 'devuelto', 0),
+					'devolver': None,
+					'motivo': '',
+				})
+			formset = DevolucionFormSet(initial=formset_initial, prefix=self.formset_prefix)
+
+			# Form hidden para re-postear socio/factura
+			form_hidden = NCProveeduriaInicialForm(consorcio=cons, initial={
+				'socio': socio.id,
+				'factura': factura.id,
+			})
+			form_hidden.fields['socio'].widget = djforms.HiddenInput()
+			form_hidden.fields['factura'].widget = djforms.HiddenInput()
+
+			rows = self._rows_from_vps(vps)
+			pairs = list(zip(formset.forms, rows))
+
+			ctx = {
+				'form': form_hidden,
+				'formset': formset,
+				'pairs': pairs,
+				'step': '2',
+				'factura': factura,
+				'socio': socio,
+			}
+			return render(request, self.template_renglones, ctx)
+
+		# ===== PASO 2 =====
+		form = NCProveeduriaInicialForm(request.POST, consorcio=cons)
+		form.fields['socio'].widget = djforms.HiddenInput()
+		form.fields['factura'].widget = djforms.HiddenInput()
+		formset = DevolucionFormSet(request.POST, prefix=self.formset_prefix)
+
+		if not form.is_valid() or not formset.is_valid():
+			socio_obj, factura_obj = self._socio_factura_from_post(request.POST)
+			rows = self._rows_from_post(request.POST)
+			pairs = list(zip(formset.forms, rows))
+			ctx = {
+				'form': form,
+				'formset': formset,
+				'pairs': pairs,
+				'step': '2',
+				'socio': socio_obj,
+				'factura': factura_obj,
+				'form_errors': form.errors,
+				'formset_non_form_errors': formset.non_form_errors(),
+				'formset_errors': formset.errors,
+			}
+			return render(request, self.template_renglones, ctx)
+
+		socio = form.cleaned_data['socio']
+		factura = form.cleaned_data['factura']
+		hoy = date.today()
+
+		# Crédito "vigente" (idealmente el abierto)
+		try:
+			credito_actual = (Credito.objects
+							  .select_related('ingreso', 'liquidacion')
+							  .get(factura=factura, socio=socio, fin__isnull=True))
+		except ObjectDoesNotExist:
+			# fallback al único si no hay abierto
+			try:
+				credito_actual = Credito.objects.get(factura=factura, socio=socio)
+			except ObjectDoesNotExist:
+				rows = self._rows_from_post(request.POST)
+				pairs = list(zip(formset.forms, rows))
+				messages.error(request, "No encontré el crédito asociado a esa factura.")
+				ctx = {'form': form, 'formset': formset, 'pairs': pairs, 'step': '2', 'socio': socio, 'factura': factura}
+				return render(request, self.template_renglones, ctx)
+
+		devoluciones = []
+		total_nc = Q00
+
+		for f in formset:
+			cd = f.cleaned_data or {}
+			devolver = cd.get('devolver') or Q00
+			if devolver <= 0:
+				continue
+
+			vp_id = cd['vp_id']
+			motivo = cd.get('motivo') or ''
+			vp_orig = (Venta_Producto.objects
+					   .select_related('producto', 'credito', 'liquidacion', 'socio')
+					   .get(id=vp_id))
+
+			# Validar disponibilidad (si tu modelo lo tiene)
+			disp = getattr(vp_orig, 'disponible_para_devolver', None)
+			if disp is not None and Decimal(devolver) > Decimal(disp):
+				rows = self._rows_from_post(request.POST)
+				pairs = list(zip(formset.forms, rows))
+				messages.error(request, f"No se puede devolver más de lo disponible para {vp_orig.producto}.")
+				ctx = {'form': form, 'formset': formset, 'pairs': pairs, 'step': '2', 'socio': socio, 'factura': factura}
+				return render(request, self.template_renglones, ctx)
+
+			# Depósito original (primer movimiento)
+			orig_ms = (MovimientoStock.objects
+					   .filter(venta_producto=vp_orig)
+					   .order_by('id')
+					   .first())
+			if not orig_ms or not getattr(orig_ms, 'deposito_id', None):
+				rows = self._rows_from_post(request.POST)
+				pairs = list(zip(formset.forms, rows))
+				messages.error(request, f"No pude determinar el depósito de origen para {vp_orig.producto}.")
+				ctx = {'form': form, 'formset': formset, 'pairs': pairs, 'step': '2', 'socio': socio, 'factura': factura}
+				return render(request, self.template_renglones, ctx)
+
+			precio = q2(Decimal(vp_orig.precio or 0))
+			subtotal = q2(precio * Decimal(devolver))
+			total_nc = q2(total_nc + subtotal)
+
+			devoluciones.append({
+				'vp_orig': vp_orig,
+				'cant_dev': Decimal(devolver),
+				'precio': precio,
+				'subtotal': subtotal,
+				'motivo': motivo or "Devolución",
+				'deposito': orig_ms.deposito,
+			})
+
+		if total_nc <= 0:
+			rows = self._rows_from_post(request.POST)
+			pairs = list(zip(formset.forms, rows))
+			messages.error(request, "No ingresaste cantidades a devolver.")
+			ctx = {'form': form, 'formset': formset, 'pairs': pairs, 'step': '2', 'socio': socio, 'factura': factura}
+			return render(request, self.template_renglones, ctx)
+
+		ingreso_prov = Ingreso.objects.get(consorcio=cons, es_proveeduria=True)
+
+		from collections import defaultdict
+
+		with transaction.atomic():
+			# 1) Receipt NC RG 1415 (no fiscal) -> code "105"
+			rtype = ReceiptType.objects.get(code="105")
+			receipt_nc = Receipt.objects.create(
+				point_of_sales=factura.receipt.point_of_sales,
+				receipt_type=rtype,
+				concept=ConceptType.objects.get(code=1),  # Bienes
+				document_type=socio.tipo_documento,
+				document_number=socio.numero_documento,
+				issued_date=hoy,
+				total_amount=total_nc,
+				net_untaxed=0,
+				net_taxed=total_nc,
+				exempt_amount=0,
+				service_start=hoy,
+				service_end=hoy,
+				expiration_date=hoy,
+				currency=CurrencyType.objects.get(code="PES"),
+			)
+			last = (Receipt.objects
+					.filter(receipt_type=rtype, point_of_sales=receipt_nc.point_of_sales)
+					.aggregate(Max('receipt_number'))['receipt_number__max'] or 0)
+			receipt_nc.receipt_number = last + 1
+			receipt_nc.save()
+
+			# 2) Comprobante NC que referencia el receipt
+			comp = Comprobante.objects.create(
+				consorcio=cons,
+				socio=socio,
+				fecha=hoy,
+				total=total_nc,
+				nota_credito=receipt_nc,
+				descripcion=(
+					"NC Proveeduría por devolución de mercadería sobre "
+					f"Factura {factura.receipt.point_of_sales}-{factura.receipt.receipt_number}"
+				),
+			)
+
+			# 3) Renglones NC (es_nc=True) + stock de retorno + preparamos líneas para PDF
+			lineas_pdf = []
+
+			# --- NUEVO: agregador por crédito ---
+			por_credito = defaultdict(lambda: q2(Q00))
+
+		def _credito_destino(cred):
+			"""
+			Dado un crédito (posiblemente ya cerrado) devuelve el crédito ABIERTO
+			vigente dentro de la misma cadena (root = padre o el mismo).
+			Si no hay abierto, devuelve el root si está abierto; si no, None.
+			"""
+			root = cred.padre or cred
+			# Preferimos un hijo abierto
+			abierto = (Credito.objects
+					.filter(Q(padre=root) | Q(id=root.id), fin__isnull=True)
+					.order_by('-fecha', '-id')
+					.first())
+			return abierto  # puede ser None si todo está cerrado
+
+		# --- NUEVO: agregador por crédito DESTINO (vigente) ---
+		por_credito = defaultdict(lambda: q2(Q00))
+		lineas_pdf = []
+
+		for d in devoluciones:
+			vp_orig = d['vp_orig']
+			cred_dest = _credito_destino(vp_orig.credito)  # << clave del fix
+
+			if cred_dest is None:
+				# Si no hay abierto en la cadena, por consistencia usamos el root
+				# (pero casi siempre vas a tener el de $40.000 abierto)
+				cred_dest = (vp_orig.credito.padre or vp_orig.credito)
+
+			# Crear el renglón de NC apuntando al crédito DESTINO (no al original)
+			vp_nc = Venta_Producto.objects.create(
+				consorcio=cons,
+				sucursal=vp_orig.sucursal,
+				producto=vp_orig.producto,
+				precio=d['precio'],
+				cantidad=d['cant_dev'],
+				credito=cred_dest,                 # << aquí el cambio importante
+				liquidacion=vp_orig.liquidacion,
+				socio=vp_orig.socio,
+				costo=vp_orig.costo or Q00,
+				padre=vp_orig,
+				es_nc=True,
+				motivo_nc=d['motivo'],
+				comprobante_nc=comp,
+			)
+
+			MovimientoStock.objects.create(
+				venta_producto=vp_nc,
+				producto=vp_orig.producto,
+				deposito=d['deposito'],
+				cantidad=d['cant_dev'],
+				fecha=hoy,
+			)
+
+			lineas_pdf.append({
+				'producto': vp_orig.producto.nombre,
+				'cantidad': d['cant_dev'],
+				'precio': d['precio'],
+				'subtotal': d['subtotal'],
+				'motivo': d['motivo'],
+			})
+
+			# Acumular por el crédito DESTINO (vigente)
+			por_credito[cred_dest] = q2(por_credito[cred_dest] + d['subtotal'])
+
+		# 4) Cobros por crédito + cierre y recreación de remanentes por crédito
+		ingreso_prov = Ingreso.objects.get(consorcio=cons, es_proveeduria=True)
+		nuevos_creditos = []
+		cerrados = 0
+
+		for cred_dest, subtotal_cred in por_credito.items():
+			# Cobro correcto para ESTE crédito vigente
+			Cobro.objects.create(
+				consorcio=cons,
+				socio=socio,
+				fecha=hoy,
+				credito=cred_dest,
+				subtotal=subtotal_cred,
+				int_desc=Q00,
+				comprobante=comp
+			)
+
+			capital_original = q2(Decimal(cred_dest.capital or 0))
+			remanente = q2(capital_original - subtotal_cred)
+
+			# Cerrar SIEMPRE el crédito destino (era el abierto de la cadena)
+			if cred_dest.fin is None:
+				cred_dest.fin = hoy
+				cred_dest.save(update_fields=['fin'])
+				cerrados += 1
+
+			# Si quedó saldo, reabrimos un crédito nuevo por el remanente
+			if remanente > 0:
+				root = cred_dest.padre or cred_dest  # mantener la cadena consistente
+				nuevo = Credito.objects.create(
+					consorcio=cons,
+					socio=socio,
+					factura=factura,
+					liquidacion=cred_dest.liquidacion,
+					fecha=hoy,
+					detalle='Proveeduría (remanente tras NC)',
+					periodo=getattr(cred_dest, 'periodo', hoy),
+					ingreso=ingreso_prov,
+					capital=remanente,
+					padre=root,  # encadenamos al root de la serie
+				)
+				nuevos_creditos.append(nuevo)
+
+		# 5) PDF
+		comp._lineas_nc = lineas_pdf
+		comp.hacer_pdfs_inst()
+
+
+
+		messages.success(
+			request,
+			f"Nota de Crédito emitida por ${total_nc}."
+			+ ("" if remanente == 0 else f" Crédito original cerrado y creado nuevo por ${remanente}.")
+		)
+		return redirect('facturacion-proveeduria')
+
+
+
+
+

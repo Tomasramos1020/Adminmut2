@@ -1,0 +1,136 @@
+{% extends 'raiz.html' %}
+{% block titulo %}NC Proveeduría - Selección{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-9">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <h3 class="h4 mb-3">Nota de Crédito de Proveeduría</h3>
+          <p class="text-muted mb-4">Elegí el socio y la factura de Proveeduría sobre la cual emitir la NC.</p>
+
+          <form method="post" id="form-nc">{% csrf_token %}
+            <input type="hidden" name="step" value="1">
+
+            <div class="form-group mb-3">
+              <label for="id_socio" class="form-label">Socio</label>
+              {{ form.socio }}
+              <small class="form-text text-muted">Al seleccionar el socio se cargarán sus facturas de Proveeduría.</small>
+            </div>
+
+            <div class="form-group mb-4">
+              <label for="id_factura" class="form-label">Factura</label>
+              {{ form.factura }}
+              <div id="facturas-help" class="form-text text-muted d-flex align-items-center" style="min-height:1.5rem;">
+                <span id="facturas-hint">Seleccioná un socio para ver sus facturas…</span>
+                <span id="facturas-loading" class="ms-2" style="display:none;">
+                  <span class="spinner" style="width:0.9rem;height:0.9rem;border:2px solid #ccc;border-top-color:#777;border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>
+                  <span class="ms-1">Cargando facturas…</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary" id="btn-continuar" disabled>Continuar</button>
+              <a href="{% url 'home' %}" class="btn btn-light">Cancelar</a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <style>
+        /* Helpers mínimos, por si tu Bootstrap es 3 */
+        .card{background:#fff;border:1px solid #e9ecef;border-radius:.5rem}
+        .card-body{padding:1.25rem}
+        .form-label{font-weight:600}
+        .btn-light{background:#f8f9fa;border:1px solid #e9ecef}
+        @keyframes spin{to{transform:rotate(360deg)}}
+      </style>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+(function($){
+  var $form     = $('#form-nc');
+  var $socio    = $('#id_socio');
+  var $factura  = $('#id_factura');
+  var $btn      = $('#btn-continuar');
+  var $hint     = $('#facturas-hint');
+  var $loading  = $('#facturas-loading');
+
+  // Aseguramos clases básicas (si no vienen desde el form)
+  $socio.addClass('form-control');
+  $factura.addClass('form-control');
+
+  function setBtnState(){
+    var ok = $socio.val() && $factura.val();
+    $btn.prop('disabled', !ok);
+  }
+
+  function setFacturaDisabled(state){
+    $factura.prop('disabled', state);
+  }
+
+  function cargarFacturas(socioId, selectedId){
+    $hint.text('Cargando facturas…');
+    $loading.show();
+    setFacturaDisabled(true);
+    $factura.empty().append($('<option>', {value: '', text: '-- Seleccionar Factura (Proveeduría) --'}));
+
+    if(!socioId){
+      $hint.text('Seleccioná un socio para ver sus facturas…');
+      $loading.hide();
+      setFacturaDisabled(false);
+      setBtnState();
+      return;
+    }
+
+    $.getJSON("{% url 'ajax-facturas-por-socio' %}", { socio: socioId })
+      .done(function(resp){
+        var items = resp && resp.items ? resp.items : [];
+        if(items.length === 0){
+          $hint.text('Este socio no tiene facturas de Proveeduría disponibles.');
+        }else{
+          $hint.text(items.length + ' factura(s) encontradas.');
+          items.forEach(function(it){
+            $factura.append($('<option>', { value: it.id, text: it.text }));
+          });
+          if(selectedId){ $factura.val(String(selectedId)); }
+        }
+      })
+      .fail(function(){
+        $hint.text('No se pudieron cargar las facturas. Reintentá más tarde.');
+      })
+      .always(function(){
+        $loading.hide();
+        setFacturaDisabled(false);
+        setBtnState();
+      });
+  }
+
+  // Eventos
+  $socio.on('change', function(){ cargarFacturas($(this).val(), null); });
+  $factura.on('change', setBtnState);
+
+  // Init: si el socio ya viene seteado (re-render), traemos sus facturas
+  $(function(){
+    setBtnState();
+    var socioId = $socio.val();
+    if(socioId){
+      // Si ya hay options, no recargamos; si está vacío, cargamos.
+      if($factura.find('option').length <= 1){
+        cargarFacturas(socioId, $factura.val());
+      }
+    }
+    // foco inicial
+    $socio.focus();
+  });
+})(jQuery);
+</script>
+{% endblock %}
+
+  

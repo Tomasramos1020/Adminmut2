@@ -30,7 +30,7 @@
           {{ solicitud.hectareas_reales|default:solicitud.hectareas_reales_calc|default_if_none:"0.00"|floatformat:2 }}
         </td>
         <td class="text-right">
-          $ {{ solicitud.total_suscripcion|default:solicitud.total_suscripcion_calc|default_if_none:"0.00"|floatformat:2|intcomma }}
+          {{ solicitud.total_suscripcion|default:solicitud.total_suscripcion_calc|default_if_none:"0.00"|floatformat:2 }}
         </td>        
         <td class="text-right">
           <!-- Editar -->

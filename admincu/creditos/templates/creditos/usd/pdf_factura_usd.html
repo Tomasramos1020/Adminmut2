@@ -131,7 +131,14 @@
           </table>
         </div>
       </div>
-
+      <table style="width:100%; border-collapse: collapse; margin-top:10px; font-size:12px;">
+        <tr>
+          <td style="border:1px solid #000; padding:4px;">El total de este comprobante expresado en moneda de curso legal - pesos argentinos - considerandose un tipo de cambio consignado de ${{ factura.cotizacion|floatformat:2|intcomma }} asciende a:</td>
+          <td style="border:1px solid #000; width:120px; text-align:right;">
+            ${{ factura.total_ars|floatformat:2|intcomma }}
+          </td>
+        </tr>
+      </table>
     </div>
   </body>
 </html>

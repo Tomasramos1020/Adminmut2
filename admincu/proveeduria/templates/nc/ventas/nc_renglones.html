@@ -1,0 +1,129 @@
+{% extends 'raiz.html' %}
+{% block titulo %}NC Proveeduría - Renglones{% endblock %}
+
+{% block contenido %}
+<div class="container-fluid py-4">
+  <div class="row justify-content-center">
+    <div class="col-12 col-xxl-10">
+      <div class="card shadow-sm">
+        <div class="card-body p-4">
+          <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+            <h3 class="h4 mb-0">Devoluciones</h3>
+            <div class="text-muted small">
+              <strong>Socio:</strong> {{ socio }} &nbsp; | &nbsp;
+              <strong>Factura:</strong> {{ factura.receipt.point_of_sales }}-{{ factura.receipt.receipt_number }}
+            </div>
+          </div>
+
+          <form method="post" id="form-renglones">
+            {% csrf_token %}
+            {{ formset.management_form }}
+            <input type="hidden" name="step" value="2">
+            {{ form.socio }} {{ form.factura }}
+
+            <div class="table-responsive">
+              <table class="table table-sm table-striped align-middle">
+                <thead class="thead-light">
+                  <tr>
+                    <th style="min-width:220px">Producto</th>
+                    <th class="text-end">Precio</th>
+                    <th class="text-center">Cant. original</th>
+                    <th class="text-center">Devuelto</th>
+                    <th class="text-center" style="width:140px">Devolver</th>
+                    <th>Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                {% for f,r in pairs %}
+                  <tr>
+                    <td>
+                      {{ f.vp_id }}  {# hidden #}
+                      <div class="fw-600">{{ r.producto }}</div>
+                    </td>
+                    <td class="text-end">{{ r.precio }}</td>
+                    <td class="text-center">{{ r.cantidad_original }}</td>
+                    <td class="text-center">{{ r.ya_devuelto }}</td>
+                    <td class="text-center">{{ f.devolver }}</td>
+                    <td>{{ f.motivo }}</td>
+                  </tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="d-flex justify-content-between align-items-center mt-3">
+              <div class="text-muted small">Ingresá las cantidades a devolver.</div>
+              <div class="d-flex align-items-center gap-3">
+                <div class="h6 mb-0">Total a acreditar: <span id="total-preview">$ 0,00</span></div>
+                <button class="btn btn-primary" id="btn-emitir" disabled>Emitir Nota de Crédito</button>
+                <a href="{% url 'facturacion-proveeduria' %}" class="btn btn-light">Cancelar</a>
+              </div>
+            </div>
+
+            {% if form.errors or form.non_field_errors %}
+              <div class="alert alert-danger mt-3" role="alert">
+                {{ form.errors }} {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+            {% if formset.non_form_errors %}
+              <div class="alert alert-danger mt-3" role="alert">
+                {{ formset.non_form_errors }}
+              </div>
+            {% endif %}
+          </form>
+        </div>
+      </div>
+
+      <style>
+        .fw-600{font-weight:600}
+        .thead-light th{background:#f8f9fa}
+      </style>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+<script>
+(function($){
+  // Sumador de total en vivo (usa los precios visibles en la tabla)
+  function parseMoney(txt){
+    // intenta extraer número; si usás coma como miles, simplificamos
+    if(!txt) return 0;
+    txt = String(txt).replace(/\./g,'').replace(',', '.');
+    var n = parseFloat(txt);
+    return isNaN(n) ? 0 : n;
+  }
+
+  function toMoney(n){
+    try{
+      return n.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }catch(e){
+      return (Math.round(n*100)/100).toFixed(2);
+    }
+  }
+
+  function recalc(){
+    var total = 0;
+    // por fila: precio * devolver
+    $('table tbody tr').each(function(){
+      var precio = parseMoney($(this).find('td:eq(1)').text());
+      var $dev   = $(this).find('input[name$="-devolver"]');
+      var cant   = parseFloat($dev.val().replace(',', '.')) || 0;
+      total += (precio * cant);
+    });
+    $('#total-preview').text('$ ' + toMoney(total));
+    $('#btn-emitir').prop('disabled', total <= 0);
+  }
+
+  $(document).on('input change', 'input[name$="-devolver"]', recalc);
+  $(function(){
+    // estilos mínimos por si no vienen del form
+    $('input, select, textarea').addClass('form-control');
+    $('input[name$="-devolver"]').attr({min:0, step:'0.01'});
+    recalc();
+  });
+})(jQuery);
+</script>
+{% endblock %}
+

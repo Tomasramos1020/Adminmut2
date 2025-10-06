@@ -1,7 +1,6 @@
 from xml.parsers.expat import model
 from django.db import models
 from arquitectura.models import Consorcio, Socio
-from creditos.models import Credito, Factura, Liquidacion
 from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Sum
 from django.utils.functional import cached_property
@@ -169,8 +168,8 @@ class Comp_Venta(models.Model):
 	deposito = models.ForeignKey(Deposito, on_delete=models.CASCADE, blank=True, null=True)
 	transporte = models.ForeignKey(Transporte, on_delete=models.CASCADE, blank=True, null=True)
 	fecha_entrega = models.DateField(blank=True, null=True)
-	factura = models.ForeignKey(Factura, on_delete=models.CASCADE, blank=True, null=True)
-	liquidacion = models.ForeignKey(Liquidacion, blank=True, null=True, on_delete=models.CASCADE)
+	factura = models.ForeignKey('creditos.Factura', on_delete=models.CASCADE, blank=True, null=True)
+	liquidacion = models.ForeignKey('creditos.Liquidacion', blank=True, null=True, on_delete=models.CASCADE)
 	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.CASCADE)
 
 
@@ -180,17 +179,41 @@ class Venta_Producto(models.Model):
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
 	precio = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 	cantidad = models.IntegerField(blank=True, null=True)
-	credito = models.ForeignKey(Credito, on_delete=models.CASCADE)
-	liquidacion = models.ForeignKey(Liquidacion, blank=True, null=True, on_delete=models.CASCADE)
+	credito = models.ForeignKey('creditos.Credito', on_delete=models.CASCADE)
+	liquidacion = models.ForeignKey('creditos.Liquidacion', blank=True, null=True, on_delete=models.CASCADE)
 	socio = models.ForeignKey(Socio, blank=True, null=True, on_delete=models.CASCADE)
 	costo = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
+	padre = models.ForeignKey('self', null=True, blank=True, related_name='devoluciones', on_delete=models.SET_NULL)
+	es_nc = models.BooleanField(default=False)  # marca que es un renglón “negativo” de NC (devolución)
+	motivo_nc = models.CharField(max_length=200, blank=True, null=True)
+	comprobante_nc = models.ForeignKey('comprobantes.Comprobante', null=True, blank=True, on_delete=models.SET_NULL, related_name='vps_nc')
 
+	@property
+	def devuelto(self):
+		"""
+		Cantidad devuelta sobre este renglón original (suma de renglones hijo es_nc=True).
+		"""
+		if not self.pk:
+			return Decimal('0')
+		total = self.devoluciones.aggregate(s=Sum('cantidad'))['s'] or 0
+		return Decimal(total)
+
+	@property
+	def disponible_para_devolver(self):
+		"""
+		Cuánto aún se puede devolver (max: cantidad original - devuelto).
+		"""
+		if not self.cantidad:
+			return Decimal('0')
+		return max(Decimal('0'), Decimal(self.cantidad) - Decimal(self.devuelto))
 
 	@property
 	def total(self):
 		if self.precio and self.cantidad:
-			return self.precio * self.cantidad
+			return (Decimal(self.precio) * Decimal(self.cantidad)).quantize(Decimal('0.01'))
 		return Decimal('0.00')
+	
+
 
 class Compra_Producto(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
@@ -280,67 +303,67 @@ class RemitoItem(models.Model):
 # inventario/models.py
 
 class AjusteStock(models.Model):
-    """Comprobante interno que ajusta stock (entradas/salidas) con un motivo."""
-    consorcio   = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
-    deposito    = models.ForeignKey(Deposito, on_delete=models.PROTECT)
-    fecha       = models.DateField()
-    motivo      = models.TextField(blank=True, null=True)
-    anulado     = models.BooleanField(default=False)
+	"""Comprobante interno que ajusta stock (entradas/salidas) con un motivo."""
+	consorcio   = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	deposito    = models.ForeignKey(Deposito, on_delete=models.PROTECT)
+	fecha       = models.DateField()
+	motivo      = models.TextField(blank=True, null=True)
+	anulado     = models.BooleanField(default=False)
 
-    # numeración simple por consorcio (como Remito)
-    numero      = models.PositiveIntegerField(blank=True, null=True, editable=False)
+	# numeración simple por consorcio (como Remito)
+	numero      = models.PositiveIntegerField(blank=True, null=True, editable=False)
 
-    class Meta:
-        ordering = ['-id']
+	class Meta:
+		ordering = ['-id']
 
-    def __str__(self):
-        return f"Ajuste #{self.numero or self.pk} – {self.fecha} – {self.deposito}"
+	def __str__(self):
+		return f"Ajuste #{self.numero or self.pk} – {self.fecha} – {self.deposito}"
 
-    def asignar_numero_si_falta(self):
-        if self.numero:
-            return
-        last = AjusteStock.objects.filter(consorcio=self.consorcio).order_by('-numero').first()
-        self.numero = (last.numero + 1) if (last and last.numero) else 1
+	def asignar_numero_si_falta(self):
+		if self.numero:
+			return
+		last = AjusteStock.objects.filter(consorcio=self.consorcio).order_by('-numero').first()
+		self.numero = (last.numero + 1) if (last and last.numero) else 1
 
-    @transaction.atomic
-    def anular(self, usuario=None, motivo_extra=''):
-        if self.anulado:
-            raise ValidationError("El ajuste ya está anulado.")
+	@transaction.atomic
+	def anular(self, usuario=None, motivo_extra=''):
+		if self.anulado:
+			raise ValidationError("El ajuste ya está anulado.")
 
-        # Reversa: crear movimiento opuesto por cada ítem
-        for item in self.items.select_related('producto').all():
-            MovimientoStock.objects.create(
-                producto=item.producto,
-                deposito=self.deposito,
-                fecha=timezone.localdate(),
-                cantidad=(item.cantidad_entrada_salida * Decimal('-1')),  # opuesto
-                ajuste_item=item
-            )
+		# Reversa: crear movimiento opuesto por cada ítem
+		for item in self.items.select_related('producto').all():
+			MovimientoStock.objects.create(
+				producto=item.producto,
+				deposito=self.deposito,
+				fecha=timezone.localdate(),
+				cantidad=(item.cantidad_entrada_salida * Decimal('-1')),  # opuesto
+				ajuste_item=item
+			)
 
-        self.anulado = True
-        self.save(update_fields=['anulado'])
+		self.anulado = True
+		self.save(update_fields=['anulado'])
 
 
 class AjusteStockItem(models.Model):
-    SENTIDO = (
-        ('E', 'Entrada'),
-        ('S', 'Salida'),
-    )
-    ajuste   = models.ForeignKey(AjusteStock, on_delete=models.CASCADE, related_name='items')
-    producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
-    sentido  = models.CharField(max_length=1, choices=SENTIDO)
-    cantidad = models.DecimalField(max_digits=9, decimal_places=2)  # > 0
-    detalle  = models.CharField(max_length=200, blank=True, null=True)
+	SENTIDO = (
+		('E', 'Entrada'),
+		('S', 'Salida'),
+	)
+	ajuste   = models.ForeignKey(AjusteStock, on_delete=models.CASCADE, related_name='items')
+	producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
+	sentido  = models.CharField(max_length=1, choices=SENTIDO)
+	cantidad = models.DecimalField(max_digits=9, decimal_places=2)  # > 0
+	detalle  = models.CharField(max_length=200, blank=True, null=True)
 
-    def clean(self):
-        if self.cantidad is None or self.cantidad <= 0:
-            raise ValidationError("La cantidad debe ser mayor a 0.")
+	def clean(self):
+		if self.cantidad is None or self.cantidad <= 0:
+			raise ValidationError("La cantidad debe ser mayor a 0.")
 
-    @property
-    def cantidad_entrada_salida(self):
-        # Entrada = +cantidad ; Salida = -cantidad
-        sign = Decimal('1') if self.sentido == 'E' else Decimal('-1')
-        return (self.cantidad * sign).quantize(Decimal('0.01'))
+	@property
+	def cantidad_entrada_salida(self):
+		# Entrada = +cantidad ; Salida = -cantidad
+		sign = Decimal('1') if self.sentido == 'E' else Decimal('-1')
+		return (self.cantidad * sign).quantize(Decimal('0.01'))
 
 
 
@@ -349,14 +372,15 @@ class MovimientoStock(models.Model):
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
 	deposito = models.ForeignKey(Deposito, on_delete=models.CASCADE, blank=True, null=True)
 	fecha = models.DateField(auto_now_add=True)
-	cantidad = models.DecimalField(max_digits=9, decimal_places=2)
+	cantidad = models.DecimalField(max_digits=12, decimal_places=2)  # idem
 	venta_producto = models.ForeignKey(Venta_Producto, on_delete=models.SET_NULL, null=True, blank=True)
 	compra_producto = models.ForeignKey(Compra_Producto, on_delete=models.SET_NULL, null=True, blank=True)
 	remito_item = models.ForeignKey(RemitoItem, on_delete=models.SET_NULL, null=True, blank=True)
 	ajuste_item = models.ForeignKey(AjusteStockItem, on_delete=models.SET_NULL, null=True, blank=True)
 
 	def __str__(self):
-		return f"{self.fecha} - {self.producto.nombre} -  {self.cantidad}"
+		return f"{self.fecha} - {self.producto.nombre} - {self.cantidad}"
+
 
 
 

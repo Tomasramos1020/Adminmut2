@@ -17,6 +17,10 @@ urlpatterns = [
 	path('remitos/<int:pk>/anular/', remito_anular, name='remito-anular'),
 	path('proveeduria/precio-producto/', obtener_precio_producto, name='obtener_precio_producto_remito'),
 
+	path('proveeduria/nc/crear/', NCProveeduriaCreateView.as_view(), name='proveeduria-nc-crear'),
+	path('ajax/facturas-por-socio/', facturas_por_socio, name='ajax-facturas-por-socio'),
+
+
 	path('ajustes/nuevo/', CrearAjusteView.as_view(), name='ajuste-crear'),
 	path('ajustes/', RegistroAjustes.as_view(), name='registro-ajustes'),
 	path('ajustes/<int:pk>/pdf/', ajuste_pdf, name='ajuste-pdf'),

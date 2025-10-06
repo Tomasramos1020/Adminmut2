@@ -1,0 +1,113 @@
+{% load staticfiles %}
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Nota de Credito RG 1415 {{ comprobante.formatoAfipNCC }}</title>
+    <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+    <style>
+      /* Ajustes mínimos por si no aplica tu css global */
+      table { width:100%; border-collapse: collapse; }
+      th, td { padding:6px 8px; border-bottom:1px solid #ddd; vertical-align: top; }
+      th { text-align:left; }
+      .right { text-align:right; }
+      .muted { color:#666; }
+      .totals { margin-top:8px; }
+      .totals td { border:none; padding:4px 8px; }
+      .bold { font-weight:700; }
+    </style>
+  </head>
+  <body>
+    <div class="receipt">
+
+      <header>
+        <div class="taxpayer-details group">
+          <address>
+            {% if comprobante.consorcio.contribuyente.extras %}
+              <img src="{{ comprobante.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+            {% else %}
+              <h3>{{ comprobante.consorcio.nombre_completo }}</h3>
+            {% endif %}
+            {{ comprobante.consorcio.domicilio }}<br>
+            {{ comprobante.consorcio.provincia }}
+          </address>
+
+          <div class="receipt-details">
+            <div class="receipt-type-description">
+              {{ comprobante.notaCredito.receipt_type.description }}
+            </div>
+            <strong>Nº</strong> {{ comprobante.formatoAfipNCC }}<br>
+            {{ comprobante.notaCredito.issued_date|date:"d/m/Y" }}<br>
+            <small>
+              C.U.I.T.: {{ comprobante.consorcio.cuit }}<br>
+              Ingresos Brutos: Exento<br>
+              Inicio de actividad: {{ comprobante.consorcio.contribuyente.active_since|date:"d/m/Y" }}
+            </small>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="client">
+          <div class="client-data">
+            <strong>SOCIO:</strong>
+            {{ comprobante.socio }} <br>
+            <strong>{{ comprobante.socio.tipo_documento }}:</strong>
+            {{ comprobante.socio.numero_documento }} <br>
+          </div>
+        </div>
+
+        <hr>
+      </header>
+
+      <p><strong>Detalle:</strong></p>
+
+      <table>
+        <thead>
+          <tr>
+            <th style="width:38%">Producto</th>
+            <th class="right" style="width:10%">Cant.</th>
+            <th class="right" style="width:16%">Precio Unit.</th>
+            <th class="right" style="width:16%">Subtotal</th>
+            <th style="width:20%">Motivo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if lineas and lineas|length > 0 %}
+            {% for l in lineas %}
+              <tr>
+                <td>{{ l.producto }}</td>
+                <td class="right">{{ l.cantidad|floatformat:2 }}</td>
+                <td class="right">$ {{ l.precio|floatformat:2|intcomma }}</td>
+                <td class="right">$ {{ l.subtotal|floatformat:2|intcomma }}</td>
+                <td>{{ l.motivo }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="5" class="muted">Sin renglones informados.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+
+      <div class="taxpayer-details group">
+        <div class="receipt-details">
+          <table>
+            <tr>
+              <th>Total del comprobante</th>
+              <th></th>
+              <th>$ {{ comprobante.notaCredito.total_amount|floatformat:2|intcomma }}</th>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      {% if comprobante.descripcion %}
+        <p><strong>Descripción:</strong></p>
+        <i>{{ comprobante.descripcion }}</i>
+      {% endif %}
+
+    </div>
+  </body>
+</html>
+

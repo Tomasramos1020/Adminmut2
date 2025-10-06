@@ -103,6 +103,8 @@
           C.U.I.T.:{{ solicitud.consorcio.cuit }}<br>
           Ingresos Brutos: Exento<br>
           Inicio de actividad: {{solicitud.consorcio.contribuyente.active_since|date:"d/m/Y"}}
+          <br>
+          Matrícula INAES: {{ solicitud.consorcio.matricula }}
         </small>
       </div>
     </div>
@@ -124,7 +126,6 @@
       <div class="col">
         <div><span class="bold">Campaña:</span> {{ solicitud.campaña }}</div>
         <div><span class="bold">Fecha:</span> {{ solicitud.fecha|date:"d/m/Y" }}</div>
-        <div><span class="bold">Kg de Soja:</span>{{ solicitud.suscripcion|floatformat:2|intcomma }}</div>
       </div>
     </div>
   </div>
@@ -349,8 +350,8 @@
 
   <!-- Leyenda Siniestros -->
 <div class="footnote center">
-  <strong>DENUNCIAS DE SINIESTROS:</strong> DENTRO DE LAS 72 HS (DÍAS HÁBILES) VÍA WHATSAPP A LOS TELÉFONOS
-  (0358) 156002440 - (0358) 156024208 O AL E-MAIL agruprod@hotmail.com
+  <strong>DENUNCIAS DE SINIESTROS:</strong> DENTRO DE LAS 72 HS (DÍAS HÁBILES) VÍA WHATSAPP AL TELÉFONO
+  358-4311174 O AL E-MAIL asociacionmutualsoberania@gmail.com
 </div>
 
 
