@@ -35,7 +35,7 @@ from comprobantes.models import Comprobante, Cobro  # tu modelo
 from django_afip.models import *
 from creditos.models import Factura
 from contabilidad.asientos.manager import AsientoCreator
-from creditos.models import Credito, Factura
+from creditos.models import Credito, Factura, Liquidacion
 from django.views.decorators.http import require_GET
 from django import forms as djforms
 from django.db.models import Max
