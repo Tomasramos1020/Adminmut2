@@ -426,8 +426,6 @@ class Socio(models.Model):
 
 		""" Realiza el PDF del codigo para realizacion de usuario """
 
-		if not self.codigo:
-			self.generar_codigo()
 		socio = self
 		html_string = render_to_string('arquitectura/pdfs/codigo-socio.html', locals())
 		html = HTML(string=html_string, base_url='https://www.admincu.com/parametros/')

@@ -4,50 +4,147 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>{{factura.receipt.receipt_type}} {{factura.formatoAfip}}</title>
-    <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+    <title>Solicitud de Ingreso y Ficha del Asociado</title>
+    <style>
+      /* ===== Reset básico para PDF ===== */
+      html, body { margin: 0; padding: 0; }
+      * { box-sizing: border-box; }
+      body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-size: 12px; color: #222; }
+      @page { size: A4; margin: 22mm 18mm 22mm 18mm; }
+      @page :first { margin-top: 15mm; }
+
+      /* ===== Paleta y utilidades ===== */
+      :root {
+        --c1: #46a5b6;  /* primario AdminCU */
+        --c2: #185d68;  /* oscuro */
+        --b1: #f5fbfc;  /* fondo suave */
+        --bd: #dceef1;  /* borde claro */
+      }
+      .mt-4{ margin-top: 16px; } .mt-8{ margin-top: 32px; }
+      .mb-0{ margin-bottom:0; } .mb-6{ margin-bottom: 24px; }
+      .grid{ display: grid; gap: 8px; }
+      .g2{ grid-template-columns: 1fr 1fr; }
+      .g3{ grid-template-columns: 1.2fr 1fr 1fr; }
+      .g4{ grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+      /* ===== Encabezado ===== */
+      header { display: grid; grid-template-columns: 90px 1fr 140px; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 2px solid var(--c1); }
+      .logo img { max-height: 70px; max-width: 100%; }
+      .entidad h1 { font-size: 16px; color: var(--c2); margin: 0; }
+      .entidad p { margin: 2px 0; font-size: 10.5px; color: #444; }
+      .folio { text-align: right; font-size: 10.5px; }
+      .folio .chip { display: inline-block; padding: 6px 10px; border: 1px solid var(--c1); border-radius: 6px; background: var(--b1); }
+
+      /* ===== Título ===== */
+      .titulo { text-align: center; margin: 14px 0 10px; }
+      .titulo h2 { font-size: 15px; letter-spacing: .2px; margin: 0; color: var(--c2); }
+      .titulo p { margin: 6px 0 0; font-size: 11px; color: #666; }
+
+      /* ===== Secciones ===== */
+      section { margin-top: 10px; }
+      .sec { border: 1px solid var(--bd); border-radius: 8px; padding: 10px 10px 6px; background: #fff; }
+      .sec h3 { font-size: 12.5px; margin: 0 0 8px; color: var(--c2); border-left: 3px solid var(--c1); padding-left: 8px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+      .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px 12px; }
+      .row-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px 12px; }
+      .field { display: grid; grid-template-columns: 140px 1fr; gap: 6px; align-items: center; min-height: 22px; }
+      .field .lab { font-size: 10.5px; color: #444; }
+      .field .val { border-bottom: 1px dashed #bbb; padding: 3px 6px 2px; min-height: 18px; }
+      .field .val.small { font-size: 11px; color: #333; }
+
+      /* ===== Tabla simple ===== */
+      table.plain { width: 100%; border-collapse: collapse; font-size: 11px; }
+      .plain th, .plain td { border: 1px solid var(--bd); padding: 6px 8px; vertical-align: top; }
+      .plain thead th { background: var(--b1); color: var(--c2); font-weight: 600; }
+
+      /* ===== Casillas tipo checkbox ===== */
+      .checks { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px 12px; }
+      .chk { display: grid; grid-template-columns: 15px 1fr; gap: 6px; align-items: center; }
+      .box { width: 14px; height: 14px; border: 1.2px solid #666; border-radius: 2px; }
+      .x { font-weight: bold; font-size: 12px; text-align: center; line-height: 12px; }
+
+      /* ===== Declaración y firmas ===== */
+      .declaracion { font-size: 11px; color: #333; line-height: 1.45; }
+      .firmas { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 18px; }
+      .firma-box { border: 1px solid var(--bd); border-radius: 8px; padding: 12px; height: 120px; position: relative; }
+      .firma-linea { position: absolute; left: 12px; right: 12px; bottom: 34px; height: 0; border-top: 1px solid #555; }
+      .firma-rotulo { position: absolute; left: 12px; right: 12px; bottom: 10px; font-size: 10.5px; color: #555; text-align: center; }
+
+      /* ===== Uso interno ===== */
+      .interno { font-size: 10.5px; color: #333; }
+
+      /* ===== Footer ===== */
+      footer { position: fixed; bottom: 10mm; left: 18mm; right: 18mm; font-size: 10px; color: #777; display: flex; justify-content: space-between; }
+    </style>
   </head>
   <body>
-    <div class="receipt">
 
+    <!-- ===== Encabezado ===== -->
+    <header>
+      <div class="logo">
+        {% if socio.consorcio.contribuyente.extras.logo_as_data_uri %}
+          <img src="{{ socio.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo">
+        {% endif %}
+      </div>
+      <div class="entidad">
+        <h1>{{ socio.consorcio.nombre_completo|default:"Nombre de la Mutual" }}</h1>
+        <p>Matrícula INAES: {{ socio.consorcio.matricula|default:"—" }}</p>
+        <p>{{ socio.consorcio.domicilio|default:"Domicilio" }} – {{ socio.consorcio.provincia|default:"Provincia" }}</p>
+      </div>
+      <div class="folio">
+        <div class="chip">
+          N° de Socio: <b>{{ socio.numero_asociado|default:"—" }}</b><br>
+          Fecha de alta: <b>{{ socio.fecha_alta|date:"d/m/Y" }}</b>
+        </div>
+      </div>
+    </header>
 
-
-    <div style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; vertical-align: top; margin: 0;padding: 30px;border: 3px solid #46a5b6;border-radius: 7px; background-color: #fff;">
-        <header>
-          <div class="taxpayer-details group">
-            <div class="receipt-details">
-              <address>
-                  <img src="{% static "anopa/images/logo.png" %}" alt="Logo"><br>
-              </address>
-            </div>
-          </div>
-        </header>
-
-        <p>{{socio}}, te damos la bienvenida</p>
-
-        <strong><i>AdminCU es una plataforma integrada de gestión, administración, contabilidad y comunicación que te permitirá:</i></strong>
-        <ul>
-            <li>Consultar tu estado de cuenta a la fecha.</li>
-            <li>Enterarte de los proximos vencimientos.</li>
-            <li>Realizar pagos de expensas con tarjeta o efectivo en bocas de pago (Por MercadoPago).</li>
-            <li>Recibir por mail e imprimir facturas y todos los comprobantes que te involucren.</li>
-            <li>Recibir por mail e imprimir los reportes mensuales del consorcio.</li>
-            <li>Descargar los reglamentos y estatutos del consorcio.</li>
-            <li>Proximamente podrás comunicar eventualidades a la administración del consorcio.</li>
-            <li>Proximamente podrás reservar el uso de instalaciones comunes.</li>
-            <li>Proximamente podrás Obtener una guia de servicios</li>
-            <li>Y muchas funciones mas.</li>
-        </ul>
-
-        <strong>Debes utilizar el siguiente codigo para la creación de tu usuario: </strong>
-          <a href="#" class="btn-primary" itemprop="url"
-          style="font-family: 'Helvetica Neue',Helvetica,Arial,sans-serif; box-sizing: border-box; font-size: 14px; color: #FFF; text-decoration: none; line-height: 2em; font-weight: bold; text-align: center; cursor: pointer; display: inline-block; border-radius: 5px; text-transform: capitalize; background-color: #34d3eb; margin: 0; border-color: #34d3eb; border-style: solid; border-width: 8px 16px;">
-            {{socio.codigo}}
-          </a>
-
-
+    <!-- ===== Título ===== -->
+    <div class="titulo">
+      <h2>Solicitud de Ingreso y Ficha del Asociado</h2>
     </div>
 
+    <!-- ===== 1. Datos personales ===== -->
+    <div class="footnote center">
+      Al señor Presidente de {{ socio.consorcio.nombre_completo|default:"Nombre de la Mutual" }}:<br>
+      De mi consideración
+      Solicito por su intermedio al Consejo Directivo de esa institución, ser
+      admitido en carácter de asociado de la misma, a cuyo efecto declaro reunir las condiciones establecidas por los
+      Estatutos, cuyo texto conozco y acepto.
     </div>
+    <section class="sec">
+      <h3>Datos personales</h3>
+      <div class="row">
+        <div class="field"><div class="lab">Apellido y Nombre: </div><div class="val">{{ socio.apeynom|default:socio.nombre_completo }}</div></div>
+        <div class="field"><div class="lab">Fecha de Nacimiento</div><div class="val">{{ socio.fecha_nacimiento|date:"d/m/Y" }}</div></div>
+        <div class="field"><div class="lab">CUIT/CUIL</div><div class="val">{{ socio.cuit|default:"" }}</div></div>
+        <div class="field"><div class="lab">Domicilio</div><div class="val">{{ socio.domicilio|default:"" }} {{ socio.numero_calle|default:"" }} {{ socio.piso|default:"" }} {{ socio.departamento|default:"" }}, {{ socio.localidad|default:"" }}, {{ socio.provincia|default:"" }}</div></div>
+        <div class="field"><div class="lab">Telefono</div><div class="val">{{ socio.telefono|default:"" }}</div>
+        <div class="field"><div class="lab">Correo electrónico</div><div class="val">{{ socio.mail|default:"" }}</div></div>      
+      </div>
+      <div class="row mt-4">
+        <div class="field"><div class="lab">Profesión / Actividad</div><div class="val">{{ socio.profesion|default:"" }}</div></div>
+      </div>
+      <br> 
+    </section>
+    <!-- ===== 5. Declaración y firmas ===== -->
+    <div class="footnote center">
+      El titular de los datos brinda su consentimiento para que la Entidad ceda o transfiera los datos personales
+      contenidos en nuestras bases de datos en los términos de las leyes vigentes.
+      Asimismo, de conformidad con las leyes vigentes, el titular se notifica expresamente del derecho que le asiste
+      a los efectos de acceder, rectificar y/o suprimir datos en caso que estos sean inexactos o erróneos
+    </div>
+    <section class="sec">
+      <div class="firmas">
+        <div class="firma-box">
+          <div class="firma-linea"></div>
+          <div class="firma-rotulo">Firma y Aclaracion del Asociado</div>
+        </div>
+    </section>
+
+    <footer>
+      <div>{{ socio.consorcio.nombre_corto|default:socio.consorcio.nombre_completo }} — {{ socio.consorcio.domicilio|default:"" }}</div>
+    </footer>
+
   </body>
 </html>

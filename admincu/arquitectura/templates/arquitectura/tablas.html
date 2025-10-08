@@ -188,6 +188,7 @@
         {% else %}
           <th>Fecha de Ingreso</th>
           <th>Notificaciones</th>
+          <th>Ficha</th>
         {% endif %}
     
         <th>Estado</th>
@@ -277,9 +278,15 @@
         {% else %}
           <td>{{ objeto.fecha_alta|default:"" }}</td>
           <td>{% if objeto.notificaciones %}Si{% else %}No{% endif %}</td>
+          <td>
+            <a href="{% url 'codigo-socio' pk=objeto.pk %}" target="_blank" class="btn btn-icon btn-bordered btn-purple btn-xs">
+              <i class="fa fa-print"></i>
+            </a>
+          </td>
         {% endif %}
     
         <td>{{ objeto.estado|default:"" }}</td>
+
       </tr>
     {% endfor %}
     </tbody>
