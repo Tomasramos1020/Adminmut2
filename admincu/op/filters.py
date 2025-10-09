@@ -20,3 +20,13 @@ class OPFilter(django_filters.FilterSet):
     class Meta:
         model = OP
         fields = []
+
+class NotaCreditoProveedorFilter(django_filters.FilterSet):
+    acreedor__nombre = django_filters.CharFilter(label="Nombre del acreedor", lookup_expr="icontains")
+    fecha = django_filters.DateFromToRangeFilter(label="Fecha (rango)")
+    deuda__numero = django_filters.CharFilter(label="Número deuda", lookup_expr="icontains")
+    es_proveeduria = django_filters.BooleanFilter(label="¿Es Proveeduría?")
+
+    class Meta:
+        model = NotaCreditoProveedor
+        fields = []

@@ -1,0 +1,55 @@
+# templates/op/nc/detalle_nc_proveedor.html
+{% extends 'raiz.html' %}
+{% load humanize %}
+{% block titulo %}NC Proveedor {{ object.id }}{% endblock %}
+{% block header %}Detalle NC Proveedor{% endblock %}
+
+{% block contenido %}
+<div class="card-box">
+  <h4>Encabezado</h4>
+  <p><b>Fecha:</b> {{ object.fecha|date:"d/m/Y" }}</p>
+  <p><b>Acreedor:</b> {{ object.acreedor }}</p>
+  <p><b>Deuda Nº:</b> {{ object.deuda.numero }}</p>
+  <p><b>Tipo:</b> {% if object.es_proveeduria %}Proveeduría{% else %}Sin stock{% endif %}</p>
+  <p><b>Depósito:</b> {{ object.deposito|default:"—" }}</p>
+  <p><b>Observación:</b> {{ object.observacion|default:"—" }}</p>
+  <h4>Total</h4>
+  <p class="lead"><b>{{ object.total|intcomma }}</b></p>
+</div>
+
+{% if object.es_proveeduria %}
+  <div class="card-box">
+    <h4>Líneas de productos</h4>
+    <table class="table table-striped">
+      <thead><tr><th>Producto</th><th class="text-right">Cantidad</th><th class="text-right">Precio</th><th class="text-right">Subtotal</th></tr></thead>
+      <tbody>
+        {% for l in object.lineas_productos.all %}
+          <tr>
+            <td>{{ l.producto }}</td>
+            <td class="text-right">{{ l.cantidad }}</td>
+            <td class="text-right">{{ l.precio|intcomma }}</td>
+            <td class="text-right">{{ l.cantidad|floatformat:2|add:"0"|floatformat:2|floatformat }}{{ l.precio }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  {% if object.lineas_gastos.all %}
+  <div class="card-box">
+    <h4>Líneas de gasto</h4>
+    <table class="table table-striped">
+      <thead><tr><th>Gasto</th><th class="text-right">Importe</th></tr></thead>
+      <tbody>
+        {% for l in object.lineas_gastos.all %}
+          <tr>
+            <td>{{ l.gasto }}</td>
+            <td class="text-right">{{ l.valor|intcomma }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endif %}
+{% endblock %}

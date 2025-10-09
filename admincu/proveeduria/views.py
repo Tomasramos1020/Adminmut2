@@ -415,6 +415,7 @@ class CrearCompraView(View):
 				if linea.cleaned_data:
 					compra = linea.save(commit=False)
 					compra.consorcio = cons
+					compra.deuda = deuda
 					compra.save()
 
 					MovimientoStock.objects.create(

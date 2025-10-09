@@ -1,0 +1,27 @@
+{% load humanize %}
+<table class="anopa table display nowrap" style="width:100%">
+  <thead>
+    <tr>
+      <th>Fecha</th>
+      <th>Acreedor</th>
+      <th>Deuda Nº</th>
+      <th class="text-right">Total</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for nc in ncs %}
+      <tr>
+        <td>{{ nc.fecha|date:"d/m/Y" }}</td>
+        <td>{{ nc.acreedor }}</td>
+        <td>{{ nc.deuda.numero }}</td>
+        <td class="text-right">{{ nc.total|intcomma }}</td>
+        <td class="text-right">
+          <a href="{% url 'nc-proveedor-detalle' pk=nc.pk %}" class="btn btn-xs btn-primary">
+            <i class="fa fa-eye"></i>
+          </a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -220,6 +220,7 @@ class Compra_Producto(models.Model):
 	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
 	precio = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 	cantidad = models.IntegerField(blank=True, null=True)
+	deuda = models.ForeignKey('op.Deuda', on_delete=models.CASCADE, null=True, blank=True, related_name='compras')
 
 	@property
 	def total(self):

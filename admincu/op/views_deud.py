@@ -13,6 +13,8 @@ from .forms import *
 from contabilidad.asientos.funciones import asiento_deuda
 from .funciones import *
 from .filters import *
+from proveeduria.models import MovimientoStock
+from django.views import View
 
 
 
@@ -309,3 +311,357 @@ def deud_vincular_pago(request, pk):
 
 	return render(request, 'deudas/vincular-pago.html', locals())
 
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_GET
+from django.http import JsonResponse
+# Utils cortos
+def decimal2(x):
+    if x is None or x == "":
+        return Decimal('0.00')
+    if isinstance(x, Decimal):
+        return x
+    return Decimal(str(x))
+
+def deuda_es_proveeduria(deuda: Deuda) -> bool:
+    # Si la deuda tiene AL MENOS un gasto marcado como es_proveeduria=True, tratamos la NC como de mercadería.
+    return GastoDeuda.objects.filter(deuda=deuda, gasto__es_proveeduria=True).exists()
+
+@require_GET
+@login_required
+def deudas_por_acreedor(request):
+    cons = consorcio(request)
+    acreedor_id = request.GET.get('acreedor')
+    data = []
+    if acreedor_id:
+        qs = (Deuda.objects
+              .filter(consorcio=cons, acreedor_id=acreedor_id, confirmado=True, pagado=False, anulado__isnull=True)
+              .order_by('-fecha', '-id'))
+        for d in qs:
+            data.append({
+                "id": d.id,
+                "texto": f"{d.numero or d.id} - {d.fecha} - Total: {d.total} - Saldo: {d.saldo}",
+            })
+    return JsonResponse({"items": data})
+
+@require_GET
+@login_required
+def deuda_es_proveeduria_ajax(request):
+    deuda_id = request.GET.get('deuda')
+    es_prov = False
+    if deuda_id:
+        try:
+            d = Deuda.objects.get(pk=deuda_id, consorcio=consorcio(request))
+            es_prov = deuda_es_proveeduria(d)
+        except Deuda.DoesNotExist:
+            pass
+    return JsonResponse({"es_proveeduria": es_prov})
+
+def _cap_monto_nc(deuda: Deuda, monto_nc: Decimal) -> Decimal:
+    """
+    Evita dejar la deuda con saldo negativo:
+    new_total >= total_pagos_confirmados
+    """
+    pagos_conf = sum([p.valor for p in deuda.deudaop_set.filter(op__confirmado=True)])
+    total_actual = deuda.total or Decimal('0.00')
+    monto_nc = decimal2(monto_nc)
+    # nuevo total no puede ser menor a los pagos ya hechos
+    min_total_permitido = decimal2(pagos_conf)
+    new_total = total_actual - monto_nc
+    if new_total < min_total_permitido:
+        # Capamos la NC para que new_total == pagos_conf
+        return (total_actual - min_total_permitido).quantize(Decimal('0.01'))
+    return monto_nc.quantize(Decimal('0.01'))
+
+
+@transaction.atomic
+def aplicar_nc_a_deuda(*, deuda: Deuda, nc: NotaCreditoProveedor) -> None:
+    """
+    Aplica el efecto contable/stock de la Nota de Crédito:
+    - Baja Deuda.total hasta el máximo permitido (no menor a pagos ya hechos).
+    - Si es de proveeduría: genera MovimientoStock negativo por línea y (opcional) un GastoDeuda negativo de auditoría.
+    - Si NO es de proveeduría: opcionalmente registra un GastoDeuda negativo genérico (si querés historial), pero lo principal es bajar 'total'.
+    """
+    total_nc = decimal2(nc.total)
+    if total_nc <= 0:
+        return
+
+    # 1) Stock (si corresponde)
+    if nc.es_proveeduria:
+        if not nc.deposito:
+            raise ValueError("La NC de proveeduría requiere un depósito.")
+        for lp in nc.lineas_productos.all():
+            MovimientoStock.objects.create(
+                producto=lp.producto,
+                deposito=nc.deposito,
+                fecha=nc.fecha,
+                cantidad=decimal2(-lp.cantidad),  # ENTRA negativo
+                compra_producto=None,  # sin referencia específica
+            )
+
+    # 2) Bajar el total de la deuda (capado por pagos)
+    total_nc_capado = _cap_monto_nc(deuda, total_nc)
+    if total_nc_capado <= 0:
+        # Ya no hay saldo suficiente para aplicar; nada que hacer
+        deuda.chequear()
+        return
+
+    deuda.total = (decimal2(deuda.total) - total_nc_capado).quantize(Decimal('0.01'))
+    deuda.save()
+    deuda.chequear()
+
+    # 3) (Opcional) rastro en GastoDeuda negativo para auditoría
+    try:
+        # Tomamos un gasto "representativo":
+        #   - si es_proveeduría: buscar uno es_proveeduría=True (como el que se usó en la compra)
+        #   - si no: tomamos el primer gasto de la deuda o alguno “NC Proveedor” si lo tenés parametrizado
+        if nc.es_proveeduria:
+            gasto_ref = (GastoDeuda.objects
+                         .filter(deuda=deuda, gasto__es_proveeduria=True)
+                         .values_list('gasto', flat=True).first())
+        else:
+            gasto_ref = (GastoDeuda.objects
+                         .filter(deuda=deuda)
+                         .values_list('gasto', flat=True).first())
+
+        if gasto_ref:
+            GastoDeuda.objects.create(
+                fecha=nc.fecha,
+                deuda=deuda,
+                gasto=Gasto.objects.get(pk=gasto_ref),
+                valor=decimal2(-total_nc_capado)
+            )
+    except Exception:
+        # Si no existe gasto apto, no frenamos el flujo: la baja de total ya quedó aplicada.
+        pass
+
+# admincu/op/views_nc_proveedor.py (o utils.py donde prefieras)
+from django.db.models import Sum
+from collections import defaultdict
+from .models import NotaCreditoLineaProducto
+from proveeduria.models import Compra_Producto
+
+def disponibles_por_producto_en_deuda(deuda):
+    """
+    Devuelve dict {producto_id: cantidad_disponible} para esa deuda.
+    disponible = sum(compra.cantidad) - sum(nc_lineas.cantidad)
+    """
+    comprados = (
+        Compra_Producto.objects
+        .filter(deuda=deuda)
+        .values('producto_id')
+        .annotate(q=Sum('cantidad'))
+    )
+    devueltos = (
+        NotaCreditoLineaProducto.objects
+        .filter(nc__deuda=deuda)
+        .values('producto_id')
+        .annotate(q=Sum('cantidad'))
+    )
+
+    map_comp = {r['producto_id']: (r['q'] or 0) for r in comprados}
+    map_dev = {r['producto_id']: (r['q'] or 0) for r in devueltos}
+
+    disponibles = {}
+    for pid, q in map_comp.items():
+        disponibles[pid] = max(0, (q or 0) - (map_dev.get(pid, 0) or 0))
+    return disponibles
+
+# admincu/op/views_nc_proveedor.py
+@require_GET
+@login_required
+def disponible_producto_nc_ajax(request):
+    deuda_id = request.GET.get('deuda')
+    prod_id = request.GET.get('producto')
+    disp = 0
+    try:
+        d = Deuda.objects.get(pk=deuda_id, consorcio=consorcio(request))
+        mapa = disponibles_por_producto_en_deuda(d)
+        disp = mapa.get(int(prod_id), 0)
+    except Exception:
+        pass
+    return JsonResponse({"disponible": float(disp)})
+
+# views_nc_proveedor.py
+from django.db.models import Sum, OuterRef, Subquery, Value, DecimalField
+
+@require_GET
+@login_required
+def nc_lineas_deuda_ajax(request):
+    cons = consorcio(request)
+    deuda_id = request.GET.get('deuda')
+    try:
+        d = Deuda.objects.get(pk=deuda_id, consorcio=cons)
+    except Deuda.DoesNotExist:
+        return JsonResponse({"items": []})
+
+    # último precio usado por producto dentro de esa deuda
+    ult_precio_sq = (Compra_Producto.objects
+        .filter(deuda=d, producto_id=OuterRef('producto_id'))
+        .order_by('-id').values('precio')[:1])
+
+    compras = (Compra_Producto.objects
+        .filter(deuda=d)
+        .values('producto_id', 'producto__nombre')
+        .annotate(comprado=Sum('cantidad'),
+                  precio=Subquery(ult_precio_sq)))
+
+    devueltos = (NotaCreditoLineaProducto.objects
+        .filter(nc__deuda=d)
+        .values('producto_id')
+        .annotate(q=Sum('cantidad')))
+    map_dev = {r['producto_id']: (r['q'] or 0) for r in devueltos}
+
+    items = []
+    for r in compras:
+        disp = (r['comprado'] or 0) - (map_dev.get(r['producto_id'], 0) or 0)
+        if disp > 0:
+            items.append({
+                "producto_id": r['producto_id'],
+                "producto": r['producto__nombre'],
+                "disponible": float(disp),
+                "precio": float(r['precio'] or 0),
+            })
+    return JsonResponse({"items": items})
+
+
+class NCProveedorView(View):
+    template_name = 'nc/crear_nc_proveedor.html'
+
+    def get(self, request):
+        inicial = NCProveedorInicialForm(request=request)
+        # en GET todavía no sabemos la deuda -> no filtramos por disponibilidad
+        prod_fs  = NCProductoFS(prefix='p', form_kwargs={'request': request})
+        return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+
+    @transaction.atomic
+    def post(self, request):
+        # 1) validar encabezado primero
+        inicial = NCProveedorInicialForm(request.POST, request=request)
+        if not inicial.is_valid():
+            prod_fs = NCProductoFS(request.POST, prefix='p', form_kwargs={'request': request})
+            messages.error(request, "Revisá los datos del encabezado.")
+            return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+
+        c = consorcio(request)
+        acreedor = inicial.cleaned_data['acreedor']
+        deuda = inicial.cleaned_data['deuda']
+        fecha = inicial.cleaned_data['fecha']
+        observacion = inicial.cleaned_data.get('observacion') or ''
+        deposito = inicial.cleaned_data.get('deposito')
+
+        # ahora instancias el formset con la deuda (para filtrar productos por disponibilidad)
+        prod_fs  = NCProductoFS(
+            request.POST, prefix='p',
+            form_kwargs={'request': request, 'deuda': deuda}
+        )
+
+        # 2) decidir camino
+        es_prov = deuda_es_proveeduria(deuda)
+        total = Decimal('0.00')
+        lineas_p = []
+
+        if es_prov:
+            # validar formset
+            if not prod_fs.is_valid():
+                messages.error(request, "Completá correctamente las líneas de productos.")
+                return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+            if not deposito:
+                messages.error(request, "Debés seleccionar un depósito para ajustar stock.")
+                return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+
+            # disponibilidad por producto (compra - NC previas)
+            mapa_disp = disponibles_por_producto_en_deuda(deuda)  # {producto_id: qty}
+
+            for f in prod_fs:
+                cd = getattr(f, 'cleaned_data', {}) or {}
+                if cd and not cd.get('DELETE'):
+                    prod = cd['producto']
+                    precio = decimal2(cd.get('precio'))
+                    cantidad = decimal2(cd.get('cantidad'))
+
+                    if cantidad <= 0 or precio < 0:
+                        messages.error(request, "Cantidad > 0 y precio >= 0 en todas las líneas.")
+                        return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+
+                    # validar disponible
+                    disp = decimal2(mapa_disp.get(prod.pk, 0))
+                    if cantidad > disp:
+                        messages.error(
+                            request,
+                            f"La cantidad solicitada para '{prod}' ({cantidad}) excede el disponible ({disp}) para esta deuda."
+                        )
+                        return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+
+                    total += (precio * cantidad)
+                    lineas_p.append(cd)
+
+            if total <= 0:
+                messages.error(request, "La NC debe tener total > 0.")
+                return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+
+        else:
+            # NC sin stock: un único importe
+            importe = decimal2(inicial.cleaned_data.get('importe_nc') or 0)
+            if importe <= 0:
+                messages.error(request, "Indicá un importe > 0 para la NC.")
+                return render(request, self.template_name, {'inicial': inicial, 'prod_fs': prod_fs})
+            total = importe
+
+        # 3) Crear NC
+        nc = NotaCreditoProveedor.objects.create(
+            consorcio=c,
+            acreedor=acreedor,
+            deuda=deuda,
+            fecha=fecha,
+            observacion=observacion,
+            es_proveeduria=es_prov,
+            deposito=deposito if es_prov else None,
+            total=total.quantize(Decimal('0.01')),
+        )
+
+        # 4) Guardar líneas (si corresponde)
+        if es_prov:
+            for cd in lineas_p:
+                NotaCreditoLineaProducto.objects.create(
+                    nc=nc,
+                    producto=cd['producto'],
+                    cantidad=decimal2(cd['cantidad']),
+                    precio=decimal2(cd['precio']),
+                )
+
+        # 5) Aplicar efectos (stock / total deuda capado)
+        aplicar_nc_a_deuda(deuda=deuda, nc=nc)
+
+        messages.success(request, "Nota de Crédito aplicada correctamente.")
+        return redirect('deudas')
+
+from django.views import generic
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class RegistroNCProveedor(OrderQS):
+    """ Registro de NC Proveedor """
+    model = NotaCreditoProveedor
+    filterset_class = NotaCreditoProveedorFilter
+    template_name = 'nc/registros/nc_proveedor.html'
+    paginate_by = 50
+
+    def get_queryset(self, **kwargs):
+        qs = super().get_queryset(**kwargs)
+        return (
+            qs.filter(consorcio=consorcio(self.request))
+              .select_related('acreedor', 'deuda', 'deposito')
+              .order_by('-fecha', '-id')
+        )
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class NCProveedorDetalleView(generic.DetailView):
+    model = NotaCreditoProveedor
+    template_name = 'nc/registros/detalle_nc_proveedor.html'
+
+    def get_queryset(self):
+        return (
+            super().get_queryset()
+            .filter(consorcio=consorcio(self.request))
+            .select_related('acreedor','deuda','deposito')
+            .prefetch_related('lineas_productos__producto', 'lineas_gastos__gasto')
+        )

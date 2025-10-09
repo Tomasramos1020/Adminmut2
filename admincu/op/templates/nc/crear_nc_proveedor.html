@@ -1,0 +1,395 @@
+{# templates/nc/crear_nc_proveedor.html #}
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+
+{% block titulo %}Nota de Crédito a Proveedor{% endblock %}
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'plugins/select2/css/select2.min.css' %}">
+<style>
+  .card-box { background:#fff; border:1px solid #eaeaea; border-radius:12px; padding:18px; margin-bottom:16px; }
+  .card-title { font-weight:700; font-size:16px; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+  .badge-soft { background:#f6f8fa; color:#586069; padding:4px 8px; border-radius:8px; font-size:12px; }
+  .linea { border:1px dashed #e6e6e6; border-radius:10px; padding:12px; margin-bottom:10px; transition: all .2s ease; }
+  .linea.is-deleted { opacity:.55; filter:grayscale(.4); }
+  .acciones { display:flex; gap:8px; justify-content:flex-end; }
+  .sticky-summary { position:sticky; bottom:0; z-index:5; background:#fff; border-top:1px solid #eee; padding:12px 0 0; }
+  .summary-card { display:flex; align-items:center; justify-content:space-between; padding:12px; border:1px solid #eaeaea; border-radius:12px; }
+  .summary-total { font-size:20px; font-weight:800; }
+  .muted { color:#6c757d; font-size:12px; }
+
+  /* Tachito rojo al final de cada fila */
+  .fila-acciones { display:flex; justify-content:flex-end; margin-top:6px; }
+  .btn-trash { display:inline-flex; align-items:center; gap:6px; border:1px solid #f0c6c6; background:#fff5f5; color:#dc3545; border-radius:8px; padding:6px 10px; cursor:pointer; }
+  .btn-trash:hover { background:#ffe9e9; }
+  .btn-trash svg { width:18px; height:18px; }
+</style>
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="Deudas" bhijo1="NC proveedor" %}
+{% endblock %}
+
+{% block header %}Nota de Crédito a Proveedor{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-md-3">
+    {% include 'deudas/barra.html' %}
+  </div>
+
+  <div class="col-md-9">
+    <form method="post" id="form-nc">{% csrf_token %}
+
+      <!-- Paso 1: Encabezado -->
+      <div class="card-box">
+        <div class="card-title">
+          <span>1) Encabezado</span> <span class="badge-soft">Seleccioná proveedor, deuda y fecha</span>
+        </div>
+        <div class="row">
+          <div class="col-md-5">
+            <label for="{{ inicial.acreedor.id_for_label }}">Proveedor</label>
+            {{ inicial.acreedor }}
+          </div>
+          <div class="col-md-5">
+            <label for="{{ inicial.deuda.id_for_label }}">Deuda</label>
+            {{ inicial.deuda }}
+          </div>
+          <div class="col-md-2">
+            <label for="{{ inicial.fecha.id_for_label }}">Fecha</label>
+            {{ inicial.fecha }}
+          </div>
+        </div>
+
+        <div class="row mt-2">
+          <div class="col-md-12">
+            <label for="{{ inicial.observacion.id_for_label }}">Observación</label>
+            {{ inicial.observacion }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 2A: Solo Proveeduría -->
+      <div class="card-box" id="wrap-deposito" style="display:none;">
+        <div class="card-title">
+          <span>2) Depósito</span> <span class="badge-soft">Requerido para ajustar stock</span>
+        </div>
+        <div class="row">
+          <div class="col-md-6">
+            <label for="{{ inicial.deposito.id_for_label }}">Depósito</label>
+            {{ inicial.deposito }}
+          </div>
+        </div>
+      </div>
+
+      <div class="card-box" id="bloque-productos" style="display:none;">
+        <div class="card-title">
+          <span>3) Líneas de productos</span> <span class="badge-soft">Cargá cantidad y precio manualmente</span>
+        </div>
+
+        <div id="productos-container">
+          {% for f in prod_fs|slice:":1" %}
+            <div class="linea">
+              {% if prod_fs.can_delete %}{{ f.DELETE.as_hidden }}{% endif %}
+              <div class="row">
+                <div class="col-md-6">{{ f.producto.label_tag }} {{ f.producto }}</div>
+                <div class="col-md-3">
+                  {{ f.cantidad.label_tag }} {{ f.cantidad }}
+                  <div class="muted helper-disp"></div>
+                </div>
+                <div class="col-md-3">{{ f.precio.label_tag }} {{ f.precio }}</div>
+              </div>
+              <div class="fila-acciones">
+                <button type="button" class="btn-trash" title="Eliminar renglón" aria-label="Eliminar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M3 6h18" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-width="2"/>
+                    <path d="M10 11v6M14 11v6" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" stroke-width="2" stroke-linecap="round"/>
+                  </svg>
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+        
+        <!-- management form -->
+        <input type="hidden" name="p-TOTAL_FORMS" value="{{ prod_fs.total_form_count }}">
+        <input type="hidden" name="p-INITIAL_FORMS" value="{{ prod_fs.initial_form_count }}">
+        <input type="hidden" name="p-MIN_NUM_FORMS" value="0">
+        <input type="hidden" name="p-MAX_NUM_FORMS" value="1000">
+
+        <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-producto">+ Agregar producto</button>
+      </div>
+
+      <!-- Paso 2B: Solo NO Proveeduría -->
+      <div class="card-box" id="wrap-importe" style="display:none;">
+        <div class="card-title">
+          <span>2) Importe de la NC</span> <span class="badge-soft">Se descontará del total de la deuda</span>
+        </div>
+        <div class="row">
+          <div class="col-md-4">
+            <label for="{{ inicial.importe_nc.id_for_label }}">Importe</label>
+            {{ inicial.importe_nc }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary / acciones -->
+      <div class="sticky-summary">
+        <div class="summary-card">
+          <div>
+            <div class="muted" id="summary-mode">—</div>
+            <div class="muted" id="summary-extra">Seleccioná deuda para continuar</div>
+          </div>
+          <div class="summary-total" id="summary-total">$ 0,00</div>
+        </div>
+
+        <div class="card-box acciones" style="margin-top:10px;">
+          <a href="{% url 'deudas' %}" class="btn btn-light">Cancelar</a>
+          <button class="btn btn-primary">Guardar Nota de Crédito</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- plantilla para nuevas filas -->
+<template id="tpl-linea-producto">
+  <div class="linea">
+    <input type="hidden" name="__NAME__-DELETE">
+    <div class="row">
+      <div class="col-md-6">
+        <label>Producto</label>
+        <select class="form-control select2" name="__NAME__-producto"></select>
+      </div>
+      <div class="col-md-3">
+        <label>Cantidad</label>
+        <input type="number" step="0.01" class="form-control" name="__NAME__-cantidad">
+        <div class="muted helper-disp"></div>
+      </div>
+      <div class="col-md-3">
+        <label>Precio</label>
+        <input type="number" step="0.01" class="form-control" name="__NAME__-precio">
+      </div>
+    </div>
+    <div class="fila-acciones">
+      <button type="button" class="btn-trash" title="Eliminar renglón" aria-label="Eliminar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M3 6h18" stroke-width="2" stroke-linecap="round"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke-width="2"/>
+          <path d="M10 11v6M14 11v6" stroke-width="2" stroke-linecap="round"/>
+          <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        Eliminar
+      </button>
+    </div>
+  </div>
+</template>
+
+{% endblock %}
+
+{% block js %}
+<script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>
+<script>
+(function(){
+  // ====== Select2 inicial existente ======
+  if (window.jQuery && $.fn.select2){
+    $('.select2').select2({ width: '100%' });
+  }
+
+  const URL_DEUDAS       = "{% url 'ajax-deudas-por-acreedor' %}";
+  const URL_DEUDA_ESPROV = "{% url 'ajax-deuda-es-proveeduria' %}";
+  const URL_DISP         = "{% url 'ajax-nc-disponible-producto' %}";
+
+  const deudaSelect      = document.getElementById('id_deuda');
+  const acreedorSelect   = document.getElementById('id_acreedor');
+  const depositoWrap     = document.getElementById('wrap-deposito');
+  const bloqueProductos  = document.getElementById('bloque-productos');
+  const wrapImporte      = document.getElementById('wrap-importe');
+  const importeInput     = document.getElementById('id_importe_nc');
+  const summaryMode      = document.getElementById('summary-mode');
+  const summaryExtra     = document.getElementById('summary-extra');
+  const summaryTotal     = document.getElementById('summary-total');
+  const contProductos    = document.getElementById('productos-container');
+  const totalFormsInput  = document.querySelector('input[name="p-TOTAL_FORMS"]');
+
+  // ====== Opciones base de productos (HTML de <option>...) ======
+  function getBaseOptions(){
+    const first = contProductos.querySelector('select[name^="p-"][name$="-producto"]');
+    return first ? first.innerHTML : '';
+  }
+  let baseOptions = getBaseOptions();
+
+  // ====== Helpers ======
+  function formatoMoneda(n){
+    try { return new Intl.NumberFormat('es-AR', { style:'currency', currency:'ARS' }).format(n || 0); }
+    catch(_){ return '$ ' + (Number(n||0).toFixed(2)); }
+  }
+  function setSummary(mode, extra, total){
+    summaryMode.textContent  = mode || '—';
+    summaryExtra.textContent = extra || '';
+    summaryTotal.textContent = formatoMoneda(total || 0);
+  }
+  function totalProductos(){
+    let total = 0;
+    contProductos.querySelectorAll('.linea').forEach(linea => {
+      if (linea.style.display === 'none') return;
+      const q = parseFloat((linea.querySelector('[name*="-cantidad"]') || {}).value || '0');
+      const p = parseFloat((linea.querySelector('[name*="-precio"]') || {}).value || '0');
+      total += (q>0 && p>=0) ? (q*p) : 0;
+    });
+    return total;
+  }
+  function recalc(){
+    if (bloqueProductos.style.display !== 'none'){
+      setSummary('NC por productos (Proveeduría)', 'Se ajustará stock en el depósito elegido.', totalProductos());
+    } else if (wrapImporte.style.display !== 'none'){
+      setSummary('NC por importe (sin stock)', 'Se descontará del total de la deuda.', parseFloat(importeInput?.value || '0'));
+    } else {
+      setSummary('—', 'Seleccioná una deuda para continuar.', 0);
+    }
+  }
+
+  // ====== Reset a UNA fila vacía con opciones cargadas ======
+  function resetUnaFilaVacia(){
+    contProductos.innerHTML = '';
+    const tpl = document.getElementById('tpl-linea-producto').content.cloneNode(true);
+    tpl.querySelectorAll('[name^="__NAME__"]').forEach(el=>{
+      el.name = el.name.replace('__NAME__', 'p-0');
+    });
+    const sel = tpl.querySelector('select[name="p-0-producto"]');
+    if (sel) {
+      sel.innerHTML = baseOptions;    // ← carga opciones
+      if (window.jQuery && $.fn.select2){ $(sel).select2({ width:'100%' }); }
+    }
+    contProductos.appendChild(tpl);
+    totalFormsInput.value = '1';
+  }
+
+  // ====== Cargar deudas por acreedor ======
+  async function cargarDeudas(acreedorId){
+    $(deudaSelect).empty().append(new Option('-- Seleccioná --', ''));
+    if(!acreedorId){ depositoWrap.style.display= bloqueProductos.style.display= wrapImporte.style.display ='none'; return recalc(); }
+    const res = await fetch(`${URL_DEUDAS}?acreedor=${encodeURIComponent(acreedorId)}`);
+    const data = await res.json();
+    (data.items || []).forEach(it => $(deudaSelect).append(new Option(it.texto, it.id)));
+    $(deudaSelect).trigger('change');
+    depositoWrap.style.display = bloqueProductos.style.display = wrapImporte.style.display = 'none';
+    recalc();
+  }
+
+  // ====== Cambiar UI según deuda ======
+  async function togglePorDeuda(deudaId){
+    depositoWrap.style.display = bloqueProductos.style.display = wrapImporte.style.display = 'none';
+    if(!deudaId){ return recalc(); }
+
+    const res = await fetch(`${URL_DEUDA_ESPROV}?deuda=${encodeURIComponent(deudaId)}`);
+    const data = await res.json();
+    const esProv = !!data.es_proveeduria;  // ← SIN tilde (coincide con el JSON del backend)
+    const flag = esProv;    
+
+    if (flag){
+      depositoWrap.style.display = '';
+      bloqueProductos.style.display = '';
+      // refrescamos baseOptions por si la 1ª fila ya tiene un queryset filtrado
+      baseOptions = getBaseOptions() || baseOptions;
+      resetUnaFilaVacia();
+    } else {
+      wrapImporte.style.display = '';
+    }
+    recalc();
+  }
+
+  // ====== Disponible por producto (solo helper visual) ======
+  async function actualizarDisponible(lineaEl){
+    const deudaId = deudaSelect.value;
+    const sel = lineaEl.querySelector('select[name^="p-"][name$="-producto"]');
+    const qInput = lineaEl.querySelector('input[name^="p-"][name$="-cantidad"]');
+    const helper = lineaEl.querySelector('.helper-disp') || document.createElement('div');
+    if(!deudaId || !sel || !sel.value) return;
+
+    const res = await fetch(`${URL_DISP}?deuda=${encodeURIComponent(deudaId)}&producto=${encodeURIComponent(sel.value)}`);
+    const data = await res.json();
+    helper.className = 'muted helper-disp';
+    helper.textContent = `Disponible para esta deuda: ${data.disponible}`;
+    if(!lineaEl.querySelector('.helper-disp')) lineaEl.querySelector('.col-md-3 .muted')?.replaceWith(helper);
+    if(qInput){ qInput.setAttribute('max', data.disponible); }
+  }
+
+  // ====== Eventos globales ======
+  $('#id_acreedor').on('change', function(){ cargarDeudas(this.value); });
+  $('#id_deuda').on('change', function(){ togglePorDeuda(this.value); });
+
+  document.addEventListener('change', function(e){
+    const el = e.target;
+    if(el.matches('select[name^="p-"][name$="-producto"]')){
+      const linea = el.closest('.linea');
+      if(linea) actualizarDisponible(linea);
+    }
+  });
+
+  document.addEventListener('input', e => {
+    const n = e.target?.name || '';
+    if(n.includes('-cantidad') || n.includes('-precio') || n==='importe_nc') recalc();
+  });
+
+  // Eliminar (tachito)
+  document.addEventListener('click', e => {
+    const btn = e.target.closest('.btn-trash');
+    if(!btn) return;
+    const linea = btn.closest('.linea');
+    const del = linea.querySelector('input[name$="-DELETE"]');
+    if (del){ del.checked = true; del.value = 'on'; }
+    linea.style.display = 'none';
+    recalc();
+  });
+
+  // Agregar nueva línea
+  document.getElementById('btn-add-producto').addEventListener('click', function(){
+    const idx = parseInt(totalFormsInput.value || 0, 10);
+    const tpl = document.getElementById('tpl-linea-producto').content.cloneNode(true);
+  
+    // set names
+    tpl.querySelectorAll('[name^="__NAME__"]').forEach(el=>{
+      el.name = el.name.replace('__NAME__', `p-${idx}`);
+    });
+  
+    // set product options en el nuevo select
+    const sel = tpl.querySelector(`select[name="p-${idx}-producto"]`);
+    if (sel){
+      // 1) intentamos con baseOptions
+      if (baseOptions && baseOptions.trim().length){
+        sel.innerHTML = baseOptions;
+      } else {
+        // 2) fallback: clonamos opciones de cualquier otro select existente
+        const sample = contProductos.querySelector('select[name^="p-"][name$="-producto"]');
+        if (sample && sample.innerHTML.trim().length){
+          sel.innerHTML = sample.innerHTML;
+        }
+      }
+    }
+  
+    contProductos.appendChild(tpl);
+    totalFormsInput.value = String(idx + 1);
+  
+    // init select2 SOLO en el nuevo select
+    if (window.jQuery && $.fn.select2 && sel){ $(sel).select2({ width:'100%' }); }
+  
+    recalc();
+  });
+  
+
+  // Estado inicial
+  baseOptions = getBaseOptions() || baseOptions;
+  recalc();
+})();
+</script>
+{% endblock %}
+
+
+
+
+
+
