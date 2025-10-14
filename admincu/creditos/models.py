@@ -272,6 +272,7 @@ class Liquidacion(models.Model):
 		from contabilidad.models import Cuenta		
 		""" Crea el asiento de la liquidacion con AR por ingreso y resultado por ingreso. """
 		if self.asiento:
+			asiento = self.asiento
 			asiento.delete()
 
 		descripcion = f'Liquidacion {self.formatoAfip()}'
