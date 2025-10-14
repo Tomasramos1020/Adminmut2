@@ -267,6 +267,86 @@ class Liquidacion(models.Model):
 		self.asiento = asiento
 		self.save()
 
+	def rehacer_asiento(self):
+		from contabilidad.asientos.manager import AsientoCreator
+		from contabilidad.models import Cuenta		
+		""" Crea el asiento de la liquidacion con AR por ingreso y resultado por ingreso. """
+		if self.asiento:
+			asiento.delete()
+
+		descripcion = f'Liquidacion {self.formatoAfip()}'
+		if self.factura_set.first():
+			fecha_asiento = self.factura_set.first().receipt.issued_date
+		else:
+			fecha_asiento = self.fecha
+
+		data_asiento = {
+			'consorcio': self.consorcio,
+			'fecha_asiento': fecha_asiento,
+			'descripcion': descripcion
+		}
+
+		data_operaciones = []
+
+		# --- Créditos base (sin hijos) ---
+		creditos = self.credito_set.filter(padre__isnull=True)
+
+		# --- BONIFICACIONES (débitos por cuenta de bonificación agrupada) ---
+		bonificaciones = set([credito.acc_bonif for credito in creditos if credito.acc_bonif])
+		if bonificaciones:
+			for bonificacion in bonificaciones:
+				creditos_bonificacion = creditos.filter(acc_bonif=bonificacion)
+				debe_bonif = sum([c.bonificacion or Decimal('0') for c in creditos_bonificacion], Decimal('0'))
+				if debe_bonif > 0:
+					data_operaciones.append({
+						'cuenta': bonificacion.cuenta_contable,
+						'debe': debe_bonif,
+						'haber': Decimal('0'),
+						'descripcion': descripcion
+					})
+
+		# --- AGRUPACIÓN POR INGRESO ---
+		# Distinct en DB para evitar sets de instancias
+		ingreso_ids = creditos.values_list('ingreso', flat=True).distinct()
+
+		for ingreso_id in ingreso_ids:
+			if not ingreso_id:
+				continue
+			creditos_ingreso = creditos.filter(ingreso_id=ingreso_id)
+
+			suma_bruto = sum([c.bruto or Decimal('0') for c in creditos_ingreso], Decimal('0'))
+			suma_capital = sum([c.capital or Decimal('0') for c in creditos_ingreso], Decimal('0'))
+
+			# Tomo la instancia de ingreso desde cualquier crédito del grupo
+			ingreso = creditos_ingreso.first().ingreso
+
+			# Cuenta de activo y resultado
+			cuenta_activo = ingreso.cuenta_activo
+			cuenta_resultado = ingreso.cuenta_contable
+
+			# Debe: AR por brutos (importe a cobrar)
+			if suma_bruto > 0:
+				data_operaciones.append({
+					'cuenta': cuenta_activo,
+					'debe': suma_bruto,
+					'haber': Decimal('0'),
+					'descripcion': descripcion
+				})
+
+			# Haber: Resultado por capitales
+			if suma_capital > 0:
+				data_operaciones.append({
+					'cuenta': cuenta_resultado,
+					'debe': Decimal('0'),
+					'haber': suma_capital,
+					'descripcion': descripcion
+				})
+
+			# Crear y guardar asiento
+		crear_asiento = AsientoCreator(data_asiento, data_operaciones)
+		asiento = crear_asiento.guardar()
+		self.asiento = asiento
+		self.save()		
 	@property
 	def cobrado(self):
 
