@@ -179,6 +179,7 @@ class Ingreso(models.Model):
 	cuenta_contable = models.ForeignKey(Cuenta, on_delete=models.CASCADE)
 	es_cuota_social = models.BooleanField(default=False)
 	es_proveeduria = models.BooleanField(default=False)
+	cuenta_activo = models.ForeignKey(Cuenta, on_delete=models.CASCADE, blank=True, null=True, related_name="ingreso_activo")
 
 	def __str__(self):
 		return self.nombre

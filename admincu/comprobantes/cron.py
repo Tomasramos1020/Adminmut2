@@ -19,18 +19,16 @@ def hacer_asiento():
 	# 		comprobantes = consorcio.comprobante_set.filter(asiento__isnull=True, fecha=hoy)
 	# 		if comprobantes:
 	# 			asiento_diario(hoy, consorcio, comprobantes)
-	dia = date.today()
 	for comprobante in Comprobante.objects.filter(asiento__isnull=True, id__gt=15948):
-		if comprobante.fecha != dia:
-			dia = comprobante.fecha
-			consorcio = comprobante.consorcio
-			comprobantes_dia = Comprobante.objects.filter(consorcio=consorcio, fecha=dia)
-			asiento = Asiento.objects.filter(
-				comprobante_original__in=comprobantes_dia
-			).distinct().first()
-			if asiento:
-				asiento.delete()
-			asiento_diario(dia, consorcio, comprobantes_dia)
+		dia = comprobante.fecha
+		consorcio = comprobante.consorcio
+		comprobantes_dia = Comprobante.objects.filter(consorcio=consorcio, fecha=dia)
+		asiento = Asiento.objects.filter(
+			comprobante_original__in=comprobantes_dia
+		).distinct().first()
+		if asiento:
+			asiento.delete()
+		asiento_diario(dia, consorcio, comprobantes_dia)
 
 def chequear_mp():
 

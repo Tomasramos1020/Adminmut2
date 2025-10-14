@@ -67,20 +67,18 @@ def reenviar_mail(modeladmin, request, queryset):
 reenviar_mail.short_description = "Enviar mail de este comprobante"
 
 def hacer_asiento_diario(modeladmin, request, queryset):
-	dia = date.today()
 	for comprobante in queryset:
-		if comprobante.fecha != dia:
-			dia = comprobante.fecha
-			consorcio = comprobante.consorcio
-			comprobantes_dia = Comprobante.objects.filter(consorcio=consorcio, fecha=dia)
-			asiento = Asiento.objects.filter(
-				comprobante_original__in=comprobantes_dia
-			).distinct().first()
-			if asiento:
-				asiento.delete()
-			asiento_diario(dia, consorcio, comprobantes_dia)
-			comprobantes_dia = Comprobante.objects.filter(consorcio=consorcio, fecha=dia)
-			messages.success(request, 'Asiento CREADO con exito.')
+		dia = comprobante.fecha
+		consorcio = comprobante.consorcio
+		comprobantes_dia = Comprobante.objects.filter(consorcio=consorcio, fecha=dia)
+		asiento = Asiento.objects.filter(
+			comprobante_original__in=comprobantes_dia
+		).distinct().first()
+		if asiento:
+			asiento.delete()
+		asiento_diario(dia, consorcio, comprobantes_dia)
+		comprobantes_dia = Comprobante.objects.filter(consorcio=consorcio, fecha=dia)
+		messages.success(request, 'Asiento CREADO con exito.')
 
 
 def procesar_recibos_masivos(modeladmin, request, queryset):

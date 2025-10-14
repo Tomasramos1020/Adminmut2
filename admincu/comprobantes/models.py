@@ -343,27 +343,29 @@ class Comprobante(models.Model):
 				operaciones.append([c.caja.cuenta_contable, c.valor])
 
 
-		suma_capitales = 0
 		suma_descuentos = 0
 		suma_intereses = 0
 		suma_intereses_nc = 0
 		cobros = self.cobro_set.filter(subtotal__gt=0)
 		if cobros:
 			for c in cobros:
+				ingreso = c.credito.ingreso
+				cuenta_activo = ingreso.cuenta_activo
 				if not self.punto: # Si es una "Nota de Credito C"
-					operaciones.append([c.credito.ingreso.cuenta_contable, c.capital])
-					suma_intereses_nc += c.int_desc
+					if c.capital:
+						operaciones.append([ingreso.cuenta_contable, c.capital])
+						operaciones.append([cuenta_activo, -(c.capital)])
+						suma_intereses_nc += c.int_desc
 				else:
-					suma_intereses += c.int_desc if c.int_desc > 0 else 0
-				suma_capitales += c.capital
+					if c.capital:
+						operaciones.append([cuenta_activo, -(c.capital)])
+						suma_intereses += c.int_desc if c.int_desc > 0 else 0
 				suma_descuentos -= c.int_desc if c.int_desc < 0 else 0
 
 		if suma_descuentos:
 			operaciones.append([Cuenta.objects.get(numero=511125), suma_descuentos])
 		if suma_intereses:
 			operaciones.append([Cuenta.objects.get(numero=411103), -suma_intereses])
-		if suma_capitales:
-			operaciones.append([Cuenta.objects.get(numero=112101), -suma_capitales])
 
 
 		saldos_utilizados = self.saldos_utilizados.filter(subtotal__lt=0)

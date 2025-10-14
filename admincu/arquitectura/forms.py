@@ -19,13 +19,14 @@ class ingresoForm(FormControl, forms.ModelForm):
 		model = Ingreso
 		fields = [
 			'nombre', 'prorrateo',
-			'prioritario', 'cuenta_contable', 'es_cuota_social'
+			'prioritario', 'cuenta_contable', 'es_cuota_social', "cuenta_activo"
 		]
 		labels = {
 			'nombre': "Nombre del ingreso",
 			'prioritario': "Tiene prioridad de cobro?",
 			'prorrateo': "Prorratea por m2?",
-			'es_cuota_social': "¿Se calcula para articulo 9?"
+			'es_cuota_social': "¿Se calcula para articulo 9?",
+			"cuenta_activo": "Cuenta de activo (a cobrar)"
 		}
 		widgets = {
 			'prorrateo': NullBooleanSelect(),
