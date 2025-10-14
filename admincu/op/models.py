@@ -283,22 +283,25 @@ class CajaOP(models.Model):
 		return -self.valor, "OP - {}".format(self.op.formatoAfip())
 
 class NotaCreditoProveedor(models.Model):
-    consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
-    acreedor = models.ForeignKey(Acreedor, on_delete=models.CASCADE)
-    deuda = models.ForeignKey(Deuda, on_delete=models.CASCADE, related_name='notas_credito')
-    fecha = models.DateField()
-    observacion = models.TextField(blank=True, null=True)
-    total = models.DecimalField(max_digits=20, decimal_places=2)  # POSITIVO
-    es_proveeduria = models.BooleanField(default=False)
-    deposito = models.ForeignKey(Deposito, on_delete=models.SET_NULL, blank=True, null=True)
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	acreedor = models.ForeignKey(Acreedor, on_delete=models.CASCADE)
+	deuda = models.ForeignKey(Deuda, on_delete=models.CASCADE, related_name='notas_credito')
+	fecha = models.DateField()
+	observacion = models.TextField(blank=True, null=True)
+	total = models.DecimalField(max_digits=20, decimal_places=2)  # POSITIVO
+	es_proveeduria = models.BooleanField(default=False)
+	deposito = models.ForeignKey(Deposito, on_delete=models.SET_NULL, blank=True, null=True)
+	total_aplicado = models.DecimalField(max_digits=20, decimal_places=2, blank=True, null=True)
+	asiento = models.ForeignKey(Asiento, on_delete=models.SET_NULL, blank=True, null=True, related_name='notas_credito_proveedor')
+
 
 class NotaCreditoLineaProducto(models.Model):
-    nc = models.ForeignKey(NotaCreditoProveedor, on_delete=models.CASCADE, related_name='lineas_productos')
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    cantidad = models.DecimalField(max_digits=12, decimal_places=2)
-    precio = models.DecimalField(max_digits=12, decimal_places=2)
+	nc = models.ForeignKey(NotaCreditoProveedor, on_delete=models.CASCADE, related_name='lineas_productos')
+	producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+	cantidad = models.DecimalField(max_digits=12, decimal_places=2)
+	precio = models.DecimalField(max_digits=12, decimal_places=2)
 
 class NotaCreditoLineaGasto(models.Model):
-    nc = models.ForeignKey(NotaCreditoProveedor, on_delete=models.CASCADE, related_name='lineas_gastos')
-    gasto = models.ForeignKey(Gasto, on_delete=models.CASCADE)
-    valor = models.DecimalField(max_digits=12, decimal_places=2)
+	nc = models.ForeignKey(NotaCreditoProveedor, on_delete=models.CASCADE, related_name='lineas_gastos')
+	gasto = models.ForeignKey(Gasto, on_delete=models.CASCADE)
+	valor = models.DecimalField(max_digits=12, decimal_places=2)

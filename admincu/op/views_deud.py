@@ -374,7 +374,7 @@ def _cap_monto_nc(deuda: Deuda, monto_nc: Decimal) -> Decimal:
 
 
 @transaction.atomic
-def aplicar_nc_a_deuda(*, deuda: Deuda, nc: NotaCreditoProveedor) -> None:
+def aplicar_nc_a_deuda(*, deuda: Deuda, nc: NotaCreditoProveedor) -> Decimal:
     """
     Aplica el efecto contable/stock de la Nota de Crédito:
     - Baja Deuda.total hasta el máximo permitido (no menor a pagos ya hechos).
@@ -383,7 +383,9 @@ def aplicar_nc_a_deuda(*, deuda: Deuda, nc: NotaCreditoProveedor) -> None:
     """
     total_nc = decimal2(nc.total)
     if total_nc <= 0:
-        return
+        return Decimal('0.00')
+    
+    aplicado = Decimal('0.00')
 
     # 1) Stock (si corresponde)
     if nc.es_proveeduria:
@@ -403,11 +405,12 @@ def aplicar_nc_a_deuda(*, deuda: Deuda, nc: NotaCreditoProveedor) -> None:
     if total_nc_capado <= 0:
         # Ya no hay saldo suficiente para aplicar; nada que hacer
         deuda.chequear()
-        return
+        return Decimal('0.00')
 
     deuda.total = (decimal2(deuda.total) - total_nc_capado).quantize(Decimal('0.01'))
     deuda.save()
     deuda.chequear()
+    aplicado = total_nc_capado
 
     # 3) (Opcional) rastro en GastoDeuda negativo para auditoría
     try:
@@ -428,12 +431,18 @@ def aplicar_nc_a_deuda(*, deuda: Deuda, nc: NotaCreditoProveedor) -> None:
                 fecha=nc.fecha,
                 deuda=deuda,
                 gasto=Gasto.objects.get(pk=gasto_ref),
-                valor=decimal2(-total_nc_capado)
+                valor=decimal2(-aplicado)
             )
     except Exception:
         # Si no existe gasto apto, no frenamos el flujo: la baja de total ya quedó aplicada.
         pass
+    if hasattr(nc, 'total_aplicado'):
+        nc.total_aplicado = aplicado
+        nc.save(update_fields=['total_aplicado'])
+    
+    return aplicado
 
+    
 # admincu/op/views_nc_proveedor.py (o utils.py donde prefieras)
 from django.db.models import Sum
 from collections import defaultdict
@@ -522,6 +531,74 @@ def nc_lineas_deuda_ajax(request):
                 "precio": float(r['precio'] or 0),
             })
     return JsonResponse({"items": items})
+
+def asiento_nc_proveedor(nc: NotaCreditoProveedor, aplicado: Decimal):
+    if aplicado is None or aplicado <= 0:
+        return True  # nada que asentar
+
+    identificacion = randomNumber(Operacion, 'numero_aleatorio')
+    ops = []
+
+    # 1) Debe Proveedores (baja el pasivo frente al acreedor)
+    ops.append(
+        Operacion(
+            numero_aleatorio=identificacion,
+            cuenta=nc.acreedor.cuenta_contable,
+            debe=aplicado,
+            haber=0,
+            descripcion=f"NC a {nc.acreedor} - Deuda {getattr(nc.deuda, 'numero', nc.deuda_id)}"
+        )
+    )
+
+    # 2) Haber contra gasto/mercadería
+    # Elegimos una cuenta "representativa" según el tipo de NC:
+    gasto_ref = None
+    if nc.es_proveeduria:
+        # buscamos un gasto que esté marcado como es_proveeduria=True en la deuda
+        gasto_ref = (GastoDeuda.objects
+                     .filter(deuda=nc.deuda, gasto__es_proveeduria=True)
+                     .select_related('gasto')
+                     .first())
+    else:
+        gasto_ref = (GastoDeuda.objects
+                     .filter(deuda=nc.deuda)
+                     .select_related('gasto')
+                     .first())
+
+    if not gasto_ref:
+        # Fallback (podés parametrizar una cuenta "Ajuste NC Proveedor")
+        raise ValueError("No se encontró un gasto de referencia para armar el asiento de la NC.")
+
+    cuenta_contra = gasto_ref.gasto.cuenta_contable
+
+    ops.append(
+        Operacion(
+            numero_aleatorio=identificacion,
+            cuenta=cuenta_contra,
+            debe=0,
+            haber=aplicado,
+            descripcion=f"NC a {nc.acreedor} - Reverso gasto/mercadería"
+        )
+    )
+
+    asiento = Asiento(
+        consorcio=nc.consorcio,
+        fecha_asiento=nc.fecha,
+        descripcion=f"NC Proveedor {nc.acreedor} - Deuda {getattr(nc.deuda, 'numero', nc.deuda_id)}",
+    )
+
+    try:
+        with transaction.atomic():
+            Operacion.objects.bulk_create(ops)
+            asiento.save()
+            asiento.operaciones.add(*Operacion.objects.filter(numero_aleatorio=identificacion))
+            # Si tu modelo NotaCreditoProveedor tiene FK a Asiento, guardalo:
+            if hasattr(nc, 'asiento'):
+                nc.asiento = asiento
+                nc.save(update_fields=['asiento'])
+        return True
+    except Exception as e:
+        return f"Error creando asiento NC Proveedor: {e}"
 
 
 class NCProveedorView(View):
@@ -630,10 +707,18 @@ class NCProveedorView(View):
                 )
 
         # 5) Aplicar efectos (stock / total deuda capado)
-        aplicar_nc_a_deuda(deuda=deuda, nc=nc)
+        aplicado = aplicar_nc_a_deuda(deuda=deuda, nc=nc)
+
+        # crear asiento solo si hubo aplicación efectiva
+        if aplicado > 0:
+            ok = asiento_nc_proveedor(nc=nc, aplicado=aplicado)
+            if ok is not True:
+                messages.error(request, ok)  # muestra el error del asiento
 
         messages.success(request, "Nota de Crédito aplicada correctamente.")
         return redirect('deudas')
+
+
 
 from django.views import generic
 
@@ -649,7 +734,7 @@ class RegistroNCProveedor(OrderQS):
         qs = super().get_queryset(**kwargs)
         return (
             qs.filter(consorcio=consorcio(self.request))
-              .select_related('acreedor', 'deuda', 'deposito')
+              .select_related('acreedor', 'deuda', 'deposito', 'asiento')
               .order_by('-fecha', '-id')
         )
 

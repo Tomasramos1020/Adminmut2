@@ -1,4 +1,3 @@
-# templates/op/nc/detalle_nc_proveedor.html
 {% extends 'raiz.html' %}
 {% load humanize %}
 {% block titulo %}NC Proveedor {{ object.id }}{% endblock %}
@@ -6,7 +5,18 @@
 
 {% block contenido %}
 <div class="card-box">
-  <h4>Encabezado</h4>
+  <div class="clearfix" style="margin-bottom:10px;">
+    <div class="pull-right">
+      {% if user.groups.all.0.name == "contable" and object.asiento %}
+        <a href="{% url 'asiento_redireccion' id_asiento=object.asiento.id %}"
+           class="btn btn-info btn-bordered btn-sm">
+          <i class="fa fa-indent"></i> Ver asiento
+        </a>
+      {% endif %}
+    </div>
+    <h4>Encabezado</h4>
+  </div>
+
   <p><b>Fecha:</b> {{ object.fecha|date:"d/m/Y" }}</p>
   <p><b>Acreedor:</b> {{ object.acreedor }}</p>
   <p><b>Deuda Nº:</b> {{ object.deuda.numero }}</p>

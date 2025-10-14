@@ -16,7 +16,16 @@
         <td>{{ nc.acreedor }}</td>
         <td>{{ nc.deuda.numero }}</td>
         <td class="text-right">{{ nc.total|intcomma }}</td>
-        <td class="text-right">
+
+        <td class="text-center">
+          {# Mostrar botón solo si es contable y hay asiento #}
+          {% if user.groups.all.0.name == "contable" and nc.asiento %}
+            <a href="{% url 'asiento_redireccion' id_asiento=nc.asiento.id %}"
+               class="btn btn-icon btn-xs btn-info btn-bordered waves-efect waves-light"
+               title="Ver asiento">
+              <i class="fa fa-indent"></i>
+            </a>
+          {% endif %}
           <a href="{% url 'nc-proveedor-detalle' pk=nc.pk %}" class="btn btn-xs btn-primary">
             <i class="fa fa-eye"></i>
           </a>
@@ -25,3 +34,4 @@
     {% endfor %}
   </tbody>
 </table>
+

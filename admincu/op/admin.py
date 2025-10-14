@@ -4,6 +4,8 @@ from .models import *
 from django.contrib import messages
 from contabilidad.asientos.funciones import asiento_deuda, asiento_op
 import PyPDF2
+from django.db import transaction
+from admincu.funciones import randomNumber
 
 
 
@@ -112,6 +114,144 @@ class GastoAdmin(ImportExportMixin, admin.ModelAdmin):
 
 class CajaOPAdmin(ImportExportMixin, admin.ModelAdmin):
 	list_display = ['__str__']
+
+
+def decimal2(x):
+	from decimal import Decimal
+	if x is None or x == "":
+		return Decimal('0.00')
+	if isinstance(x, Decimal):
+		return x
+	return Decimal(str(x))
+
+
+def generar_asiento_nc(modeladmin, request, queryset):
+	# Tomamos solo las que no tienen asiento
+	qs = queryset.select_related('consorcio', 'acreedor', 'deuda').filter(asiento__isnull=True)
+
+	generadas, saltadas, errores = 0, 0, 0
+
+	for nc in qs:
+		try:
+			# 1) Calcular 'aplicado' (sin tocar stock ni deuda)
+			aplicado = decimal2(nc.total_aplicado)
+
+			if not aplicado or aplicado <= 0:
+				# intentar deducirlo de GastoDeuda negativos en esa fecha
+				negativos = (GastoDeuda.objects
+							 .filter(deuda=nc.deuda, fecha=nc.fecha, valor__lt=0)
+							 .values_list('valor', flat=True))
+				if negativos:
+					aplicado = sum([abs(decimal2(v)) for v in negativos])
+					# nunca más que el total de la NC
+					aplicado = min(aplicado, decimal2(nc.total))
+
+			if not aplicado or aplicado <= 0:
+				# fallback final
+				aplicado = decimal2(nc.total)
+
+			if aplicado <= 0:
+				saltadas += 1
+				continue
+
+			# 2) Contabilidad base: Debe Proveedores / Haber Gasto (o mercadería)
+			# Elegimos una cuenta "representativa":
+			gasto_ref = None
+			if nc.es_proveeduria:
+				gasto_ref = (GastoDeuda.objects
+							 .filter(deuda=nc.deuda, gasto__es_proveeduria=True)
+							 .select_related('gasto')
+							 .first())
+			else:
+				gasto_ref = (GastoDeuda.objects
+							 .filter(deuda=nc.deuda)
+							 .select_related('gasto')
+							 .first())
+
+			if not gasto_ref:
+				messages.warning(
+					request,
+					f"NC #{nc.pk}: no se halló gasto de referencia; usando fallback a la primera cuenta de gasto de la deuda."
+				)
+				gasto_ref = (GastoDeuda.objects
+							 .filter(deuda=nc.deuda)
+							 .select_related('gasto')
+							 .first())
+
+			if not gasto_ref:
+				mensajes = f"NC #{nc.pk}: no fue posible determinar cuenta contrapartida (sin GastoDeuda)."
+				messages.error(request, mensajes)
+				errores += 1
+				continue
+
+			cuenta_contra = gasto_ref.gasto.cuenta_contable
+
+			# 3) Crear asiento y linkearlo a la NC (sin re-aplicar lógica de negocio)
+			with transaction.atomic():
+				# SIEMPRE generamos un identificador válido para vincular las operaciones
+				identificacion = randomNumber(Operacion, 'numero_aleatorio')
+
+				ops = [
+					# Debe Proveedores (baja pasivo)
+					Operacion(
+						numero_aleatorio=identificacion,
+						cuenta=nc.acreedor.cuenta_contable,
+						debe=aplicado,
+						haber=0,
+						descripcion=f"NC Proveedor {nc.acreedor} - Deuda {getattr(nc.deuda, 'numero', nc.deuda_id)}"
+					),
+					# Haber Gasto/Mercadería (reverso)
+					Operacion(
+						numero_aleatorio=identificacion,
+						cuenta=cuenta_contra,
+						debe=0,
+						haber=aplicado,
+						descripcion=f"NC Proveedor {nc.acreedor} - Reverso gasto/mercadería"
+					),
+				]
+
+				# 1) guardo operaciones
+				Operacion.objects.bulk_create(ops)
+
+				# 2) creo el asiento
+				As = Asiento(
+					consorcio=nc.consorcio,
+					fecha_asiento=nc.fecha,
+					descripcion=f"NC Proveedor {nc.acreedor} - Deuda {getattr(nc.deuda, 'numero', nc.deuda_id)}"
+				)
+				As.save()
+
+				# 3) reconsulto las operaciones ya persistidas (ya tienen PK)
+				ops_guardadas = Operacion.objects.filter(numero_aleatorio=identificacion)
+
+				# 4) agrego al M2M con PK válidos
+				As.operaciones.add(*ops_guardadas)
+
+				# 5) linkeo a la NC y backfill de total_aplicado si faltaba
+				nc.asiento = As
+				if not nc.total_aplicado:
+					nc.total_aplicado = aplicado
+				nc.save(update_fields=['asiento', 'total_aplicado'])
+
+
+				generadas += 1
+
+		except Exception as e:
+			errores += 1
+			messages.error(request, f"NC #{nc.pk}: error al crear asiento: {e}")
+
+	if generadas:
+		messages.success(request, f"Asientos generados: {generadas}")
+	if saltadas:
+		messages.info(request, f"NC saltadas (importe <= 0): {saltadas}")
+	if errores:
+		messages.error(request, f"Con errores: {errores}")
+
+
+@admin.register(NotaCreditoProveedor)
+class NotaCreditoProveedorAdmin(admin.ModelAdmin):
+	list_display = ('id', 'fecha', 'acreedor', 'deuda', 'total', 'es_proveeduria', 'asiento')
+	actions = [generar_asiento_nc]
 
 
 admin.site.register(GastoDeuda, GastoAdmin)
