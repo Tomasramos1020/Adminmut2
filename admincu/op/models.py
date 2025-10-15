@@ -10,10 +10,48 @@ from django.template.loader import render_to_string
 from weasyprint import HTML
 from django.core.files.uploadedfile import SimpleUploadedFile
 from proveeduria.models import Deposito, Producto
+from django.db import transaction
+from django.db.models import Sum, Q
+from proveeduria.models import MovimientoStock, Compra_Producto
+
 
 def eliminarAsiento(asiento):
-	asiento.operaciones.all().delete()
-	asiento.delete()
+    if asiento:
+        asiento.operaciones.all().delete()
+        asiento.delete()
+
+def revertir_stock_de_compra(deuda):
+    """
+    Crea movimientos inversos por todo el stock ingresado por las compras
+    asociadas a esta deuda. Devuelve cantidad de movimientos creados.
+    """
+    # Tomo todos los movimientos de stock que entraron por las líneas de compra de la deuda
+    movs = (MovimientoStock.objects
+            .filter(compra_producto__in=deuda.compras.all()))
+
+    if not movs.exists():
+        return 0
+
+    # Agrupo por producto/deposito para no llenar de filas innecesarias
+    agregados = (movs.values('producto_id', 'deposito_id')
+                      .annotate(total_cant=Sum('cantidad')))
+
+    creados = 0
+    for item in agregados:
+        total = item['total_cant'] or 0
+        if total == 0:
+            continue
+        MovimientoStock.objects.create(
+            producto_id=item['producto_id'],
+            deposito_id=item['deposito_id'],
+            # OJO: tu modelo tiene fecha = auto_now_add=True, así que ignorará el valor que mandes.
+            # Quedará con la fecha de hoy, que es correcto para la reversión.
+            cantidad= -total,
+            # Lo dejamos sin compra_producto para que se note que es una reversión manual/sistémica
+            compra_producto=None
+        )
+        creados += 1
+    return creados
 
 class Deuda(models.Model):
 	usuario = models.ForeignKey(User, on_delete=models.SET_NULL, blank=True, null=True)
@@ -34,34 +72,68 @@ class Deuda(models.Model):
 
 
 	def eliminacion(self):
-		deudaOPS = DeudaOP.objects.filter(deuda=self)
-		if not deudaOPS:
+		# 1) Bloqueos obvios: Notas de crédito proveedor aplicadas a la deuda
+		if hasattr(self, 'notas_credito') and self.notas_credito.exists():
+			return "No se puede eliminar: la deuda tiene Notas de Crédito asociadas."
+
+		# 2) Pagos/OP vigentes = OP confirmadas y NO anuladas
+		pagos_vigentes_qs = self.deudaop_set.filter(
+			op__confirmado=True,
+			op__anulado__isnull=True
+		)
+
+		total_pagado_vigente = pagos_vigentes_qs.aggregate(s=Sum('valor'))['s'] or 0
+
+		# Si hay importe vigente distinto de 0, no se puede eliminar
+		if total_pagado_vigente != 0:
+			return "No se puede eliminar porque la deuda tiene pagos/OP vigentes vinculados."
+
+		# Si llegamos acá: no hay pagos vigentes. Puede haber OP anuladas o neto 0.
+		with transaction.atomic():
+			if self.compras.exists():
+				revertir_stock_de_compra(self)
+
 			eliminarAsiento(self.asiento)
+			eliminarAsiento(self.asiento_anulado)
+
 			if self.retencion:
 				self.retencion.delete()
-			GD = GastoDeuda.objects.filter(deuda=self)
-			for g in GD:
-				g.delete()
+
+			# Borro el desglose de gastos de la deuda (si tu política es conservar histórico, podés omitir)
+			GastoDeuda.objects.filter(deuda=self).delete()
+
+			# Opcional: limpiar líneas DeudaOP (solo si querés “limpiar” todo rastro)
+			# self.deudaop_set.all().delete()
+
 			self.delete()
-			return "Deuda eliminada con exito"
-		else:
-			return "no se puede eliminar porque la deuda ya tiene pagos vinculados"
+			return "Deuda eliminada con éxito"
 
 	def cancelado_a_fecha(self, fecha=None):
-		fecha = fecha if fecha else date.today()
-		total_pagos = sum([p.valor for p in self.deudaop_set.filter(op__confirmado=True, fecha__lte=fecha)])
+		fecha = fecha or date.today()
+		total_pagos = (self.deudaop_set
+						   .filter(op__confirmado=True,
+								   op__anulado__isnull=True,
+								   fecha__lte=fecha)
+						   .aggregate(s=Sum('valor'))['s'] or 0)
 		return total_pagos
 
 
 	def saldo_a_fecha(self, fecha=None):
-		fecha = fecha if fecha else date.today()
-		total_pagos = sum([p.valor for p in self.deudaop_set.filter(op__confirmado=True, fecha__lte=fecha)])
-		return self.total - total_pagos
-
+		fecha = fecha or date.today()
+		total_pagos = (self.deudaop_set
+						   .filter(op__confirmado=True,
+								   op__anulado__isnull=True,
+								   fecha__lte=fecha)
+						   .aggregate(s=Sum('valor'))['s'] or 0)
+		return (self.total or 0) - total_pagos
+		
 	@property
 	def saldo(self):
-		total_pagos = sum([p.valor for p in self.deudaop_set.filter(op__confirmado=True)])
-		return self.total - total_pagos
+		total_pagos = (self.deudaop_set
+						   .filter(op__confirmado=True,
+								   op__anulado__isnull=True)
+						   .aggregate(s=Sum('valor'))['s'] or 0)
+		return (self.total or 0) - total_pagos
 
 	def chequear(self):
 		if self.saldo == 0:

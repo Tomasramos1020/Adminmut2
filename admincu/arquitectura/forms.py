@@ -41,6 +41,9 @@ class ingresoForm(FormControl, forms.ModelForm):
 		self.fields['cuenta_contable'].queryset = Plan.objects.get(consorcio=consorcio).cuentas.filter(
 				nivel=4,
 				).order_by('numero')
+		self.fields['cuenta_activo'].queryset = Plan.objects.get(consorcio=consorcio).cuentas.filter(
+				nivel=4,
+				).order_by('numero')				
 		if self.instance.primario:
 			self.fields.pop('cuenta_contable')
 		if self.consorcio and self.consorcio.es_federacion == False:
