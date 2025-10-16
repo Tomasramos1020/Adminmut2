@@ -567,6 +567,49 @@ class Comprobante(models.Model):
 			self.reversar_operaciones()
 			self.save()
 
+	def rehacer_asiento_anulacion(self):
+		from contabilidad.asientos.manager import AsientoCreator
+		if self.anulado == True:			
+			if self.asiento_anulado:
+				self.asiento_anulado.delete()
+			else:
+				descripcion = "Anulacion {} {}".format(self.tipo(), self.nombre())
+				data_asiento = {
+					'consorcio': self.consorcio,
+					'fecha_asiento': date.today(),
+					'descripcion': descripcion
+				}
+				operaciones = self.hacer_contabilidad()
+
+				cuentas = set([o[0] for o in operaciones]) # Seteamos las cuentas
+				data_operaciones = []
+				for c in cuentas:
+					diccionario = {
+						'cuenta': c,
+						'descripcion': descripcion
+					}
+					suma = 0
+					for o in operaciones:
+						if o[0] == c:
+							suma += o[1] # Sumamos las cuentas
+					if suma > 0:
+						diccionario.update({
+								'debe': 0,
+								'haber': suma
+							})
+					else:
+						diccionario.update({
+								'haber': 0,
+								'debe': -suma
+							})
+					data_operaciones.append(diccionario)
+				crear_asiento = AsientoCreator(data_asiento, data_operaciones)
+				asiento = crear_asiento.guardar()
+				self.asiento_anulado = asiento
+				self.hacer_pdfs()
+				self.reversar_operaciones()
+				self.save()		
+
 	def fecha_operacion(self):
 		if not self.descripcion and not self.fecha:
 			return None
