@@ -163,6 +163,46 @@ class Transferencia(models.Model):
 			self.asiento = asiento
 			self.save()
 
+	def rehacer_asiento(self):
+
+		""" Crea el asiento de la liquidacion """
+		asiento = self.asiento
+		if asiento:
+			asiento.delete()
+
+		if not self.asiento:
+			from contabilidad.asientos.manager import AsientoCreator
+
+			descripcion = 'Transferencia {}'.format(self.formatoAfip())
+			data_asiento = {
+				'consorcio': self.consorcio,
+				'fecha_asiento': self.fecha,
+				'descripcion': descripcion
+			}
+
+			cajas_origen = self.cajatransferencia_set.all()
+			caja_destino = cajas_origen.first().destino
+
+			operaciones = [
+				{
+					'cuenta': caja_destino.cuenta_contable,
+					'debe': self.total,
+					'haber': 0,
+					'descripcion': descripcion
+				}
+			]
+			for caja in cajas_origen:
+				operaciones.append({
+					'cuenta': caja.origen.cuenta_contable,
+					'debe': 0,
+					'haber': caja.valor,
+					'descripcion': descripcion
+				})
+
+			crear_asiento = AsientoCreator(data_asiento, operaciones)
+			asiento = crear_asiento.guardar()
+			self.asiento = asiento
+			self.save()
 
 
 class CajaTransferencia(models.Model):
