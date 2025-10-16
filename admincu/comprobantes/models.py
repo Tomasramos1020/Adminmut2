@@ -608,7 +608,8 @@ class Comprobante(models.Model):
 				self.asiento_anulado = asiento
 				self.hacer_pdfs()
 				self.reversar_operaciones()
-				self.save()		
+				self.save()
+				print(self)	
 
 	def fecha_operacion(self):
 		if not self.descripcion and not self.fecha:
