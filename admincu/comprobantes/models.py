@@ -569,7 +569,7 @@ class Comprobante(models.Model):
 
 	def rehacer_asiento_anulacion(self):
 		from contabilidad.asientos.manager import AsientoCreator
-		if self.anulado == True:			
+		if not self.anulado == None:			
 			if self.asiento_anulado:
 				self.asiento_anulado.delete()
 			else:
