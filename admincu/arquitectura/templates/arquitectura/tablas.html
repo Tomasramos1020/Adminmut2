@@ -145,7 +145,11 @@
         {% endif %}
     
         {% if cons.convenios %}
+          {% if cons.es_federacion %}
+          <th>Servicio AE</th>
+          {% else %}
           <th>Convenio</th>
+          {% endif %}
         {% endif %}
     
         <th>Domicilio</th>
@@ -405,7 +409,11 @@
         <th width="20"></th>
         <th width="20"></th>
         <th>Nombre</th>
-        <th>Fecha del Convenio</th>
+        {% if cons.es_federacion %}
+          <th>Fecha</th>
+        {% else %}
+          <th>Fecha del Convenio</th>
+        {% endif %}
         <th>Observaciones</th>
         <th>Reglamento</th>
       </tr>

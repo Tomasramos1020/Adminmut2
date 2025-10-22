@@ -110,13 +110,17 @@
                   <img src="{% static 'assets/images/icons/reading.svg' %}">
                 </div>
                 <div class="text-right">
-                  <p class="m-t-5 text-uppercase font-14 font-600">CONVENIOS</p>
+                  {% if cons.es_federacion %}
+                    <p class="m-t-5 text-uppercase font-14 font-600">SERVICIOS AE</p>
+                  {% else %}
+                    <p class="m-t-5 text-uppercase font-14 font-600">CONVENIOS</p>
+                  {% endif %}
                   <h2 class="m-b-10"><span data-plugin="counterup">{{ convenios }}</span></h2>
                 </div>
               </div>
             </a>
           </div>
-          {% endif %}
+        {% endif %}        
 
           {% if cons.es_federacion %}
           <div class="col-md-6">

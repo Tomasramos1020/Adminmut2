@@ -39,7 +39,7 @@
         {% if not user.groups.first.name == "socio" %}
           <th>Destinatario</th>
         {% endif %}
-        {% if not user.groups.first.name == "socio" and creditos|length and creditos.0.consorcio.convenios %}
+        {% if not user.groups.first.name == "socio" and creditos|length and creditos.0.consorcio.convenios and not creditos.0.consorcio.es_federacion %}
           <th>Convenio</th>
         {% endif %}
         <th>Concepto</th>
@@ -94,7 +94,7 @@
           {% if not user.groups.first.name == "socio" %}
             <td>{{ credito.socio }}</td>
           {% endif %}
-          {% if not user.groups.first.name == "socio" and credito.consorcio.convenios %}
+          {% if not user.groups.first.name == "socio" and creditos|length and creditos.0.consorcio.convenios and not creditos.0.consorcio.es_federacion %}
             <td>{{ credito.socio.convenio|default:"" }}</td>
           {% endif %}
 

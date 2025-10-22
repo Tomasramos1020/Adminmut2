@@ -5,7 +5,7 @@ from django.forms import Textarea, TextInput, NullBooleanSelect, Select
 from django_afip.models import *
 from django.forms import formset_factory
 from django.core.validators import MinValueValidator
-
+import django.utils.timezone as dj_tz
 from admincu.forms import *
 from consorcios.models import *
 from .models import *
@@ -32,19 +32,22 @@ class CreditoForm(FormControl, forms.ModelForm):
 		return "{} - {}".format(obj.socio, obj.nombre)
 
 
+
 class InicialForm(FormControl, forms.Form):
-
-	""" Formulario inicial de liquidaciones """
-
 	punto = forms.ModelChoiceField(queryset=PointOfSales.objects.none(), empty_label="-- Seleccionar Punto de gestion --", label="Punto de gestion")
 	concepto = forms.ModelChoiceField(queryset=ConceptType.objects.all(), empty_label="-- Seleccionar Tipo de operacion --", label="Tipo de operacion")
-	fecha_operacion = forms.DateField(label="Fecha de la operacion", widget=forms.TextInput(attrs={'placeholder':'YYYY-MM-DD'}))
-	fecha_factura = forms.DateField(label="Fecha de la factura", widget=forms.TextInput(attrs={'placeholder':'YYYY-MM-DD'}))
+	fecha_operacion = forms.DateField(label="Fecha de la operacion", widget=forms.DateInput(attrs={'type': 'date', 'placeholder':'YYYY-MM-DD'}))
+	fecha_factura = forms.DateField(label="Fecha de la factura", widget=forms.DateInput(attrs={'type': 'date', 'placeholder':'YYYY-MM-DD'}))
 	ingreso = forms.ModelChoiceField(queryset=Ingreso.objects.none(), empty_label="-- Seleccionar Ingreso --", label="Ingresos")
 	tipo_asociado = forms.MultipleChoiceField(choices=((None,None),))
 
 	def __init__(self, *args, **kwargs):
 		consorcio = kwargs.pop('consorcio')
+
+		# 👉 kwargs opcionales para límites (solo se pasan en wizard de Factura C)
+		self.limit_fecha_factura = kwargs.pop('limit_fecha_factura', False)
+		self.limit_fecha_operacion = kwargs.pop('limit_fecha_operacion', False)
+		self.backdate_limit_days = int(kwargs.pop('backdate_limit_days', 0) or 0)
 
 		try:
 			ok_grupos = kwargs.pop('ok_grupos')
@@ -56,12 +59,10 @@ class InicialForm(FormControl, forms.Form):
 		except:
 			ok_conceptos = False
 
-
 		try:
 			rename_factura = kwargs.pop('rename_factura')
 		except:
 			rename_factura = False
-
 
 		super().__init__(*args, **kwargs)
 
@@ -71,6 +72,7 @@ class InicialForm(FormControl, forms.Form):
 			self.fields['tipo_asociado'].choices = GRUPO_CHOICES
 		else:
 			self.fields.pop('tipo_asociado')
+
 		self.fields['punto'].queryset = PointOfSales.objects.filter(owner=consorcio.contribuyente)
 
 		if ok_conceptos:
@@ -82,7 +84,68 @@ class InicialForm(FormControl, forms.Form):
 			self.fields.pop('ingreso')
 
 		if rename_factura:
-			self.fields.pop('fecha_factura')
+			# si otro wizard renombra/oculta la fecha de factura
+			self.fields.pop('fecha_factura', None)
+
+		# 👉 Aplicar min/max HTML en los date inputs cuando corresponde
+		today = dj_tz.localtime(dj_tz.now()).date()
+
+
+		if 'fecha_factura' in self.fields and self.limit_fecha_factura and self.backdate_limit_days > 0:
+			min_date = today - timedelta(days=self.backdate_limit_days)
+			self.fields['fecha_factura'].widget.attrs.update({
+				'type': 'date',
+				'min': min_date.isoformat(),
+				'max': today.isoformat(),
+				'title': f'Permitido entre {min_date.isoformat()} y {today.isoformat()} (máx. {self.backdate_limit_days} días hacia atrás).'
+			})
+
+		if 'fecha_operacion' in self.fields and self.limit_fecha_operacion and self.backdate_limit_days > 0:
+			min_date = today - timedelta(days=self.backdate_limit_days)
+			self.fields['fecha_operacion'].widget.attrs.update({
+				'type': 'date',
+				'min': min_date.isoformat(),
+				'max': today.isoformat(),
+				'title': f'Permitido entre {min_date.isoformat()} y {today.isoformat()} (máx. {self.backdate_limit_days} días hacia atrás).'
+			})
+
+	# ✅ Validación server-side (robusta)
+	def clean_fecha_factura(self):
+		fecha = self.cleaned_data.get('fecha_factura')
+		if not fecha or not self.limit_fecha_factura or self.backdate_limit_days <= 0:
+			return fecha
+
+		today = dj_tz.localtime(dj_tz.now()).date()
+
+		min_date = today - timedelta(days=self.backdate_limit_days)
+
+		if fecha < min_date or fecha > today:
+			raise forms.ValidationError(
+				f"La fecha de la factura debe estar entre {min_date:%Y-%m-%d} y {today:%Y-%m-%d} (máx. {self.backdate_limit_days} días hacia atrás)."
+			)
+		return fecha
+
+	def clean(self):
+		data = super().clean()
+		if self.limit_fecha_operacion and self.backdate_limit_days > 0:
+			fecha_op = data.get('fecha_operacion')
+			if fecha_op:
+				today = dj_tz.localtime(dj_tz.now()).date()
+				min_date = today - timedelta(days=self.backdate_limit_days)
+				if fecha_op < min_date or fecha_op > today:
+					self.add_error(
+						'fecha_operacion',
+						f"La fecha de operación debe estar entre {min_date:%Y-%m-%d} y {today:%Y-%m-%d} (máx. {self.backdate_limit_days} días hacia atrás)."
+					)
+
+		# (opcional) coherencia: fecha_operacion <= fecha_factura
+		ff = data.get('fecha_factura')
+		fo = data.get('fecha_operacion')
+		if ff and fo and fo > ff:
+			self.add_error('fecha_operacion', "La fecha de operación no puede ser posterior a la fecha de la factura.")
+
+		return data
+
 
 
 
@@ -312,54 +375,54 @@ from django.forms import inlineformset_factory
 
 
 class FacturaUSDForm(forms.ModelForm):
-    class Meta:
-        model = FacturaUSD
-        # ¡SACAMOS consorcio del form!
-        fields = ['fecha', 'socio', 'cotizacion', 'punto']
-        widgets = {
-            'fecha': forms.DateInput(attrs={'type': 'date'}),
-        }
+	class Meta:
+		model = FacturaUSD
+		# ¡SACAMOS consorcio del form!
+		fields = ['fecha', 'socio', 'cotizacion', 'punto']
+		widgets = {
+			'fecha': forms.DateInput(attrs={'type': 'date'}),
+		}
 
-    def __init__(self, *args, **kwargs):
-        # el consorcio viene desde la view
-        self.consorcio = kwargs.pop('consorcio')
-        super().__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		# el consorcio viene desde la view
+		self.consorcio = kwargs.pop('consorcio')
+		super().__init__(*args, **kwargs)
 
-        # filtrar punto y socio por consorcio
-        self.fields['punto'].queryset = PuntoUSD.objects.filter(consorcio=self.consorcio)
-        self.fields['socio'].queryset = Socio.objects.filter(
-            consorcio=self.consorcio,
-            baja__isnull=True
-        )
+		# filtrar punto y socio por consorcio
+		self.fields['punto'].queryset = PuntoUSD.objects.filter(consorcio=self.consorcio)
+		self.fields['socio'].queryset = Socio.objects.filter(
+			consorcio=self.consorcio,
+			baja__isnull=True
+		)
 
-    def clean_socio(self):
-        socio = self.cleaned_data.get('socio')
-        if socio and socio.consorcio_id != self.consorcio.id:
-            raise forms.ValidationError("El socio no pertenece al consorcio activo.")
-        return socio
+	def clean_socio(self):
+		socio = self.cleaned_data.get('socio')
+		if socio and socio.consorcio_id != self.consorcio.id:
+			raise forms.ValidationError("El socio no pertenece al consorcio activo.")
+		return socio
 
 
 class CreditoUSDForm(forms.ModelForm):
-    class Meta:
-        model = CreditoUSD
-        # el consorcio y cotización se setean desde la view/factura
-        fields = ['ingreso', 'periodo', 'capital_usd', 'detalle']
-        widgets = {
-            'periodo': forms.DateInput(attrs={'type': 'date'}),
-        }
+	class Meta:
+		model = CreditoUSD
+		# el consorcio y cotización se setean desde la view/factura
+		fields = ['ingreso', 'periodo', 'capital_usd', 'detalle']
+		widgets = {
+			'periodo': forms.DateInput(attrs={'type': 'date'}),
+		}
 
-    def __init__(self, *args, **kwargs):
-        self.consorcio = kwargs.pop('consorcio')
-        super().__init__(*args, **kwargs)
-        # filtrar ingresos por consorcio
-        self.fields['ingreso'].queryset = Ingreso.objects.filter(consorcio=self.consorcio)
+	def __init__(self, *args, **kwargs):
+		self.consorcio = kwargs.pop('consorcio')
+		super().__init__(*args, **kwargs)
+		# filtrar ingresos por consorcio
+		self.fields['ingreso'].queryset = Ingreso.objects.filter(consorcio=self.consorcio)
 
 
 CreditoUSDFormSet = inlineformset_factory(
-    parent_model=FacturaUSD,
-    model=CreditoUSD,
-    form=CreditoUSDForm,
-    fields=['ingreso', 'periodo', 'capital_usd', 'detalle'],
-    extra=1,
-    can_delete=True,
+	parent_model=FacturaUSD,
+	model=CreditoUSD,
+	form=CreditoUSDForm,
+	fields=['ingreso', 'periodo', 'capital_usd', 'detalle'],
+	extra=1,
+	can_delete=True,
 )

@@ -31,8 +31,12 @@
         		<thead>
         			<tr class="active">
         				<th>Socio</th>
-                {% if tiene_convenios %}
-                  <th>Convenio</th>
+                {% if tiene_convenios%}
+                  {% if consorcio_actual.es_federacion%}
+                    <th>Servicio AE</th>
+                  {% else %}
+                    <th>Convenios</th>
+                  {% endif %}
                 {% endif %}
                 <th>Concepto</th>
                 <th>Saldo final</th>

@@ -11,7 +11,7 @@ from django.db.models.functions import Coalesce
 class LiquidacionFilter(django_filters.FilterSet):
     numero = django_filters.NumberFilter(label="Numero de liquidacion", lookup_expr="exact")
     fecha = django_filters.DateRangeFilter(label="Fecha de liquidacion", lookup_expr="icontains")
-    convenio = django_filters.CharFilter(method='filter_convenio', label='Convenio')
+    convenio = django_filters.CharFilter(method='filter_convenio', label='Convenio o Servicio')
 
     class Meta:
         model = Liquidacion

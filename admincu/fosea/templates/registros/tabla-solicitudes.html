@@ -11,6 +11,7 @@
       {% endif %}
       <th class="text-right">Ha totales</th>
       <th class="text-right">Ha reales</th>
+      <th class="text-right">Aporte en QQ</th>
       <th class="text-right">Total Suscripción</th>
       <th></th>
     </tr>
@@ -28,6 +29,9 @@
         </td>
         <td class="text-right">
           {{ solicitud.hectareas_reales|default:solicitud.hectareas_reales_calc|default_if_none:"0.00"|floatformat:2 }}
+        </td>
+        <td class="text-right">
+          {{ solicitud.aporte_total_qq|default:solicitud.aporte_total_qq_calc|default_if_none:"0.00"|floatformat:2 }}
         </td>
         <td class="text-right">
           {{ solicitud.total_suscripcion|default:solicitud.total_suscripcion_calc|default_if_none:"0.00"|floatformat:2 }}

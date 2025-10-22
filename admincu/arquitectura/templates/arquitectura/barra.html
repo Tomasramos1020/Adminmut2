@@ -5,7 +5,11 @@
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Servicio_mutual' %}">Servicios Mutuales</a>
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Socio' %}">Padron de Asociados</a>
   {% if consorcio.convenios %}
-  <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Convenio' %}">Convenios</a>
+    {% if cons.es_federacion %}
+      <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Convenio' %}">Servicios financieros</a>
+    {% else %}
+      <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Convenio' %}">Convenios</a>
+    {% endif %}
   {% endif %}
   {% if consorcio.fosea %}
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Establecimiento' %}">Establecimientos</a>

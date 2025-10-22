@@ -120,9 +120,16 @@ class Listado(generic.ListView):
 
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
-		context["parametro"] = self.kwargs['modelo']
-		context["nombre_parametro"] = PIVOT[self.kwargs['modelo']][0]
-		context["cons"] = consorcio(self.request)
+		cons = consorcio(self.request)
+		modelo = self.kwargs['modelo']
+		nombre_parametro = PIVOT[modelo][0]
+		if modelo == "Convenio" and cons.convenios and cons.es_federacion:
+			nombre_parametro = "Servicios AE"
+		context.update({
+			"parametro": modelo,
+			"nombre_parametro": nombre_parametro,
+			"cons": cons,
+		})
 		return context
 
 

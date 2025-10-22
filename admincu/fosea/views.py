@@ -66,13 +66,15 @@ class IndexSolicitud(OrderQS):
 		ids = [s.pk for s in lista]
 		lineas = (SolicitudLinea.objects
 					.filter(solicitud_id__in=ids)
-					.values('solicitud_id', 'hectarea', 'participacion'))
+					.values('solicitud_id', 'hectarea', 'participacion','subsidio_max', 'aporte_max'))
 
 		agrup = defaultdict(list)
 		for l in lineas:
 			agrup[l['solicitud_id']].append((
 				Decimal(l['hectarea'] or 0),
 				Decimal(l['participacion'] or 0),
+				Decimal(l['subsidio_max'] or 0),
+				Decimal(l['aporte_max'] or 0),
 			))
 
 		# 2) Mapa consorcio -> última cotización de Soja
@@ -94,13 +96,26 @@ class IndexSolicitud(OrderQS):
 			pares = agrup.get(s.pk, ())
 			hect_totales = Decimal('0')
 			hect_reales = Decimal('0')
-			for ha, part in pares:
+			aporte_total_qq_sum = Decimal('0')
+
+			for ha, part, subsidio_max, aporte_max in pares:
 				ha = ha or Decimal('0')
 				part = part or Decimal('0')
-				hect_totales += ha
-				hect_reales += (ha * part / Decimal('100'))
-			hect_totales = hect_totales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+				subsidio_max = subsidio_max or Decimal('0')
+				aporte_max = aporte_max or Decimal('0')
+
+				# ha reales de la línea
+				ha_reales_linea = (ha * part / Decimal('100'))
+
+				# aporte QQ de la línea = ha reales * subsidio_max * (aporte_max/100)
+				aporte_linea = ha * subsidio_max * (aporte_max / Decimal('100'))
+
+				hect_totales += ha				
+				hect_reales += ha_reales_linea
+				aporte_total_qq_sum += aporte_linea
+			hect_totales = hect_totales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)	
 			hect_reales = hect_reales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			aporte_total_qq_sum = aporte_total_qq_sum.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 			cons_id = getattr(s.consorcio, 'id', None)
 			valor_soja = valor_soja_por_cons.get(cons_id, Decimal('0'))
@@ -113,11 +128,11 @@ class IndexSolicitud(OrderQS):
 				valor_hec_real = Decimal('0.00')
 				total_suscripcion = Decimal('0.00')
 
-			# atributos que consume la tabla-reutilizable
+			# atributos para el template
 			s.hectareas_totales_calc = hect_totales
 			s.hectareas_reales_calc = hect_reales
+			s.aporte_total_qq_calc = aporte_total_qq_sum
 			s.total_suscripcion_calc = total_suscripcion
-
 		return ctx
 
 
@@ -724,13 +739,15 @@ class Registro(OrderQS):
 		ids = [s.pk for s in lista]
 		lineas = (SolicitudLinea.objects
 				.filter(solicitud_id__in=ids)
-				.values('solicitud_id', 'hectarea', 'participacion'))
+				.values('solicitud_id', 'hectarea', 'participacion', 'subsidio_max', 'aporte_max'))
 
 		agrup = defaultdict(list)
 		for l in lineas:
 			agrup[l['solicitud_id']].append((
 				Decimal(l['hectarea'] or 0),
 				Decimal(l['participacion'] or 0),
+				Decimal(l['subsidio_max'] or 0),
+				Decimal(l['aporte_max'] or 0),
 			))
 
 		# --- 2) Mapa consorcio -> última cotización de Soja ---
@@ -752,14 +769,27 @@ class Registro(OrderQS):
 		for s in lista:
 			pares = agrup.get(s.pk, ())
 			hect_totales = Decimal('0')
-			hect_reales = Decimal('0')			
-			for ha, part in pares:
+			hect_reales = Decimal('0')
+			aporte_total_qq_sum = Decimal('0')
+
+			for ha, part, subsidio_max, aporte_max in pares:
 				ha = ha or Decimal('0')
 				part = part or Decimal('0')
+				subsidio_max = subsidio_max or Decimal('0')
+				aporte_max = aporte_max or Decimal('0')
+
+				# ha reales de la línea
+				ha_reales_linea = (ha * part / Decimal('100'))
+
+				# aporte QQ de la línea = ha reales * subsidio_max * (aporte_max/100)
+				aporte_linea = ha * subsidio_max * (aporte_max / Decimal('100'))
+
 				hect_totales += ha				
-				hect_reales += (ha * part / Decimal('100'))
+				hect_reales += ha_reales_linea
+				aporte_total_qq_sum += aporte_linea
 			hect_totales = hect_totales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)	
 			hect_reales = hect_reales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			aporte_total_qq_sum = aporte_total_qq_sum.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
 			cons_id = getattr(s.consorcio, 'id', None)
 			valor_soja = valor_soja_por_cons.get(cons_id, Decimal('0'))
@@ -775,6 +805,7 @@ class Registro(OrderQS):
 			# atributos para el template
 			s.hectareas_totales_calc = hect_totales
 			s.hectareas_reales_calc = hect_reales
+			s.aporte_total_qq_calc = aporte_total_qq_sum
 			s.total_suscripcion_calc = total_suscripcion
 
 		return ctx

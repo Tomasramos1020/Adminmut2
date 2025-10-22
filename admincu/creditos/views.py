@@ -501,6 +501,16 @@ class IndividualesWizard(WizardLiquidacionManager, SessionWizardView):
 			kwargs.update({
 					'consorcio': consorcio(self.request)
 				})
+			
+		# 👉 Solo para Factura C (receipt_type "11") y solo en el paso inicial
+		if step == "inicial":
+			kwargs.update({
+				'backdate_limit_days': 5,           # máximo 5 días hacia atrás
+				'limit_fecha_factura': True,        # activar la restricción
+				# (opcional) si también querés limitar fecha_operacion:
+				'limit_fecha_operacion': True,
+			})
+
 		if step == "confirmacion":
 			liquidacion = self.hacer_liquidacion('individuales', receipt_type="11")
 			mostrar = len(liquidacion.listar_documentos()) == 1
@@ -672,6 +682,13 @@ class MasivoWizard(WizardLiquidacionManager, SessionWizardView):
 			kwargs.update({
 					'consorcio': consorcio(self.request)
 				})
+		# 👉 LÍMITE DE FECHA sólo en el paso inicial (Factura C)
+		if step == "inicial":
+			kwargs.update({
+				'backdate_limit_days': 5,     # máx. 5 días hacia atrás
+				'limit_fecha_factura': True,  # limitar fecha de la factura
+				'limit_fecha_operacion': True # (si querés, también operación)
+			})
 		return kwargs
 
 	def get_form(self, step=None, data=None, files=None):
@@ -732,6 +749,10 @@ class GrupoWizard(WizardLiquidacionManager, SessionWizardView):
 			kwargs.update({
 					'consorcio': consorcio(self.request),
 					'ok_grupos': True,
+					# 👉 LÍMITE DE FECHA (Factura C)
+					'backdate_limit_days': 5,
+					'limit_fecha_factura': True,
+					'limit_fecha_operacion': True,
 				})
 		return kwargs
 
