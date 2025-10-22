@@ -23,17 +23,17 @@
 </table>
 <table class="table table-condensed">
   {% if not deuda.pagado %}
-    <tr>
-      <td>
+    {% comment %} <tr>
+       <td>
         <a href="{% url 'op_d_parcial' pk=deuda.pk %}"><i class="fa fa-money"></i> Nuevo pago parcial</a>
       </td>
       <td></td>
-    </tr>
-    <tr>
+    </tr> {% endcomment %}
+    {% comment %} <tr>
       <td>
         <a href="{% url 'deud_vincular_pago' pk=deuda.pk %}"><i class="fa fa-random"></i> Vincular pago</a>
       </td>
       <td></td>
-    </tr>
+    </tr> {% endcomment %}
   {% endif %}
 </table>

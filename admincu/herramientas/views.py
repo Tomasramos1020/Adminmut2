@@ -20,7 +20,7 @@ from .forms import *
 from .manager import *
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Index(generic.TemplateView):
 
 	"""
@@ -35,7 +35,7 @@ class Index(generic.TemplateView):
 		return context
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Rg3369(generic.TemplateView):
 
 	template_name = 'herramientas/rg3369/index.html'
@@ -78,7 +78,7 @@ class Rg3369(generic.TemplateView):
 		return render(request, self.template_name, locals())
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class TransferenciasIndex(OrderQS):
 
 	""" Index de transferencias """
@@ -89,7 +89,7 @@ class TransferenciasIndex(OrderQS):
 	paginate_by = 10
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class TransferenciaWizard(SessionWizardView):
 
 	TEMPLATES = {
@@ -206,7 +206,7 @@ class HeaderExeptMixin:
 		return super().dispatch(request, *args, **kwargs)
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class PDFTransferencia(HeaderExeptMixin, generic.DetailView):
 
 	""" Ver PDF de una transferencia """
@@ -237,7 +237,7 @@ class PDFTransferencia(HeaderExeptMixin, generic.DetailView):
 	# 	return response
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RegistroTransferencias(OrderQS):
 
 	""" Registro de transferenias """
@@ -248,7 +248,7 @@ class RegistroTransferencias(OrderQS):
 	paginate_by = 50
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Organos(generic.ListView):
 
 	""" Index de transferencias """
@@ -266,7 +266,7 @@ class Organos(generic.ListView):
 		context['socios'] = self.get_queryset()
 		return context
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Articulo(generic.FormView):
 
 	""" Index de transferencias """

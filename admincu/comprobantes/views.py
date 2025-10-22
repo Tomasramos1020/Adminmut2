@@ -49,7 +49,7 @@ from django.db.models.functions import Coalesce
 mensaje_success = "Comprobante generado con exito."
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Index(OrderQS):
 
 	""" Index de comprobantes """
@@ -106,7 +106,7 @@ class IndexSocio(OrderQS):
 
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Registro(OrderQS):
     """Registro de comprobantes"""
     model = Comprobante
@@ -396,7 +396,7 @@ class WizardComprobanteManager:
 		return descripcion
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RCXWizard(WizardComprobanteManager, SessionWizardView):
 
 	form_list = [
@@ -523,7 +523,7 @@ class RCXWizard(WizardComprobanteManager, SessionWizardView):
 		return redirect('cobranzas')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RCXFacturaWizard(WizardComprobanteManager, SessionWizardView):
 
 	form_list = [
@@ -679,7 +679,7 @@ class RCXFacturaWizard(WizardComprobanteManager, SessionWizardView):
 		return redirect('cobranzas')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RCXMPWizard(WizardComprobanteManager, SessionWizardView):
 
 	form_list = [
@@ -763,7 +763,7 @@ class RCXMPWizard(WizardComprobanteManager, SessionWizardView):
 		return redirect('cobranzas')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RCXEXPWizard(WizardComprobanteManager, SessionWizardView):
 
 	form_list = [
@@ -876,7 +876,7 @@ class RCXEXPWizard(WizardComprobanteManager, SessionWizardView):
 			messages.success(self.request, mensaje_success)
 		return redirect('cobranzas')
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class NCCWizard(WizardComprobanteManager, SessionWizardView):
 
 	form_list = [
@@ -959,7 +959,7 @@ class NCCWizard(WizardComprobanteManager, SessionWizardView):
 
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class NCNFWizard(WizardComprobanteManager, SessionWizardView):
 
 	form_list = [
@@ -1053,7 +1053,7 @@ class HeaderExeptMixin:
 		return super().dispatch(request, *args, **kwargs)
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Ver(HeaderExeptMixin, generic.DetailView):
 
 	""" Ver un comprobante """
@@ -1102,7 +1102,7 @@ class PDF(HeaderExeptMixin, generic.DetailView):
 		return disp
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Anular(HeaderExeptMixin, generic.DeleteView):
 
 	""" Para anular un comprobante """
@@ -1135,7 +1135,7 @@ class Anular(HeaderExeptMixin, generic.DeleteView):
 		return disp
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RCXEXPMWizard(WizardComprobanteManager, SessionWizardView):
 
 	form_list = [
@@ -1281,7 +1281,7 @@ class RCXEXPMWizard(WizardComprobanteManager, SessionWizardView):
 		return redirect('cobranzas')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CobrosImportacionWizard(WizardComprobanteManager, SessionWizardView):
 
 	""" Index y registro de conceptos """
@@ -1458,7 +1458,7 @@ class CobrosImportacionWizard(WizardComprobanteManager, SessionWizardView):
 
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CobrosImportacionTotalesWizard(WizardComprobanteManager, SessionWizardView):
 	"""
 	Wizard NUEVO: importa totales por socio (sin ingreso),
@@ -1742,7 +1742,7 @@ class CobrosImportacionTotalesWizard(WizardComprobanteManager, SessionWizardView
 
 
 SESSION_KEY_IDS = "rcx_desde_creditos_ids"
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RCXDesdeCreditosWizard(WizardComprobanteManager, SessionWizardView):
     """
     Paso 1: parámetros (punto, fecha, caja, etc.)

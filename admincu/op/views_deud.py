@@ -18,7 +18,7 @@ from django.views import View
 
 
 
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable', 'sin_op')
 def deud_index(request):
 	hoy = date.today()
 
@@ -34,7 +34,7 @@ def deud_index(request):
 	return render(request, 'deudas/index.html', locals())
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op'), name='dispatch')
 class Registro(OrderQS):
 
 	""" Registro de deudas """
@@ -46,7 +46,7 @@ class Registro(OrderQS):
 
 
 
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable', 'sin_op')
 def deud_registro(request):
 
 	deudas = Deuda.objects.filter(consorcio=consorcio(request), confirmado=True).order_by('-id')
@@ -62,7 +62,7 @@ def deud_registro(request):
 	return render(request, 'deudas/registro.html', locals())
 
 
-@group_required('administrativo')
+@group_required('administrativo', 'sin_op')
 def deud_nuevo(request):
 	if valid_demo(request.user):
 		return redirect('deudas')
@@ -108,7 +108,7 @@ def deud_nuevo(request):
 	return render(request, 'deudas/nuevo.html', locals())
 
 
-@group_required('administrativo')
+@group_required('administrativo', 'sin_op')
 @transaction.atomic
 def deud_vinculaciones(request):
 	try:
@@ -173,7 +173,7 @@ def deud_vinculaciones(request):
 	return render(request, 'deudas/vinculaciones.html', locals())
 
 
-@group_required('administrativo')
+@group_required('administrativo', 'sin_op')
 @transaction.atomic
 def deud_confirm(request, pk):
 	try:
@@ -208,7 +208,7 @@ def deud_confirm(request, pk):
 	return render(request, 'deudas/confirmacion.html', locals())
 
 
-@group_required('administrativo')
+@group_required('administrativo', 'sin_op')
 @transaction.atomic
 def deud_eliminar(request, pk):
 	try:
@@ -226,7 +226,7 @@ def deud_eliminar(request, pk):
 	messages.add_message(request, messages.SUCCESS, "Deuda cancelada.")
 	return redirect(deud_index)
 
-@group_required('administrativo')
+@group_required('administrativo', 'sin_op')
 @transaction.atomic
 def eliminar_deuda(request, pk):
 	try:
@@ -245,7 +245,7 @@ def eliminar_deuda(request, pk):
 
 
 
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable', 'sin_op')
 def deud_ver(request, pk):
 	try:
 		deuda = Deuda.objects.get(
@@ -262,7 +262,7 @@ def deud_ver(request, pk):
 	return render(request, 'deudas/ver.html', locals())
 
 
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable', 'sin_op')
 @transaction.atomic
 def deud_vincular_pago(request, pk):
 	try:
@@ -722,7 +722,7 @@ class NCProveedorView(View):
 
 from django.views import generic
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op'), name='dispatch')
 class RegistroNCProveedor(OrderQS):
     """ Registro de NC Proveedor """
     model = NotaCreditoProveedor
@@ -738,7 +738,7 @@ class RegistroNCProveedor(OrderQS):
               .order_by('-fecha', '-id')
         )
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op'), name='dispatch')
 class NCProveedorDetalleView(generic.DetailView):
     model = NotaCreditoProveedor
     template_name = 'nc/registros/detalle_nc_proveedor.html'

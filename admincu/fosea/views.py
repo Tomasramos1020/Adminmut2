@@ -35,7 +35,7 @@ class _NoFilter:
 	def __init__(self, data=None, queryset=None, **kwargs):
 		self.qs = queryset
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
 class IndexSolicitud(OrderQS):
 	""" Index de solicitudes """
 	model = Solicitud

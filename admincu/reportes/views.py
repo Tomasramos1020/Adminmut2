@@ -27,7 +27,7 @@ from contabilidad.funciones import generacionSyS
 from comprobantes.models import *
 
 
-@method_decorator(group_required('administrativo', 'contable', 'socio'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'socio', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Index(generic.ListView):
 
 	"""
@@ -54,7 +54,7 @@ class Index(generic.ListView):
 		}
 		return context
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op'), name='dispatch')
 class NuevoPeriodo(generic.CreateView):
 
 	""" Para crear un nuevo periodo """
@@ -90,7 +90,7 @@ class HeaderExeptMixin:
 		return super().dispatch(request, *args, **kwargs)
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op'), name='dispatch')
 class NuevoProcesamiento(HeaderExeptMixin, generic.UpdateView):
 
 	""" Para procesar el periodo. Es UpdateView para poder ponerle auditor """
@@ -134,7 +134,7 @@ class NuevoProcesamiento(HeaderExeptMixin, generic.UpdateView):
 		return context
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op'), name='dispatch')
 class ArchivoGuardar(generic.CreateView):
 
 	model = Reporte
@@ -157,7 +157,7 @@ class ArchivoGuardar(generic.CreateView):
 	def get_success_url(self, **kwargs):
 		return reverse_lazy('cierre-procesamiento', args=(self.object.cierre.pk,))
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op'), name='dispatch')
 class ArchivoEliminar(HeaderExeptMixin, generic.DeleteView):
 
 	model = Reporte
@@ -167,7 +167,7 @@ class ArchivoEliminar(HeaderExeptMixin, generic.DeleteView):
 		return reverse_lazy('cierre-procesamiento', args=(self.object.cierre.pk,))
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op'), name='dispatch')
 class CierreEliminar(HeaderExeptMixin, generic.DeleteView):
 
 	model = Cierre
@@ -181,7 +181,7 @@ class CierreEliminar(HeaderExeptMixin, generic.DeleteView):
 			return redirect('reportes')
 		return disp
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op'), name='dispatch')
 class CierreConfirmar(HeaderExeptMixin, generic.DeleteView):
 
 	model = Cierre
@@ -214,7 +214,7 @@ class CierreConfirmar(HeaderExeptMixin, generic.DeleteView):
 			return redirect('reportes')
 		return disp
 
-@method_decorator(group_required('administrativo', 'contable', 'socio'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'socio', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CierreVer(HeaderExeptMixin, generic.DetailView):
 
 	model = Cierre
@@ -250,7 +250,7 @@ class CierreVer(HeaderExeptMixin, generic.DetailView):
 		return disp
 
 
-@method_decorator(group_required('administrativo', 'contable', 'socio'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'socio', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class PDFReporte(HeaderExeptMixin, generic.DetailView):
 
 	""" Ver PDF de un reporte """

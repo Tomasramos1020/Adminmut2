@@ -50,7 +50,7 @@ from django.db.models.expressions import Func
 envioAFIP = 'Liquidacion guardada. En los proximos minutos se enviara la información a AFIP. Te informaremos los resultados.'
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Index(OrderQS):
 
 	""" Index de liquidaciones y creditos """
@@ -306,7 +306,7 @@ class WizardLiquidacionManager:
 			)			
 		return liquidacion
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CuotaSocialWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -384,7 +384,7 @@ class CuotaSocialWizard(WizardLiquidacionManager, SessionWizardView):
 			messages.success(self.request, envioAFIP)
 		return redirect('recursos')
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CuotaConvenioWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -465,7 +465,7 @@ class CuotaConvenioWizard(WizardLiquidacionManager, SessionWizardView):
 
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class IndividualesWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -557,7 +557,7 @@ class IndividualesWizard(WizardLiquidacionManager, SessionWizardView):
 
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RecursoWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -643,7 +643,7 @@ class RecursoWizard(WizardLiquidacionManager, SessionWizardView):
 
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class MasivoWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -713,7 +713,7 @@ class MasivoWizard(WizardLiquidacionManager, SessionWizardView):
 		return redirect('recursos')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class GrupoWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -777,7 +777,7 @@ class GrupoWizard(WizardLiquidacionManager, SessionWizardView):
 		messages.success(self.request, envioAFIP)
 		return redirect('recursos')
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CindividualesWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -856,7 +856,7 @@ class CindividualesWizard(WizardLiquidacionManager, SessionWizardView):
 		return redirect('recursos')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CmasivoWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -919,7 +919,7 @@ class CmasivoWizard(WizardLiquidacionManager, SessionWizardView):
 		return redirect('recursos')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class CgruposWizard(WizardLiquidacionManager, SessionWizardView):
 
 	form_list = [
@@ -981,7 +981,7 @@ class CgruposWizard(WizardLiquidacionManager, SessionWizardView):
 		return redirect('recursos')
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RegistroLiquidaciones(OrderQS):
 
 	""" Registro de liquidaciones """
@@ -993,7 +993,7 @@ class RegistroLiquidaciones(OrderQS):
 	paginate_by = 50
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RegistroCreditos(OrderQS):
 
 	""" Registro de creditos """
@@ -1013,7 +1013,7 @@ def _lpad(expr, n):
 	return Func(Cast(expr, CharField()), Value(n), Value('0'), function='LPAD')
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RegistroFacturas(View):
 	template_name = "creditos/registros/facturas.html"
 	paginate_by = 50
@@ -1233,7 +1233,7 @@ class HeaderExeptMixin:
 		return super().dispatch(request, *args, **kwargs)
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Ver(HeaderExeptMixin, generic.DetailView):
 
 	""" Ver una liquidacion """
@@ -1256,7 +1256,7 @@ class Ver(HeaderExeptMixin, generic.DetailView):
 		return disp
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class VerErrores(HeaderExeptMixin, generic.DeleteView):
 
 	""" Ver una liquidacion con errores """
@@ -1287,7 +1287,7 @@ class VerErrores(HeaderExeptMixin, generic.DeleteView):
 		return disp
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class PDFLiquidacion(HeaderExeptMixin, generic.DetailView):
 
 	""" Ver PDF de una liquidacion """
@@ -1369,7 +1369,7 @@ class PDFFactura(HeaderExeptMixin, generic.DetailView):
 
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class IndexConceptos(generic.ListView):
 
 	""" Index y registro de conceptos """
@@ -1384,7 +1384,7 @@ class IndexConceptos(generic.ListView):
 		return context
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class ConceptoWizard(WizardLiquidacionManager, SessionWizardView):
 
 	""" Nuevos conceptos """
@@ -1494,7 +1494,7 @@ class ConceptoWizard(WizardLiquidacionManager, SessionWizardView):
 		return redirect('conceptos')
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class ConceptoImportacionWizard(WizardLiquidacionManager, SessionWizardView):
 
 	""" Index y registro de conceptos """
@@ -1660,7 +1660,7 @@ class ConceptoImportacionWizard(WizardLiquidacionManager, SessionWizardView):
 
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class EditarConcepto(HeaderExeptMixin, generic.UpdateView):
 
 	""" Para modificar una instancia de cualquier modelo excepto Punto """
@@ -1692,7 +1692,7 @@ class EditarConcepto(HeaderExeptMixin, generic.UpdateView):
 		return disp
 
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class EliminarConcepto(generic.ListView):
 
 	""" Para eliminar un queryset de conceptos """
@@ -1712,7 +1712,7 @@ class EliminarConcepto(generic.ListView):
 
 		return render(request, self.template_name, locals())
 
-@method_decorator(group_required('administrativo'), name='dispatch')
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class LiquidarConcepto(generic.ListView):
 
 	""" Para liquidar conceptos sin facturas """
@@ -1731,7 +1731,7 @@ class LiquidarConcepto(generic.ListView):
 
 		return render(request, self.template_name, locals())
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class IndexProveeduria(OrderQS):
 
 	""" Index de proveeduria """
@@ -1755,7 +1755,7 @@ class IndexProveeduria(OrderQS):
 		context.update(locals())
 		return context
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class FacturaUSDCreateView(View):
     template_name = 'creditos/usd/nueva_factura_usd.html'
 
@@ -1825,7 +1825,7 @@ class FacturaUSDFilter(django_filters.FilterSet):
         fields = [  'fecha']
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable','sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RegistroFacturasUSD(OrderQS):
     """
     Registro de facturas en USD

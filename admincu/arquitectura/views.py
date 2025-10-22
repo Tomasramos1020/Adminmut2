@@ -31,7 +31,7 @@ from creditos.models import Factura
 from django.db.models import Q
 
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'fosea', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class Index(generic.TemplateView):
 
 	""" Index de parametros """
