@@ -1325,7 +1325,7 @@ class PDFLiquidacion(HeaderExeptMixin, generic.DetailView):
 		return disp
 
 
-@method_decorator(group_required('administrativo', 'contable', 'socio'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'socio', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class PDFFactura(HeaderExeptMixin, generic.DetailView):
 
 	""" Ver PDF de una Factura """
@@ -1841,7 +1841,7 @@ class RegistroFacturasUSD(OrderQS):
         return qs.select_related('consorcio', 'socio', 'punto', 'receipt').order_by('-fecha', '-id')
 
 
-@method_decorator(group_required('administrativo', 'contable', 'socio'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'socio', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class PDFFacturaUSD(HeaderExeptMixin, generic.DetailView):
     """Ver PDF de una Factura en USD"""
     model = FacturaUSD

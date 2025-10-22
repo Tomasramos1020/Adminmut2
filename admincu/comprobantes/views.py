@@ -1067,7 +1067,7 @@ class Ver(HeaderExeptMixin, generic.DetailView):
 		return context
 
 
-@method_decorator(group_required('administrativo', 'contable', 'socio'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'socio', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class PDF(HeaderExeptMixin, generic.DetailView):
 
 

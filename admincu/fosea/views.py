@@ -342,7 +342,7 @@ def obtener_subsidio_max(request):
 
 # views.py
 # views.py
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
 class EditarSolicitudView(View):
 	template_name = 'editar_solicitud.html'
 
@@ -718,7 +718,7 @@ def solicitud_pdf(request, pk):
 
 from collections import defaultdict
 
-@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
 class Registro(OrderQS):
 	model = Solicitud
 	filterset_class = SolicitudFilter
