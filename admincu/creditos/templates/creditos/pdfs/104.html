@@ -42,7 +42,7 @@
 
           <div class="client-data">
             <strong>{% if factura.socio.nombre_servicio_mutual %}{{ factura.socio.nombre }}{% else %}ASOCIADO:</strong>
-            {{ factura.socio }}{% endif %} <br>
+            {{ factura.destinatario_display }}{% endif %} <br>
             <strong>{% if not factura.socio.nombre_servicio_mutual %}{{ factura.socio.tipo_documento }}:</strong>
             {{ factura.socio.numero_documento }} {% endif %}<br>
             <strong>{% if not factura.socio.nombre_servicio_mutual %}N° DE ASOCIADO:</strong>

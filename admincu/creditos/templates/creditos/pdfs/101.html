@@ -44,7 +44,7 @@
 
           <div class="client-data">
             <strong>{% if factura.consorcio.id == 10 %}CLIENTE:{% else %}ASOCIADO:{% endif %}</strong>
-            {{ factura.socio }} <br>
+            {{ factura.destinatario_display }} <br>
             <strong>CUIT:</strong>
             {{ factura.socio.cuit }} <br>
             <strong>N° DE ASOCIADO:</strong>

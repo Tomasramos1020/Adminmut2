@@ -42,7 +42,8 @@ from django.db.models import Max
 from django.core.exceptions import ObjectDoesNotExist
 from collections import defaultdict
 from django.db.models import Q
-
+from .utils_stock import mover_stock_por_producto
+# proveeduria/views_modulos.py
 
 
 class Index(generic.TemplateView):
@@ -69,6 +70,7 @@ class Index(generic.TemplateView):
 		rubros = Rubro.objects.filter(consorcio=consorcio(self.request)).count()
 		proveedores_proveeduria = Proveedor_proveeduria.objects.filter(consorcio=consorcio(self.request)).count()
 		vendedores = Vendendor.objects.filter(consorcio=consorcio(self.request)).count()
+		modulos = Producto.objects.filter(consorcio=consorcio(self.request), es_modulo=True).count()
 		context.update(locals())
 		return context
 
@@ -102,7 +104,7 @@ class Listado(generic.ListView):
 	def get_queryset(self, **kwargs):
 		evaluacion = self.kwargs['modelo']
 		if evaluacion == 'Stock':
-			objetos = Producto.objects.filter(consorcio=consorcio(self.request), nombre__isnull=False)
+			objetos = Producto.objects.filter(consorcio=consorcio(self.request), nombre__isnull=False, es_modulo=False)
 		else:
 			objetos = eval(evaluacion).objects.filter(consorcio=consorcio(self.request), nombre__isnull=False)
 		return objetos
@@ -310,12 +312,12 @@ class CrearOperacionView(View):
 					vp.save()
 
 					# Registrar movimiento de stock (salida)
-					ms = MovimientoStock.objects.create(
-						venta_producto = vp,
-						producto= vp.producto,
-						deposito= deposito,
-						cantidad= -vp.cantidad,
-						fecha = fecha,
+					ms = mover_stock_por_producto(
+						producto=vp.producto,
+						deposito=deposito,
+						fecha=fecha,
+						cantidad_signed=Decimal('-1') * Decimal(vp.cantidad or 0),
+						venta_producto=vp
 					)
 
 			factura.validar_factura()
@@ -513,12 +515,12 @@ class CrearRemitoView(View):
 				lineas_cargadas += 1
 
 				# Registrar movimiento de stock (salida)
-				MovimientoStock.objects.create(
-					producto = item.producto,
-					deposito = deposito,
-					fecha    = fecha,
-					cantidad = item.cantidad_salida,  # NEGATIVO
-					remito_item = item
+				mover_stock_por_producto(
+					producto=item.producto,
+					deposito=deposito,
+					fecha=fecha,
+					cantidad_signed=item.cantidad_salida,  # NEGATIVO
+					remito_item=item
 				)
 
 			if lineas_cargadas == 0:
@@ -1084,12 +1086,12 @@ class NCProveeduriaCreateView(View):
 				comprobante_nc=comp,
 			)
 
-			MovimientoStock.objects.create(
-				venta_producto=vp_nc,
+			mover_stock_por_producto(
 				producto=vp_orig.producto,
 				deposito=d['deposito'],
-				cantidad=d['cant_dev'],
 				fecha=hoy,
+				cantidad_signed=Decimal(d['cant_dev']),
+				venta_producto=vp_nc
 			)
 
 			lineas_pdf.append({
@@ -1158,6 +1160,191 @@ class NCProveeduriaCreateView(View):
 			+ ("" if remanente == 0 else f" Crédito original cerrado y creado nuevo por ${remanente}.")
 		)
 		return redirect('facturacion-proveeduria')
+
+
+
+class _NoFilter:
+	def __init__(self, qs):
+		self.qs = qs  # para que OrderQS pueda hacer self.filter.qs
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class ModuloListView(OrderQS):
+	model = Producto
+	template_name = 'modulos/index.html'
+	paginate_by = 50
+
+	def get(self, request, *args, **kwargs):
+		c = consorcio(request)
+		datos = Producto.objects.filter(consorcio=c, es_modulo=True).order_by('nombre')
+
+		# filtro “dummy” para satisfacer OrderQS
+		self.filter = _NoFilter(datos)
+
+		self.object_list = self.order_queryset(self.filter.qs) if hasattr(self, 'order_queryset') else datos
+		context = self.get_context_data(object_list=self.object_list)
+		return self.render_to_response(context)
+
+
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class ModuloCreateView(generic.View):
+	template_name = 'modulos/form.html'
+
+	def get(self, request):
+		form = ModuloForm(request=request)
+		formset = ModuloComponenteFormSet(
+			instance=Producto(consorcio=consorcio(request), es_modulo=True),
+			form_kwargs={'request': request}
+		)
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'titulo': 'Nuevo módulo'
+		})
+
+	@transaction.atomic
+	def post(self, request):
+		form = ModuloForm(request.POST, request=request)
+
+		# objeto "en memoria" para enganchar el formset
+		modulo = Producto(consorcio=consorcio(request), es_modulo=True)
+		formset = ModuloComponenteFormSet(
+			request.POST,
+			instance=modulo,
+			form_kwargs={'request': request}
+		)
+
+		if form.is_valid() and formset.is_valid():
+			# 1. guardamos el módulo base
+			modulo.nombre = form.cleaned_data['nombre']
+			modulo.descripcion = form.cleaned_data.get('descripcion')
+			modulo.precio_1 = form.cleaned_data.get('precio') or None
+			modulo.activo = form.cleaned_data.get('activo', True)
+			modulo.es_modulo = True
+			modulo.consorcio = consorcio(request)
+			modulo.save()
+
+			# 2. validaciones app sobre el formset
+			comps = []
+			for f in formset:
+				if f.cleaned_data and not f.cleaned_data.get('DELETE', False):
+					comp = f.cleaned_data['componente']
+					if comp.id == modulo.id:
+						messages.error(request, "El módulo no puede ser componente de sí mismo.")
+						transaction.set_rollback(True)
+						return render(request, self.template_name, {
+							'form': form,
+							'formset': formset,
+							'titulo': 'Nuevo módulo'
+						})
+					comps.append((comp.id, f.cleaned_data['cantidad']))
+
+			vistos = set()
+			for comp_id, _ in comps:
+				if comp_id in vistos:
+					messages.error(request, "Hay componentes repetidos.")
+					transaction.set_rollback(True)
+					return render(request, self.template_name, {
+						'form': form,
+						'formset': formset,
+						'titulo': 'Nuevo módulo'
+					})
+				vistos.add(comp_id)
+
+			# 3. grabamos las líneas del formset ahora que modulo ya tiene pk
+			formset.instance = modulo
+			formset.save()
+
+			# 4. AHORA que ya existen los ModuloComponente -> calculamos costo y actualizamos
+			modulo.recalcular_costo_modulo()
+			modulo.save(update_fields=['costo'])
+
+			messages.success(request, "Módulo creado correctamente.")
+			return redirect('modulos-index')
+
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'titulo': 'Nuevo módulo'
+		})
+
+
+
+@method_decorator(group_required('administrativo', 'contable'), name='dispatch')
+class ModuloUpdateView(generic.View):
+	template_name = 'modulos/form.html'
+
+	def get_object(self):
+		c = consorcio(self.request)
+		return get_object_or_404(Producto, pk=self.kwargs['pk'], consorcio=c, es_modulo=True)
+
+	def get(self, request, pk):
+		modulo = self.get_object()
+		form = ModuloForm(instance=modulo, request=request)
+		formset = ModuloComponenteFormSet(instance=modulo, form_kwargs={'request': request})
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'titulo': f'Editar módulo: {modulo.nombre}'
+		})
+
+	@transaction.atomic
+	def post(self, request, pk):
+		modulo = self.get_object()
+		form = ModuloForm(request.POST, instance=modulo, request=request)
+		formset = ModuloComponenteFormSet(request.POST, instance=modulo, form_kwargs={'request': request})
+
+		if form.is_valid() and formset.is_valid():
+			# 1. guardo cambios básicos del módulo
+			modulo = form.save(commit=False)
+			modulo.es_modulo = True
+			modulo.consorcio = consorcio(request)
+			modulo.precio_1 = form.cleaned_data.get('precio') or None
+			modulo.save()
+
+			# 2. validaciones app igual que antes
+			comps = []
+			for f in formset:
+				if f.cleaned_data and not f.cleaned_data.get('DELETE', False):
+					comp = f.cleaned_data['componente']
+					if comp.id == modulo.id:
+						messages.error(request, "El módulo no puede ser componente de sí mismo.")
+						transaction.set_rollback(True)
+						return render(request, self.template_name, {
+							'form': form,
+							'formset': formset,
+							'titulo': f'Editar módulo: {modulo.nombre}'
+						})
+					comps.append((comp.id, f.cleaned_data['cantidad']))
+
+			vistos = set()
+			for comp_id, _ in comps:
+				if comp_id in vistos:
+					messages.error(request, "Hay componentes repetidos.")
+					transaction.set_rollback(True)
+					return render(request, self.template_name, {
+						'form': form,
+						'formset': formset,
+						'titulo': f'Editar módulo: {modulo.nombre}'
+					})
+				vistos.add(comp_id)
+
+			# 3. guardo el formset (esto crea/actualiza/elimina ModuloComponente)
+			formset.save()
+
+			# 4. recalculo costo según nuevos componentes
+			modulo.recalcular_costo_modulo()
+			modulo.save(update_fields=['costo'])
+
+			messages.success(request, "Módulo actualizado correctamente.")
+			return redirect('modulos-index')
+
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'titulo': f'Editar módulo: {modulo.nombre}'
+		})
+
 
 
 

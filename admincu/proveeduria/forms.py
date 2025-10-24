@@ -10,6 +10,8 @@ from decimal import Decimal, ROUND_HALF_UP, InvalidOperation
 from django.forms import ModelForm
 from django.forms import formset_factory
 from creditos.models import Factura
+from django.forms import inlineformset_factory
+import json
 
 
 class sucursalForm(FormControl, forms.ModelForm):
@@ -439,25 +441,25 @@ class RemitoForm(forms.Form):
 					pass
 
 class RemitoItemForm(ModelForm):
-    # Campo informativo/editarle: NO está en el modelo
-    precio = forms.DecimalField(
-        required=False, min_value=0, decimal_places=2, max_digits=12,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
-    )
+	# Campo informativo/editarle: NO está en el modelo
+	precio = forms.DecimalField(
+		required=False, min_value=0, decimal_places=2, max_digits=12,
+		widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+	)
 
-    class Meta:
-        model = RemitoItem
-        fields = ['producto', 'cantidad', 'detalle']  # el formset igual va a traer 'precio' porque está declarado arriba
-        widgets = {
-            'producto': forms.Select(attrs={'class': 'form-control producto-select'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control cantidad-input', 'step': '0.01', 'min': '0.01'}),
-            'detalle':  forms.TextInput(attrs={'class': 'form-control'}),
-        }
+	class Meta:
+		model = RemitoItem
+		fields = ['producto', 'cantidad', 'detalle']  # el formset igual va a traer 'precio' porque está declarado arriba
+		widgets = {
+			'producto': forms.Select(attrs={'class': 'form-control producto-select'}),
+			'cantidad': forms.NumberInput(attrs={'class': 'form-control cantidad-input', 'step': '0.01', 'min': '0.01'}),
+			'detalle':  forms.TextInput(attrs={'class': 'form-control'}),
+		}
 
-    def clean_precio(self):
-        # Opcional: si no viene precio, lo dejamos en None (lo rellenará el JS al elegir producto)
-        p = self.cleaned_data.get('precio')
-        return p
+	def clean_precio(self):
+		# Opcional: si no viene precio, lo dejamos en None (lo rellenará el JS al elegir producto)
+		p = self.cleaned_data.get('precio')
+		return p
 
 
 RemitoItemFormSet = modelformset_factory(
@@ -468,94 +470,191 @@ RemitoItemFormSet = modelformset_factory(
 )
 
 class AjusteForm(forms.Form):
-    fecha    = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
-    deposito = forms.ModelChoiceField(queryset=Deposito.objects.none())
-    motivo   = forms.CharField(widget=forms.Textarea(attrs={'rows':3}), required=False)
+	fecha    = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
+	deposito = forms.ModelChoiceField(queryset=Deposito.objects.none())
+	motivo   = forms.CharField(widget=forms.Textarea(attrs={'rows':3}), required=False)
 
-    def __init__(self, *args, **kwargs):
-        request = kwargs.pop('request', None)
-        super().__init__(*args, **kwargs)
-        if request:
-            cons = consorcio(request)
-            self.fields['deposito'].queryset = Deposito.objects.filter(consorcio=cons)
+	def __init__(self, *args, **kwargs):
+		request = kwargs.pop('request', None)
+		super().__init__(*args, **kwargs)
+		if request:
+			cons = consorcio(request)
+			self.fields['deposito'].queryset = Deposito.objects.filter(consorcio=cons)
 
 
 class AjusteItemForm(ModelForm):
-    class Meta:
-        model = AjusteStockItem
-        fields = ['producto', 'sentido', 'cantidad', 'detalle']
-        widgets = {
-            'producto': forms.Select(attrs={'class':'form-control'}),
-            'sentido':  forms.Select(attrs={'class':'form-control'}),
-            'cantidad': forms.NumberInput(attrs={'class':'form-control', 'step':'0.01', 'min':'0.01'}),
-            'detalle':  forms.TextInput(attrs={'class':'form-control'}),
-        }
+	class Meta:
+		model = AjusteStockItem
+		fields = ['producto', 'sentido', 'cantidad', 'detalle']
+		widgets = {
+			'producto': forms.Select(attrs={'class':'form-control'}),
+			'sentido':  forms.Select(attrs={'class':'form-control'}),
+			'cantidad': forms.NumberInput(attrs={'class':'form-control', 'step':'0.01', 'min':'0.01'}),
+			'detalle':  forms.TextInput(attrs={'class':'form-control'}),
+		}
 
 AjusteItemFormSet = modelformset_factory(
-    AjusteStockItem,
-    form=AjusteItemForm,
-    extra=1,
-    can_delete=True
+	AjusteStockItem,
+	form=AjusteItemForm,
+	extra=1,
+	can_delete=True
 )
 
 # forms_proveeduria_nc.py
 
 class NCProveeduriaInicialForm(forms.Form):
-    socio = forms.ModelChoiceField(queryset=Socio.objects.none(), empty_label="-- Seleccionar Socio --")
-    factura = forms.ModelChoiceField(queryset=Factura.objects.none(), empty_label="-- Seleccionar Factura (Proveeduría) --")
+	socio = forms.ModelChoiceField(queryset=Socio.objects.none(), empty_label="-- Seleccionar Socio --")
+	factura = forms.ModelChoiceField(queryset=Factura.objects.none(), empty_label="-- Seleccionar Factura (Proveeduría) --")
 
-    def __init__(self, *args, **kwargs):
-        cons = kwargs.pop('consorcio')
-        super().__init__(*args, **kwargs)
+	def __init__(self, *args, **kwargs):
+		cons = kwargs.pop('consorcio')
+		super().__init__(*args, **kwargs)
 
-        self.fields['socio'].queryset = Socio.objects.filter(
-            consorcio=cons, nombre_servicio_mutual__isnull=True
-        )
-        self.fields['factura'].queryset = Factura.objects.none()
+		self.fields['socio'].queryset = Socio.objects.filter(
+			consorcio=cons, nombre_servicio_mutual__isnull=True
+		)
+		self.fields['factura'].queryset = Factura.objects.none()
 
-        # detectar socio seleccionado (POST o initial)
-        socio_id = None
-        if self.data.get('socio'):
-            socio_id = self.data.get('socio')
-        elif self.initial.get('socio'):
-            s = self.initial.get('socio')
-            socio_id = s.id if hasattr(s, 'id') else s
+		# detectar socio seleccionado (POST o initial)
+		socio_id = None
+		if self.data.get('socio'):
+			socio_id = self.data.get('socio')
+		elif self.initial.get('socio'):
+			s = self.initial.get('socio')
+			socio_id = s.id if hasattr(s, 'id') else s
 
-        if socio_id:
-            # ✅ Facturas del socio que tengan al menos un Crédito de Proveeduría
-            qs = (Factura.objects
-                  .filter(
-                      consorcio=cons,
-                      socio_id=socio_id,
-                      credito__ingreso__es_proveeduria=True,   # <- criterio sólido
-                      liquidacion__estado='confirmado',        # opcional: solo confirmadas
-                  )
-                  .select_related('receipt')
-                  .order_by('-id')
-                  .distinct()
-                  )
-            self.fields['factura'].queryset = qs
+		if socio_id:
+			# ✅ Facturas del socio que tengan al menos un Crédito de Proveeduría
+			qs = (Factura.objects
+				  .filter(
+					  consorcio=cons,
+					  socio_id=socio_id,
+					  credito__ingreso__es_proveeduria=True,   # <- criterio sólido
+					  liquidacion__estado='confirmado',        # opcional: solo confirmadas
+				  )
+				  .select_related('receipt')
+				  .order_by('-id')
+				  .distinct()
+				  )
+			self.fields['factura'].queryset = qs
 
-    def clean(self):
-        cleaned = super().clean()
-        socio = cleaned.get('socio')
-        factura = cleaned.get('factura')
-        if socio and factura:
-            if factura.socio_id != socio.id:
-                raise forms.ValidationError("La factura seleccionada no corresponde al socio elegido.")
-            # doble chequeo de Proveeduría por si alguien fuerza el POST
-            if not factura.credito_set.filter(ingreso__es_proveeduria=True).exists():
-                raise forms.ValidationError("La factura seleccionada no pertenece a Proveeduría.")
-        return cleaned
+	def clean(self):
+		cleaned = super().clean()
+		socio = cleaned.get('socio')
+		factura = cleaned.get('factura')
+		if socio and factura:
+			if factura.socio_id != socio.id:
+				raise forms.ValidationError("La factura seleccionada no corresponde al socio elegido.")
+			# doble chequeo de Proveeduría por si alguien fuerza el POST
+			if not factura.credito_set.filter(ingreso__es_proveeduria=True).exists():
+				raise forms.ValidationError("La factura seleccionada no pertenece a Proveeduría.")
+		return cleaned
 
 
 class DevolucionForm(forms.Form):
-    vp_id = forms.IntegerField(widget=forms.HiddenInput())
-    producto = forms.CharField(disabled=True, required=False)
-    precio = forms.DecimalField(disabled=True, required=False, max_digits=9, decimal_places=2)
-    cantidad_original = forms.DecimalField(disabled=True, required=False, max_digits=12, decimal_places=2)
-    ya_devuelto = forms.DecimalField(disabled=True, required=False, max_digits=12, decimal_places=2)
-    devolver = forms.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal('0'))
-    motivo = forms.CharField(required=False, max_length=200)
+	vp_id = forms.IntegerField(widget=forms.HiddenInput())
+	producto = forms.CharField(disabled=True, required=False)
+	precio = forms.DecimalField(disabled=True, required=False, max_digits=9, decimal_places=2)
+	cantidad_original = forms.DecimalField(disabled=True, required=False, max_digits=12, decimal_places=2)
+	ya_devuelto = forms.DecimalField(disabled=True, required=False, max_digits=12, decimal_places=2)
+	devolver = forms.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal('0'))
+	motivo = forms.CharField(required=False, max_length=200)
 
 DevolucionFormSet = formset_factory(DevolucionForm, extra=0)
+
+
+class ModuloForm(forms.ModelForm):
+
+	precio = forms.DecimalField(label="Precio", max_digits=9, decimal_places=2, required=False)
+	
+	class Meta:
+		model = Producto
+		fields = [
+			'nombre', 'descripcion', 'activo',
+		]
+
+	def __init__(self, *args, **kwargs):
+		self.request = kwargs.pop('request', None)
+		super().__init__(*args, **kwargs)
+
+		if self.instance and self.instance.pk:
+			self.fields['precio'].initial = self.instance.precio_1
+
+	def clean(self):
+		cd = super().clean()
+		# Este form siempre crea/edita módulos
+		# Si estás en update, el modelo ya tiene es_modulo=True.
+		return cd
+
+
+from django.core.exceptions import ValidationError
+
+class ModuloComponenteForm(forms.ModelForm):
+    class Meta:
+        model = ModuloComponente
+        fields = ['componente', 'cantidad']
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('request', None)
+        super().__init__(*args, **kwargs)
+
+        qs = Producto.objects.none()
+        if self.request:
+            c = consorcio(self.request)
+            qs = Producto.objects.filter(consorcio=c, activo=True)
+            # no permitir módulos como componentes
+            qs = qs.filter(es_modulo=False)
+
+        # si estoy editando, que no se pueda elegir a sí mismo
+        if self.instance and self.instance.producto_modulo_id:
+            qs = qs.exclude(id=self.instance.producto_modulo_id)
+
+        # set queryset final
+        self.fields['componente'].queryset = qs
+
+        # armamos el mapa id -> costo_unitario (str para que sea JSON safe)
+        cost_map = {
+            str(prod.id): str(prod.precio_compra)  # ejemplo "12.34"
+            for prod in qs
+        }
+
+        # mostramos el costo al lado del nombre en el <option>
+        opciones = []
+        for prod in qs:
+            costo_unitario = prod.precio_compra  # Decimal según tu modelo
+            opciones.append((
+                prod.id,
+                f"{prod.nombre} (${costo_unitario})",
+            ))
+        self.fields['componente'].choices = opciones
+
+        # agregamos attrs al <select> así quedan en el HTML
+        self.fields['componente'].widget.attrs.update({
+            'class': 'componente-select',
+            'data-cost-map': json.dumps(cost_map),  # <= clave
+        })
+
+        # agregamos clase al input cantidad
+        self.fields['cantidad'].widget.attrs.update({
+            'class': 'cantidad-input',
+            'step': '0.01',
+            'min': '0',
+        })
+
+    def clean_cantidad(self):
+        val = self.cleaned_data.get('cantidad')
+        if val is None or Decimal(val) <= 0:
+            raise ValidationError("La cantidad debe ser mayor a 0.")
+        return val
+
+
+ModuloComponenteFormSet = inlineformset_factory(
+	parent_model=Producto,
+	model=ModuloComponente,
+	form=ModuloComponenteForm,
+	fk_name='producto_modulo',
+	extra=4,
+	can_delete=True,
+	min_num=1,
+	validate_min=True,
+)

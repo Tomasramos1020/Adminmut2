@@ -1,0 +1,84 @@
+{% extends 'raiz.html' %}
+{% block titulo %}Módulos (Kits){% endblock %}
+
+{% block contenido %}
+<div class="card-box">
+
+  <!-- Header -->
+  <div class="mods-header">
+    <a href="{% url 'proveeduria' %}" class="backlink" aria-label="Volver">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Volver
+    </a>
+
+    <h4 class="card-title mb-0">Módulos (Kits)</h4>
+
+    <div class="actions">
+      <a class="btn btn-primary" href="{% url 'modulos-create' %}">Nuevo módulo</a>
+    </div>
+  </div>
+
+  <!-- Tabla -->
+  <div class="table-responsive">
+    <table class="table table-sm table-striped table-hover align-middle mb-0">
+      <thead class="thead-light">
+        <tr>
+          <th>Nombre</th>
+          <th style="width:160px">Precio</th>
+          <th style="width:90px">Activo</th>
+          <th style="width:160px" class="text-right">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in object_list %}
+        <tr>
+          <td class="fw-600">{{ m.nombre }}</td>
+          <td>${{ m.precio_1|default:"0.00" }}</td>
+          <td>{{ m.activo|yesno:"Sí,No" }}</td>
+          <td class="text-right">
+            <a href="{% url 'modulos-update' m.id %}" class="btn btn-sm btn-outline-secondary">Editar</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-4">No hay módulos cargados.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<style>
+  /* Header limpio con "volver" discreto */
+  .mods-header{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items:center;
+    gap:12px;
+    margin-bottom:14px;
+  }
+  .mods-header .card-title{ justify-self:center; font-weight:700 }
+  .mods-header .actions{ justify-self:end }
+
+  .backlink{
+    display:inline-flex; align-items:center; gap:6px;
+    color:#6b7280; font-weight:600; text-decoration:none;
+    padding:6px 10px; border-radius:8px;
+    transition:background .15s, color .15s;
+  }
+  .backlink:hover{ background:#f3f4f6; color:#374151; text-decoration:none }
+
+  /* Tabla más legible */
+  .table thead th{
+    background:#f8f9fa; border-bottom:1px solid #e5e7eb; color:#374151; font-weight:700;
+  }
+  .table tbody td{ vertical-align:middle }
+  .fw-600{ font-weight:600 }
+</style>
+{% endblock %}
+
+
+

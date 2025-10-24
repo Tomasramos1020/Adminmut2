@@ -14,14 +14,14 @@ from django.db.models import Sum, Avg, F, DecimalField, FloatField, ExpressionWr
 from django.db.models.functions import Coalesce, Cast
 from decimal import Decimal
 
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_index(request):
 
 	resumenes = Resumen.objects.all().order_by('nombre')
 
 	return render(request, 'resumenes/index.html', locals())
 
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_par(request, resumen):
 	try:
 		resumen = Resumen.objects.get(slug=resumen)
@@ -32,7 +32,7 @@ def res_par(request, resumen):
 
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_sp(request):
 	consorcio_actual = consorcio(request)
 	tiene_convenios = consorcio_actual.convenios	
@@ -165,7 +165,7 @@ def res_sp(request):
 	return render(request, 'resumenes/saldos-pendientes/index.html', locals())
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_cob(request):
 	try:
 		resumen = Resumen.objects.get(slug='cobranzas-y-medios')
@@ -252,7 +252,7 @@ def res_cob(request):
 	return render(request, 'resumenes/cobranzas/index.html', locals())
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_dp(request):
 	try:
 		resumen = Resumen.objects.get(slug='deudas-pendientes-con-acreedores')
@@ -289,7 +289,7 @@ def res_dp(request):
 	return render(request, 'resumenes/deudas-pendientes/index.html', locals())
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_pagos(request):
 	try:
 		resumen = Resumen.objects.get(slug='pagos-y-medios')
@@ -354,7 +354,7 @@ def res_pagos(request):
 	return render(request, 'resumenes/pagos/index.html', locals())
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_edc(request):
 	try:
 		resumen = Resumen.objects.get(slug='estado-de-cuenta')
@@ -370,7 +370,7 @@ def res_edc(request):
 	return render(request, 'resumenes/estado-de-cuenta/index.html', locals())
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_edcp(request):
 	try:
 		resumen = Resumen.objects.get(slug='estado-de-cuenta-proveedores')
@@ -388,7 +388,7 @@ def res_edcp(request):
 
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_mdc(request):
 	try:
 		resumen = Resumen.objects.get(slug='movimientos-de-caja')
@@ -415,7 +415,7 @@ def res_mdc(request):
 
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_id(request):
 	try:
 		resumen = Resumen.objects.get(slug='ingresos-devengados')
@@ -477,7 +477,7 @@ def res_id(request):
 	return render(request, 'resumenes/ingresos/index.html', locals())
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_gd(request):
 	try:
 		resumen = Resumen.objects.get(slug='gastos-devengados')
@@ -507,7 +507,7 @@ def res_gd(request):
 	return render(request, 'resumenes/gastos/index.html', locals())
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_edd(request):
 	try:
 		resumen = Resumen.objects.get(slug='estado-de-deuda')
@@ -546,7 +546,7 @@ def res_edd(request):
 
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_cmv(request):
 	try:
 		resumen = Resumen.objects.get(slug='costo-de-mercaderia-vendida')
@@ -650,7 +650,7 @@ def res_cmv(request):
 
 
 @require_http_methods(["POST"])
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_val_stock(request):
 	try:
 		resumen = Resumen.objects.get(slug='valorizacion-de-stock-a-fecha')

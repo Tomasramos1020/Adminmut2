@@ -98,7 +98,19 @@ Proveeduria
               </div>
             </a>
           </div>
-
+          <div class="col-md-6">
+            <div class="card-box widget-box-three ribbon-box">
+              <a href="{% url 'modulos-index' %}">
+                <div class="bg-icon pull-left">
+                  <img src="{% static 'assets/images/icons/sales_performance.svg' %}">  {# cualquier iconito #}
+                </div>
+                <div class="text-right">
+                  <p class="m-t-5 text-uppercase font-14 font-600">MÓDULOS</p>
+                  <h2 class="m-b-10"><span data-plugin="counterup">{{ modulos }}</span></h2>
+                </div>
+              </a>
+            </div>
+          </div>
         </div>
 
       </div>

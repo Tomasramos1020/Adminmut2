@@ -73,6 +73,7 @@ class Producto(models.Model):
 	stock_minimo = models.IntegerField(blank=True, null=True)
 	codigo_barra = models.IntegerField(blank=True, null=True)
 	costo = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
+	es_modulo = models.BooleanField(default=False)
 
 	def __str__(self):
 		return self.nombre
@@ -110,7 +111,70 @@ class Producto(models.Model):
 		if self.precio_1 is not None:
 			total = Decimal(self.precio_1) * self.cantidad
 			return total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-		return Decimal('0.00')	
+		return Decimal('0.00')
+
+
+	def recalcular_costo_modulo(self):
+		"""
+		Si este Producto es un módulo, calcula el costo total
+		como la suma de (cantidad * costo) de cada componente
+		y actualiza self.costo.
+		Si no es módulo, no hace nada.
+		"""
+		if not self.es_modulo:
+			return  # por las dudas
+
+		total = Decimal('0.00')
+
+		# Ojo: usamos .all() sobre related_name='componentes'
+		for mc in self.componentes.all():
+			comp = mc.componente
+
+			# usamos la mejor noción que ya definiste: precio_compra
+			# (que cae a .costo si existe o al último precio de compra)
+			costo_unitario = comp.precio_compra or Decimal('0.00')
+
+			if mc.cantidad:
+				total += (Decimal(mc.cantidad) * costo_unitario)
+
+		# redondeo lindo
+		total = total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+		# guardamos en el propio módulo
+		self.costo = total
+		# IMPORTANTE: no hacemos save() acá. Lo hace la view.
+		return total
+
+# models.py
+class ModuloComponente(models.Model):
+	producto_modulo = models.ForeignKey(
+		Producto, on_delete=models.CASCADE, related_name='componentes'
+	)
+	componente = models.ForeignKey(Producto, on_delete=models.PROTECT)
+	cantidad = models.DecimalField(max_digits=12, decimal_places=2)
+
+	class Meta:
+		unique_together = [('producto_modulo', 'componente')]  # evita duplicados
+
+	def clean(self):
+		from django.core.exceptions import ValidationError
+		# Debe ser un módulo
+		if not getattr(self.producto_modulo, 'es_modulo', False):
+			raise ValidationError("El producto seleccionado no está marcado como módulo.")
+		# No se puede autoincluir
+		if self.producto_modulo_id == self.componente_id:
+			raise ValidationError("Un módulo no puede ser componente de sí mismo.")
+		# (opcional) sin módulos anidados
+		if getattr(self.componente, 'es_modulo', False):
+			raise ValidationError("No se permiten módulos dentro de módulos.")
+
+		if self.cantidad is None or self.cantidad <= 0:
+			raise ValidationError("La cantidad del componente debe ser > 0.")
+
+	def save(self, *args, **kwargs):
+		self.full_clean()  # fuerza validaciones siempre
+		return super().save(*args, **kwargs)
+
 
 
 class Deposito(models.Model):

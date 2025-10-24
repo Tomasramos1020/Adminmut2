@@ -625,6 +625,55 @@ class Comprobante(models.Model):
 		else:
 			return self.fecha
 
+	def destinatario_display(self):
+		""" Nombre prolijo del asociado/cliente para MOSTRAR en el PDF.
+		- Si la factura la emite una federación, mostramos como ahora:
+			'matricula, razon social' (apellido, nombre) porque les gusta así.
+		- Si la factura la emite una mutual (no federación):
+			* si el socio es persona jurídica y cargaron la misma cosa en nombre y apellido,
+			mostramos una sola vez
+			* si es persona física: 'Apellido, Nombre' como siempre
+		"""
+
+		socio = self.socio  # atajo
+		if not socio:
+			return "Sin socio"
+
+		# 1) si el consorcio que factura ES federación → dejamos el formato actual
+		if self.consorcio.es_federacion:
+			# esto reproduce tu __str__ actual
+			if not socio.apellido:
+				return str(socio.nombre or "").strip()
+			return "{}, {}".format(
+				(socio.apellido or "").strip(),
+				(socio.nombre or "").strip()
+			).strip(", ").strip()
+
+		# 2) si NO es federación (es una mutual común)
+		# acá es donde estaban las quejas
+
+		else:# si es persona jurídica, queremos evitar "X, X"
+			if socio.tipo_persona == "juridica":
+				nom = (socio.nombre or "").strip()
+				ape = (socio.apellido or "").strip()
+
+				# si cargaron solo uno de los dos:
+				if ape and not nom:
+					return ape
+				if nom and not ape:
+					return nom
+
+				if nom and ape:
+					return nom
+
+				return "Sin razón social"
+
+			# 3) persona física en mutual normal → igual que siempre ("Apellido, Nombre")
+			else:
+				return "{}, {}".format(
+					(socio.apellido or "").strip(),
+					(socio.nombre or "").strip()
+				).strip(", ").strip()	
 	
 
 class Compensacion(models.Model):

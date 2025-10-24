@@ -31,7 +31,7 @@ from creditos.models import Factura
 from django.db.models import Q
 
 
-@method_decorator(group_required('administrativo', 'contable', 'fosea', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'fosea', 'sin_op', 'sin_deudas_sin_op', 'afiliaciones'), name='dispatch')
 class Index(generic.TemplateView):
 
 	""" Index de parametros """
@@ -97,7 +97,7 @@ PIVOT = {
 }
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class Listado(generic.ListView):
 
 	""" Lista del modelo seleccionado """
@@ -133,7 +133,7 @@ class Listado(generic.ListView):
 		return context
 
 
-@group_required('administrativo', 'contable')
+@group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones')
 def arq_puntos(request):
 	if valid_demo(request.user):
 		return redirect('parametro', modelo="Punto")
@@ -147,7 +147,7 @@ def arq_puntos(request):
 	return redirect('parametro', modelo="Punto")
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class Crear(generic.CreateView):
 
 	""" Para crear una nueva instancia de cualquier modelo excepto Punto """
@@ -216,7 +216,7 @@ class HeaderExeptMixin:
 		return super().dispatch(request, *args, **kwargs)
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class Instancia(HeaderExeptMixin, Crear, generic.UpdateView):
 
 	""" Para modificar una instancia de cualquier modelo excepto Punto """
@@ -242,7 +242,7 @@ class Instancia(HeaderExeptMixin, Crear, generic.UpdateView):
 		return retorno
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class ListadoAccesorio(generic.ListView):
 
 	""" Lista de accesorios, descuento o intereses """
@@ -260,7 +260,7 @@ class ListadoAccesorio(generic.ListView):
 		return context
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class CrearAccesorio(generic.CreateView):
 
 	""" Crear un accesorio, descuento o interes """
@@ -305,7 +305,7 @@ class CrearAccesorio(generic.CreateView):
 		return super().form_valid(form)
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class Finalizar(HeaderExeptMixin, generic.UpdateView):
 
 	""" Finalizar un grupo o socio """
@@ -345,7 +345,7 @@ class Finalizar(HeaderExeptMixin, generic.UpdateView):
 		return redirect('parametro', modelo=self.kwargs['modelo'])
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class Reactivar(HeaderExeptMixin, generic.UpdateView):
 
 	""" Reactivar un grupo o socio """
@@ -385,7 +385,7 @@ class Reactivar(HeaderExeptMixin, generic.UpdateView):
 		return redirect('parametro', modelo=self.kwargs['modelo'])
 
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class PDFCodigo(generic.DetailView):
 
 	""" Ver PDF del codigo de socio """
@@ -415,7 +415,7 @@ class PDFCodigo(generic.DetailView):
 		return super().dispatch(request, *args, **kwargs)
 
 
-@method_decorator(group_required('administrativo',  'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo',  'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class SociosImportacionWizard(SessionWizardView):
 
 	""" Index y registro de conceptos """
@@ -977,7 +977,7 @@ class SociosImportacionWizard(SessionWizardView):
 		messages.success(self.request, "Socios guardados con exito")
 		return redirect('parametro', modelo=self.kwargs['modelo'])
 
-@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea'), name='dispatch')
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class ExportacionInaes(generic.ListView):
 
 	""" Index de transferencias """

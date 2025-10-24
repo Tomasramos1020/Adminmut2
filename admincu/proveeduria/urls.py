@@ -1,9 +1,17 @@
 from django.urls import path
-from .views import *
+from .views import Index, CrearOperacionView, obtener_sucursales, obtener_precio_producto, \
+    CrearCompraView, CrearRemitoView, RegistroRemitos, remito_pdf, remito_anular, \
+    NCProveeduriaCreateView, facturas_por_socio, CrearAjusteView, RegistroAjustes, \
+    ajuste_pdf, ajuste_anular, Listado, Crear, Instancia, ModuloListView, ModuloCreateView, ModuloUpdateView
 
 urlpatterns = [
 	path('', Index.as_view(), name='proveeduria'),
 
+	# --- MÓDULOS
+	path('modulos/', ModuloListView.as_view(), name='modulos-index'),
+	path('modulos/nuevo/', ModuloCreateView.as_view(), name='modulos-create'),
+	path('modulos/<int:pk>/', ModuloUpdateView.as_view(), name='modulos-update'),
+	
 	#facturador
 	path('crear-solicitud/', CrearOperacionView.as_view(), name='solicitudes_proveeduria'),
 	path('obtener_sucursales/', obtener_sucursales, name='obtener_sucursales'),
@@ -29,5 +37,7 @@ urlpatterns = [
 	path('<str:modelo>/', Listado.as_view(), name='elemento'),
 	path('<str:modelo>/nuevo', Crear.as_view(), name='crear_proveeduria'),
 	path('<str:modelo>/<int:pk>/editar/', Instancia.as_view(), name='instancia_proveeduria'),
+
+
 
 ]
