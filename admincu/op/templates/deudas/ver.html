@@ -101,11 +101,21 @@
 
     <div class="panel panel-border panel-default">
       <div class="panel-heading">
-        <h3 class="panel-title">Listado de erogaciones generados</h3>
+        <h3 class="panel-title">
+          {% if es_proveeduria %}
+            Productos comprados
+          {% else %}
+            Listado de erogaciones generados
+          {% endif %}
+        </h3>
       </div>
       <div class="panel-body">
         <div class="table-responsive">
-          {% include 'deudas/tabla-deuda.html' %}
+          {% if es_proveeduria %}
+            {% include 'deudas/tabla-proveeduria.html' %}
+          {% else %}
+            {% include 'deudas/tabla-deuda.html' %}
+          {% endif %}
         </div>
       </div>
     </div>

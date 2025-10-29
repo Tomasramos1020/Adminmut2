@@ -1,0 +1,21 @@
+{% load humanize %}
+<table class="anopa table">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th class="text-right">Cantidad</th>
+      <th class="text-right">Precio unitario</th>
+      <th class="text-right">Subtotal</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in compras %}
+    <tr>
+      <td>{{ c.producto }}</td>
+      <td class="text-right">{{ c.cantidad|intcomma }}</td>
+      <td class="text-right">$ {{ c.precio|intcomma }}</td>
+      <td class="text-right">$ {{ c.total|intcomma }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

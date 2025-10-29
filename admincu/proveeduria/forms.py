@@ -398,7 +398,7 @@ class CompraProductoForm(forms.ModelForm):
 				# Ajustá el filtro a tu modelo de productos
 				# Ejemplos habituales: Producto.objects.filter(consorcio=c, baja__isnull=True)
 				self.fields['producto'].queryset = (
-					Producto.objects.filter(consorcio=c)  # + los filtros que uses (activos, sin baja, etc.)
+					Producto.objects.filter(consorcio=c, es_modulo=False)  # + los filtros que uses (activos, sin baja, etc.)
 					.order_by('nombre')
 				)
 			except Exception:
