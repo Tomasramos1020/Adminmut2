@@ -117,6 +117,9 @@ class CampañaAdmin(admin.ModelAdmin):
 	list_display = ['__str__', 'consorcio']
 	list_filter = ['consorcio']
 
+class ConvenioAdmin(admin.ModelAdmin):
+	list_display = ['__str__', 'consorcio']
+	list_filter = ['consorcio']
 
 admin.site.register(Acreedor, AcreedorAdmin)
 admin.site.register(Caja, CajaAdmin)
@@ -129,6 +132,7 @@ admin.site.register(ZonasPorCultivo, ZonasPorCultivoAdmin)
 admin.site.register(Cotizacion, CotizacionAdmin)
 admin.site.register(Establecimiento, EstablecimientoAdmin)
 admin.site.register(Campaña, CampañaAdmin)
+admin.site.register(Convenio, ConvenioAdmin)
 admin.site.register(Relacion)
 admin.site.register(Accesorio)
 

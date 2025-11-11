@@ -1,0 +1,47 @@
+{% load staticfiles %}
+{% load humanize %}
+
+<table class="anopa table table-sm display nowrap" style="width:100%">
+  <thead>
+    <tr>
+      <th>Tipo</th>
+      <th>Fecha</th>
+      {% if not user.groups.all.0.name == "socio" %}
+        <th>Socio</th>
+      {% endif %}
+      <th>Campaña</th>
+      <th class="text-right">Líneas</th>
+      <th class="text-right">Ha afectadas</th>
+      <th class="text-right">Indemnización total (QQ)</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in siniestros %}
+      <tr>
+        <td>Siniestro</td>
+        <td>{{ s.fecha|date:"d/m/Y" }}</td>
+        {% if not user.groups.all.0.name == "socio" %}
+          <td style="white-space: nowrap;" title="{{ s.socio }}">{{ s.socio|truncatechars:70 }}</td>
+        {% endif %}
+        <td>{{ s.campaña }}</td>
+        <td class="text-right">{{ s.cant_lineas|default:s.cant_lineas_calc|default_if_none:"0" }}</td>
+        <td class="text-right">
+          {{ s.ha_afectadas|default:s.ha_afectadas_calc|default_if_none:"0.00"|floatformat:2 }}
+        </td>
+        <td class="text-right">
+          {{ s.indemnizacion_total|default:s.indemnizacion_total_calc|default_if_none:"0.00"|floatformat:2 }}
+        </td>
+        <td class="text-right">
+          <a href="{% url 'siniestro_editar' s.pk %}"
+             class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light"
+             title="Editar">
+            <i class="fa fa-pencil"></i>
+          </a>
+          {# Si más adelante tenés un PDF: #}
+          {# <a href="{% url 'siniestro_pdf' s.pk %}" class="btn btn-icon btn-xs btn-success btn-bordered" target="_blank" title="Imprimir (PDF)"><i class="fa fa-file-pdf-o"></i></a> #}
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>

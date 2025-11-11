@@ -15,6 +15,13 @@ urlpatterns = [
     path('parametros-zona-cultivo/', parametros_zona_cultivo, name='parametros_zona_cultivo'),
     path('establecimientos/nuevo/', establecimiento_modal, name='establecimiento_modal'),
     path('solicitud/<int:pk>/pdf/', solicitud_pdf, name='solicitud_pdf'),
-    path('registro/', Registro.as_view(), name='registro-solicitudes'),
+    path('registro/', Registro.as_view(), name='registro-solicitudes'),    
+    #Siniestros
+    path('fosea/siniestros/nuevo/', CrearSiniestroView.as_view(), name='fosea-siniestros-nuevo'),
+    path('fosea/ajax/franquicia/', franquicia_por_zona_cultivo, name='franquicia_por_zona_cultivo'),
+    path('fosea/ajax/establecimientos_filtrados/', establecimientos_filtrados, name='establecimientos_filtrados'),
+    path('fosea/siniestros/registro/', RegistroSiniestros.as_view(), name='registro_siniestros'),
+    path('fosea/siniestros/<int:pk>/editar/', EditarSiniestroView.as_view(), name='siniestro_editar'),
+    path('cobertura_por_cultivo/', cobertura_por_cultivo, name='cobertura_por_cultivo'),
 
 ]

@@ -832,6 +832,7 @@ class Establecimiento(models.Model):
 class Campaña(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	nombre = models.CharField(max_length=300)
+	ajuste = models.DecimalField("Ajuste (%)", max_digits=5, decimal_places=2, default=Decimal('0.00'))
 
 	def __str__(self):
 		return self.nombre

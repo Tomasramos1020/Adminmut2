@@ -1,15 +1,15 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.forms import formset_factory, BaseFormSet
-from .models import Solicitud, SolicitudLinea
+from .models import Solicitud, SolicitudLinea, Siniestro, SiniestroLinea
 from arquitectura.models import Establecimiento, Socio, ZonasPorCultivo
 from admincu.funciones import consorcio
 from django.forms.widgets import DateInput
-from django.forms import modelformset_factory, inlineformset_factory
+from django.forms import modelformset_factory, inlineformset_factory, BaseInlineFormSet
 from decimal import Decimal, ROUND_HALF_UP
 from django.core.exceptions import ValidationError
 from django.forms import BaseInlineFormSet
-from arquitectura.models import Campaña, Zona, Cultivo
+from arquitectura.models import Campaña, Zona, Cultivo, Establecimiento
 
 # forms.py
 class SolicitudForm(forms.ModelForm):
@@ -327,3 +327,188 @@ class EstablecimientoModalForm(forms.ModelForm):
 		if self.fields.get('zona') is not None and consorcio is not None:
 			self.fields['zona'].queryset = Zona.objects.filter(consorcio=consorcio)
 		# si necesitás filtrar zona por consorcio, podés hacerlo acá
+
+
+
+
+class SiniestroForm(forms.ModelForm):
+	fecha = forms.DateField(
+		widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+		input_formats=['%Y-%m-%d', '%d/%m/%Y']
+	)
+
+	class Meta:
+		model = Siniestro
+		fields = ['fecha', 'campaña', 'socio']
+		widgets = {
+			'socio': forms.Select(attrs={'class': 'form-control'}),
+			'campaña': forms.Select(attrs={'class': 'form-control'}),
+		}
+
+	def __init__(self, *args, **kwargs):
+		request = kwargs.pop('request', None)
+		super().__init__(*args, **kwargs)
+		if request:
+			cons = consorcio(request)
+			self.fields['campaña'].queryset = Campaña.objects.filter(consorcio=cons)
+			# Agregar data-ajuste al <option> de cada campaña
+			self.fields['campaña'].widget.choices = [
+				(c.id, f"{c}") for c in self.fields['campaña'].queryset
+			]
+			self.fields['campaña'].widget.attrs['data-ajustes'] = {
+				str(c.id): str(c.ajuste or 0)
+				for c in self.fields['campaña'].queryset
+			}
+
+			self.fields['socio'].queryset = (self.fields['socio'].queryset
+				.filter(consorcio=cons, es_socio=True, baja__isnull=True)
+				.exclude(nombre_servicio_mutual__isnull=False))
+		for f in self.fields.values():
+			f.widget.attrs.setdefault('class', 'form-control')
+
+	def clean(self):
+		cd = super().clean()
+		faltan = [k for k in ('fecha','campaña','socio') if not cd.get(k)]
+		if faltan:
+			raise ValidationError("Completá fecha, campaña y socio.")
+		return cd
+
+from django.db.models import Sum
+
+class SiniestroLineaForm(forms.ModelForm):
+	franquicia_porcentaje = forms.DecimalField(
+		label="Franquicia (%)", max_digits=5, decimal_places=2, required=False, disabled=True
+	)
+	cobertura_qq = forms.DecimalField(
+		label="Cobertura", max_digits=10, decimal_places=2, required=True, disabled=False
+	)
+	hectareas_afectadas = forms.DecimalField(
+		label="Has Afectadas", max_digits=10, decimal_places=2, required=True
+	)
+	indemnizacion_qq = forms.DecimalField(
+	label="Indemnización (QQ)", max_digits=14, decimal_places=2,
+	required=False, disabled=True
+	)
+	indemnizacion_ajustada = forms.DecimalField(
+		label="Indemnización Ajustada ($)", max_digits=14, decimal_places=2,
+		required=False, disabled=True
+	)
+
+
+	class Meta:
+		model = SiniestroLinea
+		fields = [
+			'establecimiento', 'cultivo',
+			'hectareas_afectadas', 'danio_porcentaje',
+			'franquicia_porcentaje', 'cobertura_qq',
+			'estadio', 'liberacion','indemnizacion_qq',
+			'indemnizacion_ajustada',
+		]
+		widgets = {
+			'establecimiento': forms.Select(attrs={'class': 'form-control'}),
+			'cultivo': forms.Select(attrs={'class': 'form-control'}),
+			'danio_porcentaje': forms.NumberInput(attrs={'class': 'form-control'}),
+			'estadio': forms.TextInput(attrs={'class': 'form-control'}),
+			'liberacion': forms.Select(attrs={'class': 'form-control'}),
+		}
+
+
+	def __init__(self, *args, **kwargs):
+		request = kwargs.pop('request', None)
+		cons = kwargs.pop('consorcio', None)
+		socio = kwargs.pop('socio', None)  # lo pasamos desde la view
+		super().__init__(*args, **kwargs)
+
+		if request and not cons:
+			cons = consorcio(request)
+
+		if cons:
+			self.fields['cultivo'].queryset = Cultivo.objects.filter(consorcio=cons)
+			# Establecimientos del socio:
+			if socio:
+				self.fields['establecimiento'].queryset = Establecimiento.objects.filter(
+					consorcio=cons, socio__id=socio.id
+				).distinct()
+			else:
+				self.fields['establecimiento'].queryset = Establecimiento.objects.filter(consorcio=cons)
+
+	def clean(self):
+		cd = super().clean()
+		est = cd.get('establecimiento')
+		ha_afectadas = cd.get('hectareas_afectadas') or Decimal('0')
+		siniestro = getattr(self.instance, 'siniestro', None)
+
+		# Validaciones básicas
+		if not est:
+			self.add_error('establecimiento', 'Seleccioná el establecimiento.')
+		if not cd.get('cultivo'):
+			self.add_error('cultivo', 'Seleccioná el cultivo.')
+		if ha_afectadas <= 0:
+			self.add_error('hectareas_afectadas', 'Debe ser mayor a 0.')
+
+		danio = cd.get('danio_porcentaje') or Decimal('0')
+		if danio <= 0:
+			self.add_error('danio_porcentaje', 'Debe ser mayor a 0.')
+
+		cob = cd.get('cobertura_qq') or Decimal('0')
+		if cob <= 0:
+			self.add_error('cobertura_qq', 'Debe ser mayor a 0.')
+
+		return cd
+
+class _LineasSiniestroBaseFormSet(BaseInlineFormSet):
+	def clean(self):
+		super().clean()
+		validas = 0
+		siniestro = self.instance  # 💡 Usamos la instancia aunque no tenga pk
+
+		for i, form in enumerate(self.forms, start=1):
+			if not hasattr(form, "cleaned_data") or not form.cleaned_data:
+				continue
+			cd = form.cleaned_data
+			if self.can_delete and cd.get("DELETE"):
+				continue
+
+			est = cd.get("establecimiento")
+			ha_afectadas = cd.get("hectareas_afectadas") or Decimal("0")
+
+			if siniestro and est and siniestro.campaña and siniestro.socio:
+				total_ha_solicitud = (
+					SolicitudLinea.objects.filter(
+						solicitud__campaña=siniestro.campaña,
+						solicitud__socio=siniestro.socio,
+						solicitud__consorcio=siniestro.consorcio,
+						establecimiento=est
+					)
+					.aggregate(total=Sum("hectarea"))
+					.get("total") or Decimal("0")
+				)
+
+
+				if total_ha_solicitud == 0:
+					form.add_error(
+						"hectareas_afectadas",
+						f'El establecimiento "{est}" no tiene solicitudes en la campaña {siniestro.campaña}.'
+					)
+				elif ha_afectadas > total_ha_solicitud:
+					form.add_error(
+						"hectareas_afectadas",
+						f'Las hectáreas afectadas ({ha_afectadas}) superan las {total_ha_solicitud} declaradas '
+						f'en solicitudes del establecimiento en la campaña {siniestro.campaña}.'
+					)
+
+
+
+
+
+
+SiniestroLineaFormSet = inlineformset_factory(
+	parent_model=Siniestro,
+	model=SiniestroLinea,
+	form=SiniestroLineaForm,
+	formset=_LineasSiniestroBaseFormSet,
+	extra=0,
+	can_delete=True,
+	min_num=1,
+	validate_min=True,
+)

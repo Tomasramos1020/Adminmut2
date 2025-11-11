@@ -4,10 +4,10 @@
     {% if user.groups.all.0.name == "administrativo" %}
       <a class="btn btn-block btn-bordered btn-default" href="{% url 'crear_cotizacion' %}">Nueva Cotizacion</a>
       <a class="btn btn-block btn-bordered btn-default" href="{% url 'solicitudes' %}">Nueva Solicitud</a>
-      <a class="btn btn-block btn-bordered btn-default m-b-30" href="{% url 'fosea' %}">Nuevo Siniestro</a>
+      <a class="btn btn-block btn-bordered btn-default m-b-30" href="{% url 'fosea-siniestros-nuevo' %}">Nuevo Siniestro</a>
       <a class="btn btn-block btn-bordered btn-default m-b-30" href="{% url 'registro-solicitudes' %}">Registro de solicitudes</a>
     {% endif %}
-    <a class="btn btn-block btn-bordered btn-default" href="{% url 'fosea' %}">Registro de siniestros</a>
+    <a class="btn btn-block btn-bordered btn-default" href="{% url 'registro_siniestros' %}">Registro de siniestros</a>
   </div>
   
   <div class="card-box ribbon-box">

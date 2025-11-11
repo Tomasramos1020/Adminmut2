@@ -8,7 +8,7 @@ from expensas_pagas.models import CobroExp
 from django_mercadopago.models import Preference
 from django.db.models import Count
 from django.views.generic import View
-from .models import Solicitud, SolicitudLinea
+from .models import Solicitud, SolicitudLinea, Siniestro, SiniestroLinea
 from .forms import *
 from django.forms import modelformset_factory
 from arquitectura.models import Establecimiento, Socio, Cotizacion, ZonasPorCultivo, Cultivo, Zona
@@ -21,7 +21,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from weasyprint import HTML
 from .utils_pdf import calcular_total_garantia
 from django.contrib.auth.decorators import login_required
-from .forms import CotizacionForm, CotizacionLineaForm, CotizacionLineaFormSet
+from .forms import CotizacionForm, CotizacionLineaForm, CotizacionLineaFormSet, SiniestroForm, SiniestroLineaFormSet
 from django.utils.timezone import now
 from django.urls import reverse
 from django.core.exceptions import ObjectDoesNotExist
@@ -809,4 +809,265 @@ class Registro(OrderQS):
 			s.total_suscripcion_calc = total_suscripcion
 
 		return ctx
+
+# views.py (o donde tengas tus endpoints fosea)
+from django.views.decorators.http import require_GET
+
+@login_required
+@require_GET
+def franquicia_por_zona_cultivo(request):
+	cons = consorcio(request)
+	cultivo_id = request.GET.get('cultivo_id')
+	establecimiento_id = request.GET.get('establecimiento_id')
+
+	if not (cultivo_id and establecimiento_id):
+		return JsonResponse({'franquicia': None}, status=200)
+
+	try:
+		est = Establecimiento.objects.get(pk=establecimiento_id, consorcio=cons)
+		zpc = ZonasPorCultivo.objects.get(
+			consorcio=cons, zona=est.zona_id, cultivo_id=cultivo_id
+		)
+		return JsonResponse({'franquicia': float(zpc.franquicia)})
+	except (Establecimiento.DoesNotExist, ZonasPorCultivo.DoesNotExist):
+		return JsonResponse({'franquicia': None}, status=200)
+
+@login_required
+@require_GET
+def establecimientos_filtrados(request):
+	"""
+	Devuelve los establecimientos del socio elegido
+	que además tengan solicitudes en la campaña seleccionada.
+	"""
+	cons = consorcio(request)
+	socio_id = request.GET.get("socio_id")
+	campaña_id = request.GET.get("campaña_id")
+
+	if not socio_id:
+		return JsonResponse({"establecimientos": []})
+
+	# Todos los establecimientos del socio en este consorcio
+	establecimientos = Establecimiento.objects.filter(
+		consorcio=cons, socio__id=socio_id
+	)
+
+	# Si se eligió campaña → filtramos por los usados en esa campaña
+	if campaña_id:
+		usados = SolicitudLinea.objects.filter(
+			solicitud__consorcio=cons,
+			solicitud__socio_id=socio_id,
+			solicitud__campaña_id=campaña_id
+		).values_list("establecimiento_id", flat=True).distinct()
+		establecimientos = establecimientos.filter(id__in=usados)
+
+	data = [
+		{"id": e.id, "nombre": e.nombre}
+		for e in establecimientos.order_by("nombre").distinct()
+	]
+	return JsonResponse({"establecimientos": data})
+
+	
+@login_required
+@require_GET
+def cobertura_por_cultivo(request):
+    """
+    Devuelve la cobertura máxima (subsidio_max) del cultivo y establecimiento
+    según el socio y la campaña seleccionados.
+    """
+    cons = consorcio(request)
+    cultivo_id = request.GET.get('cultivo_id')
+    establecimiento_id = request.GET.get('establecimiento_id')
+    socio_id = request.GET.get('socio_id')
+    campaña_id = request.GET.get('campaña_id')
+
+    if not all([cultivo_id, establecimiento_id, socio_id, campaña_id]):
+        return JsonResponse({'cobertura': None})
+
+    from fosea.models import SolicitudLinea
+    from django.db.models import Max
+
+    max_subsidio = (
+        SolicitudLinea.objects
+        .filter(
+            solicitud__consorcio=cons,
+            solicitud__socio_id=socio_id,
+            solicitud__campaña_id=campaña_id,
+            establecimiento_id=establecimiento_id,
+            cultivo_id=cultivo_id,
+        )
+        .aggregate(Max('subsidio_max'))
+        .get('subsidio_max__max')
+    )
+
+    return JsonResponse({'cobertura': max_subsidio or None})
+
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class CrearSiniestroView(View):
+	template_name = 'crear_siniestro.html'
+
+	def get(self, request):
+		cons = consorcio(request)
+		form = SiniestroForm(request=request)
+		tmp = Siniestro(consorcio=cons)  # no se guarda
+		formset = SiniestroLineaFormSet(
+			instance=tmp,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': None},  # socio aún no elegido
+		)
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+
+	def post(self, request):
+		cons = consorcio(request)
+		form = SiniestroForm(request.POST, request=request)
+
+		if form.is_valid():
+			# Creamos el siniestro pero sin guardar todavía
+			siniestro = form.save(commit=False)
+			siniestro.consorcio = cons
+			socio = siniestro.socio
+
+			# Asignamos los datos al formset
+			formset = SiniestroLineaFormSet(
+				request.POST,
+				instance=siniestro,
+				prefix='form',
+				form_kwargs={'request': request, 'consorcio': cons, 'socio': socio},
+			)
+
+			# ⚠️ Inyectamos manualmente el siniestro con sus datos para que el formset lo use
+			# (aunque todavía no esté guardado)
+			for f in formset.forms:
+				f.instance.siniestro = siniestro
+
+			# Validamos ambos
+			if formset.is_valid():
+				with transaction.atomic():
+					siniestro.save()  # recién acá se guarda realmente
+					formset.instance = siniestro
+					formset.save()
+				return redirect('fosea')
+			else:
+				# formset inválido → NO se guarda el siniestro
+				return render(request, self.template_name, {'form': form, 'formset': formset})
+
+		# form inválido → rearmamos formset vacío
+		tmp = Siniestro(consorcio=cons)
+		socio_id = request.POST.get('socio')
+		socio_obj = Socio.objects.filter(pk=socio_id, consorcio=cons).first() if socio_id else None
+
+		formset = SiniestroLineaFormSet(
+			request.POST,
+			instance=tmp,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': socio_obj},
+		)
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+		
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class RegistroSiniestros(OrderQS):
+	model = Siniestro
+	filterset_class = SiniestroFilter
+	template_name = 'registros/siniestros.html'
+	paginate_by = 50
+
+	def get_queryset(self):
+		# limitar por consorcio
+		qs = super().get_queryset().filter(consorcio=consorcio(self.request))
+		# ordenar por fecha desc por defecto
+		return qs.order_by('-fecha', '-id')
+
+	def get_context_data(self, **kwargs):
+		ctx = super().get_context_data(**kwargs)
+
+		page_obj = ctx.get('page_obj')
+		lista = list(page_obj.object_list) if page_obj else list(ctx.get('object_list', []))
+		ctx['lista'] = lista
+		if not lista:
+			return ctx
+
+		# 1) Cargar líneas necesarias en una sola consulta "liviana"
+		ids = [s.pk for s in lista]
+		lineas = (SiniestroLinea.objects
+				  .filter(siniestro_id__in=ids)
+				  .values('siniestro_id', 'hectareas_afectadas', 'danio_porcentaje',
+						  'franquicia_porcentaje', 'cobertura_qq'))
+
+		agrup = defaultdict(list)
+		for l in lineas:
+			agrup[l['siniestro_id']].append((
+				Decimal(l['hectareas_afectadas'] or 0),
+				Decimal(l['danio_porcentaje'] or 0),
+				Decimal(l['franquicia_porcentaje'] or 0),
+				Decimal(l['cobertura_qq'] or 0),
+			))
+
+		# 2) Calcular sumas por siniestro (ha afectadas + indemnización total)
+		for s in lista:
+			pares = agrup.get(s.pk, ())
+			ha_total = Decimal('0')
+			total_indemnizacion = Decimal('0')
+
+			for ha, danio, franq, cob in pares:
+				ha = ha or 0
+				exceso = max(Decimal('0'), danio - franq) / Decimal('100')
+				ind = ha * cob * exceso
+				ha_total += ha
+				total_indemnizacion += ind
+
+			s.ha_afectadas_calc = ha_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			s.indemnizacion_total_calc = total_indemnizacion.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			s.cant_lineas_calc = len(pares)
+
+		return ctx
+
+from django.contrib import messages
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class EditarSiniestroView(View):
+	template_name = 'editar_siniestro.html'  # si preferís, usá 'editar_siniestro.html'
+
+	def get(self, request, pk):
+		cons = consorcio(request)
+		siniestro = get_object_or_404(Siniestro, pk=pk, consorcio=cons)
+		form = SiniestroForm(instance=siniestro, request=request)
+		formset = SiniestroLineaFormSet(
+			instance=siniestro,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': siniestro.socio},
+		)
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'siniestro': siniestro,   # por si querés mostrar #ID en el header
+			'modo_edicion': True,     # para cambiar título/botones en el template
+		})
+
+	def post(self, request, pk):
+		cons = consorcio(request)
+		siniestro = get_object_or_404(Siniestro, pk=pk, consorcio=cons)
+
+		form = SiniestroForm(request.POST, instance=siniestro, request=request)
+		formset = SiniestroLineaFormSet(
+			request.POST,
+			instance=siniestro,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': siniestro.socio},
+		)
+
+		if form.is_valid() and formset.is_valid():
+			with transaction.atomic():
+				form.save()
+				formset.save()
+			messages.success(request, "Siniestro actualizado correctamente.")
+			return redirect('registro_siniestros')  # o 'fosea' si preferís
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'siniestro': siniestro,
+			'modo_edicion': True,
+		})
 

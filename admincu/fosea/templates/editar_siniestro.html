@@ -1,0 +1,236 @@
+{% extends 'raiz.html' %}
+{% load static %}
+
+{% block titulo %}Editar Siniestro{% endblock %}
+{% block header %}Editar Siniestro{% endblock %}
+
+{% block contenido %}
+<style>
+  .contenido-interno{
+    background:#fff; padding:20px; border-radius:12px; 
+    max-width:1500px; margin:20px auto;
+    box-shadow:0 6px 22px rgba(0,0,0,.08);
+  }
+
+  .form-row{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:15px; }
+  .form-row .form-group{ flex:1; min-width:220px; }
+  .form-group{ margin-bottom:15px; }
+  label{ display:block; font-weight:600; margin-bottom:6px; color:#333; }
+  select, input[type="text"], input[type="date"], input[type="number"]{
+    width:100%; padding:8px 10px; border:1px solid #dcdcdc; border-radius:8px; background:#fff;
+  }
+
+  .formset-linea{
+    display:grid;
+    grid-template-columns: 1.6fr 1.2fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 1.0fr 1.0fr 56px; 
+    gap:12px; padding:16px;
+    border:1px dashed #e6e6e6; border-radius:10px; background:#fafafa;
+    align-items:start; margin-bottom:10px;
+  }
+  .formset-linea .campo{ display:flex; flex-direction:column; }
+
+  .eliminar-wrapper{ align-self:center; justify-self:center; }
+  .icon-btn{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:36px; height:36px; border:none; border-radius:10px; cursor:pointer;
+    background:#ffe8e6; transition:transform .08s ease, background .15s ease;
+  }
+  .icon-btn:hover{ background:#ffd5d1; transform:translateY(-1px); }
+  .icon-btn:active{ transform:translateY(0); }
+  .icon-trash{ width:18px; height:18px; fill:#e74c3c; }
+
+  input[name$="-DELETE"]{ display:none; }
+
+  .totales{ display:flex; justify-content:flex-end; margin-top:8px; font-weight:700; gap:10px; flex-wrap:wrap; }
+  .totales span{
+    background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 12px;
+  }
+
+  @media (max-width: 1100px){
+    .formset-linea{ grid-template-columns: 1fr 1fr; }
+    .eliminar-wrapper{ grid-column: 2; }
+  }
+  .errorlist {
+    color: #e74c3c;
+    margin-top: 4px;
+    margin-bottom: 0;
+    font-size: 0.9em;
+    font-weight: 500;
+    list-style: none;
+    padding-left: 0;
+  }
+</style>
+
+<div class="contenido-interno">
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="form-row">
+      <div class="form-group">
+        {{ form.fecha.label_tag }} {{ form.fecha }}
+      </div>
+      <div class="form-group">
+        {{ form.campaña.label_tag }} {{ form.campaña }}
+      </div>
+      <div class="form-group">
+        {{ form.socio.label_tag }} {{ form.socio }}
+      </div>
+    </div>
+
+    <hr>
+    <h3>Líneas de Daño</h3>
+    {{ form.non_field_errors }}
+    {{ formset.non_form_errors }}
+    {% for f in formset %}{{ f.non_field_errors }}{% endfor %}
+
+    <div id="formset">
+      {{ formset.management_form }}
+
+      {% for f in formset %}
+      <div class="formset-linea">
+        {{ f.id }}
+
+        <div class="campo">{{ f.establecimiento.label_tag }}{{ f.establecimiento }}{{ f.establecimiento.errors }}</div>
+        <div class="campo">{{ f.cultivo.label_tag }}{{ f.cultivo }}{{ f.cultivo.errors }}</div>
+        <div class="campo">{{ f.hectareas_afectadas.label_tag }}{{ f.hectareas_afectadas }}{{ f.hectareas_afectadas.errors }}</div>
+        <div class="campo">{{ f.danio_porcentaje.label_tag }}{{ f.danio_porcentaje }}{{ f.danio_porcentaje.errors }}</div>
+        <div class="campo">{{ f.franquicia_porcentaje.label_tag }}{{ f.franquicia_porcentaje }}</div>
+        <div class="campo">{{ f.cobertura_qq.label_tag }}{{ f.cobertura_qq }}</div>
+        <div class="campo">{{ f.estadio.label_tag }}{{ f.estadio }}</div>
+        <div class="campo">{{ f.liberacion.label_tag }}{{ f.liberacion }}</div>
+
+        <div class="campo">
+          <label>Indemnización:</label>
+          <input type="text" class="calc-indemnizacion" readonly>
+        </div>
+        <div class="campo">
+          <label>Indem. Ajus.:</label>
+          <input type="text" class="calc-indemnizacion-ajustada" readonly>
+        </div>
+
+        {{ f.DELETE }}
+        <div class="eliminar-wrapper">
+          <button type="button" class="icon-btn eliminar-linea" title="Eliminar línea">
+            <svg class="icon-trash" viewBox="0 0 24 24">
+              <path d="M9 3h6a1 1 0 0 1 1 1v1h4v2h-1v12a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V7H4V5h4V4a1 1 0 0 1 1-1zm1 4H7v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7h-3H10zm1 3h2v8h-2V10zm-4 0h2v8H7v-8zm8 0h2v8h-2v-8zM10 5v0h4V4h-4v1z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="totales">
+      <span>Total Indemnización: <strong id="total-indemnizacion">0,00</strong></span>
+      <span>Total Indemnización Ajustada: <strong id="total-indemnizacion-ajustada">0,00</strong></span>
+    </div>
+
+    <div class="botones" style="margin-top:22px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+      <a href="{% url 'fosea' %}" class="btn btn-cancelar" style="background:#95a5a6;color:#fff;border:none;border-radius:10px;padding:10px 16px;">Cancelar</a>
+      <button type="submit" class="btn btn-guardar" style="background:#3498db;color:#fff;border:none;border-radius:10px;padding:10px 16px;">Guardar</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function(){
+  const nf = new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const $formset=document.getElementById('formset');
+  function qa(s,c=document){return Array.from(c.querySelectorAll(s));}
+  function q(s,c=document){return c.querySelector(s);}
+
+  /* ======== CÁLCULO DE INDEMNIZACIONES ======== */
+  function calcIndemnizacionQQ(row){
+    const ha=parseFloat((row.querySelector("input[name$='hectareas_afectadas']")?.value||'0').replace(',','.'))||0;
+    const danio=parseFloat((row.querySelector("input[name$='danio_porcentaje']")?.value||'0').replace(',','.'))||0;
+    const fran=parseFloat((row.querySelector("input[name$='franquicia_porcentaje']")?.value||'0').replace(',','.'))||0;
+    const cob=parseFloat((row.querySelector("input[name$='cobertura_qq']")?.value||'0').replace(',','.'))||0;
+    const liberSel=row.querySelector("select[name$='liberacion']");
+    const liberVal=liberSel?liberSel.value:'plena';
+    const factores={'plena':1.00,'resiembra_etapa':0.40,'liberacion_lote':0.80,'resiembra_efectiva':0.20};
+    const liberFactor=factores[liberVal]||1.00;
+    const danioProp=danio/100.0;
+    const franProp=fran/100.0;
+    const factor=Math.max(0,(danioProp*liberFactor)-franProp);
+    return ha*cob*factor;
+  }
+
+  function calcIndemnizacionAjustada(row, ajuste){
+    const indemn=calcIndemnizacionQQ(row);
+    const aj=parseFloat(ajuste||'0')/100.0;
+    return indemn*(1-aj);
+  }
+
+  function recomputarIndemnizacionFila(row){
+    if(row.querySelector("input[name$='-DELETE']")?.checked)return {qq:0,ajustada:0};
+    const val=calcIndemnizacionQQ(row);
+    const out=row.querySelector('.calc-indemnizacion');
+    if(out) out.value=nf.format(val.toFixed(2));
+
+    const ajusteOpt=document.getElementById('id_campaña')?.selectedOptions[0];
+    const ajuste=ajusteOpt?parseFloat(ajusteOpt.dataset.ajuste||'0'):0;
+    const valAdj=calcIndemnizacionAjustada(row,ajuste);
+    const outAdj=row.querySelector('.calc-indemnizacion-ajustada');
+    if(outAdj) outAdj.value=nf.format(valAdj.toFixed(2));
+
+    return {qq:val,ajustada:valAdj};
+  }
+
+  function recomputarTotal(){
+    let tot=0, totAdj=0;
+    qa('.formset-linea',$formset).forEach(r=>{
+      if(r.style.display==='none')return;
+      const vals=recomputarIndemnizacionFila(r);
+      tot+=vals.qq;
+      totAdj+=vals.ajustada;
+    });
+    q('#total-indemnizacion').textContent=nf.format(tot.toFixed(2));
+    q('#total-indemnizacion-ajustada').textContent=nf.format(totAdj.toFixed(2));
+  }
+
+  /* ======== AUTO CARGA DE COBERTURA ======== */
+  function cargarCoberturaPorCultivoYCampania(row){
+    const selCult=row.querySelector("select[name$='cultivo']");
+    const selEst=row.querySelector("select[name$='establecimiento']");
+    const socioId=document.getElementById('id_socio')?.value||'';
+    const campaniaId=document.getElementById('id_campaña')?.value||'';
+    const cobInput=row.querySelector("input[name$='cobertura_qq']");
+    if(selCult&&selEst&&selCult.value&&selEst.value&&socioId&&campaniaId){
+      fetch("{% url 'cobertura_por_cultivo' %}?cultivo_id="+encodeURIComponent(selCult.value)+"&establecimiento_id="+encodeURIComponent(selEst.value)+"&socio_id="+encodeURIComponent(socioId)+"&campaña_id="+encodeURIComponent(campaniaId))
+      .then(r=>r.json()).then(data=>{
+        const cob=(data&&data.cobertura!=null)?Number(data.cobertura):null;
+        if(cobInput)cobInput.value=(cob!=null)?cob.toFixed(2):'';
+        recomputarIndemnizacionFila(row);recomputarTotal();
+      });
+    }else{if(cobInput)cobInput.value='';recomputarIndemnizacionFila(row);recomputarTotal();}
+  }
+
+  $formset.addEventListener('change',e=>{
+    const name=e.target?.name||'';
+    if(name.endsWith('establecimiento')||name.endsWith('cultivo')){
+      const row=e.target.closest('.formset-linea');
+      if(row)cargarCoberturaPorCultivoYCampania(row);
+    }
+  });
+
+  $formset.addEventListener('input',e=>{
+    const name=e.target?.name||'';
+    const keys=['hectareas_afectadas','danio_porcentaje','franquicia_porcentaje','cobertura_qq','liberacion'];
+    if(keys.some(k=>name.endsWith(k))){
+      const row=e.target.closest('.formset-linea');
+      if(row){recomputarIndemnizacionFila(row);recomputarTotal();}
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    qa('.formset-linea',$formset).forEach(row=>{
+      cargarCoberturaPorCultivoYCampania(row);
+      recomputarIndemnizacionFila(row);
+    });
+    recomputarTotal();
+  });
+})();
+</script>
+
+{% endblock %}
+
