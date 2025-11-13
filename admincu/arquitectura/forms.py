@@ -236,7 +236,7 @@ class socioForm(FormControl, forms.ModelForm):
 		if self.consorcio and not self.consorcio.convenios:
 			self.fields['convenio'].widget = forms.HiddenInput()
 
-		if self.consorcio and self.consorcio.es_federacion:
+		if self.consorcio and self.consorcio.es_federacion and self.consorcio.convenios:
 			self.fields['apellido'].label = 'Matricula (obligatorio)'
 			self.fields['tipo_asociado'].label = 'Tipo (obligatorio)'
 			self.fields['profesion'].label = 'Delegados'
@@ -249,6 +249,7 @@ class socioForm(FormControl, forms.ModelForm):
 			self.fields['medida_disciplinaria'].label = 'Telefono de contacto'
 			self.fields['estado'].label = 'Estado'
 			self.fields['genero'].widget = forms.HiddenInput()
+			self.fields['convenio'].label = 'Servicios AE'
 
 		if self.consorcio and self.consorcio.cuit_nasociado:
 			self.fields['numero_asociado'].widget = forms.HiddenInput()
