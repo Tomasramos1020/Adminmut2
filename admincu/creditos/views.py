@@ -1239,7 +1239,7 @@ class Ver(HeaderExeptMixin, generic.DetailView):
 
 	model = Liquidacion
 	template_name = 'creditos/ver/liquidacion.html'
-	paginate_by = 400
+	paginate_by = 1000
 
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
@@ -1248,9 +1248,9 @@ class Ver(HeaderExeptMixin, generic.DetailView):
 		creditos_qs = liquidacion.credito_set.filter(
 			liquidacion=liquidacion,
 			padre__isnull=True
-		)
+		).order_by('id')
 
-		paginator = Paginator(creditos_qs, 400)
+		paginator = Paginator(creditos_qs, 1000)
 		page = self.request.GET.get('page')
 
 		creditos_page = paginator.get_page(page)
@@ -1261,6 +1261,7 @@ class Ver(HeaderExeptMixin, generic.DetailView):
 		context["is_paginated"] = creditos_page.has_other_pages()
 		context["lista"] = creditos_page
 		context["creditos_total"] = creditos_qs.count()
+		context["creditos_export"] = creditos_qs
 
 		return context
 

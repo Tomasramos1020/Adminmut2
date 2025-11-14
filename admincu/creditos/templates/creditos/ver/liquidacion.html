@@ -2,8 +2,9 @@
 {% load staticfiles %}
 {% load humanize %}
 
+
 {% block titulo %}
-  Liquidacion de facturas {{liquidacion.formatoAfip}}
+  Liquidacion de facturas {{ liquidacion.formatoAfip }}
 {% endblock %}
 
 {% block breadcrum %}
@@ -11,7 +12,7 @@
 {% endblock %}
 
 {% block header %}
-  Liquidacion de facturas {{liquidacion.formatoAfip}}
+  Liquidacion de facturas {{ liquidacion.formatoAfip }}
 {% endblock %}
 
 {% block contenido %}
@@ -56,18 +57,14 @@
 
           <div class="panel-body">
 
-            <!-- CONTENEDOR PARA AISLAR ESTA TABLA DE DATATABLES GLOBAL -->
+            <!-- TABLA -->
             <div id="liquidacion-wrapper" class="table-responsive">
-                {% include 'creditos/registros/tabla-creditos.html' with creditos=creditos %}
+              {% include 'creditos/registros/tabla-creditos.html' with creditos=creditos %}
             </div>
 
-            <!-- PAGINACIÓN DJANGO -->
+            <!-- PAGINACIÓN -->
             {% include 'comunes/paginador.html' %}
-            <div class="text-muted small mt-2">
-              Mostrando {{ page_obj.start_index }} – {{ page_obj.end_index }}
-              de {{ page_obj.paginator.count }} créditos
-              ({{ page_obj.paginator.per_page }} por página)
-            </div>          
+
           </div>
         </div>
       </div>
@@ -79,54 +76,10 @@
 {% endblock %}
 
 {% block js %}
-
-<!-- 1) BLOQUEAMOS EL DATATABLES GLOBAL PARA ESTA TABLA -->
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-
-    const tabla = document.querySelector("#liquidacion-wrapper table");
-
-    if (tabla) {
-        tabla.classList.add("dt-no-init");   // evita inicialización global
-        tabla.classList.remove("anopa");     // quita clase que activa DT global
-    }
-
-});
-</script>
-
-<!-- 2) Incluimos script global (ahora IGNORA esta tabla) -->
 {% include 'comunes/js_datatable_print_excel.html' %}
-
-<!-- 3) Inicializamos DataTables SOLO para Excel/Print SIN paginación -->
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-
-    const tabla = document.querySelector("#liquidacion-wrapper table");
-    if (!tabla) return;
-
-    // Si DataTables global tocó algo, destruimos
-    if ($.fn.DataTable.isDataTable(tabla)) {
-        $(tabla).DataTable().destroy();
-    }
-
-    // Inicializamos SOLO BOTONES — sin paging, sin ordering
-    $(tabla).DataTable({
-        destroy: true,
-        dom: "Bfrtip",
-        buttons: [
-            { extend: "excel", className: "btn-sm" },
-            { extend: "print", className: "btn-sm" }
-        ],
-        paging: false,
-        ordering: false,
-        searching: false,
-        info: false
-    });
-
-});
-</script>
-
 {% endblock %}
+
+
 
 
 
