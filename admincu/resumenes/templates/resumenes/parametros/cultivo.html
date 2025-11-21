@@ -1,0 +1,8 @@
+<label for="id_cultivo">Cultivo:</label>
+<select id="id_cultivo" name="cultivo" class="selector form-control">
+  <option value="">-- Todos --</option>
+  {% for c in consorcio.cultivo_set.all %}
+    <option value="{{ c.id }}">{{ c }}</option>
+  {% endfor %}
+</select>
+

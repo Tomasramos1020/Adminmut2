@@ -125,7 +125,23 @@
               <div class="col-md-6">
                 {% include 'resumenes/parametros/fecha.html' %}
               </div>
-            {% endif %}
+              {% elif resumen.slug == 'resumen-de-solicitudes' %}
+                <div class="col-md-3">
+                  {% include 'resumenes/parametros/socios.html' %}
+                </div>
+
+                <div class="col-md-3">
+                  {% include 'resumenes/parametros/convenios.html' %}
+                </div>
+
+                <div class="col-md-3">
+                  {% include 'resumenes/parametros/cultivo.html' %}
+                </div>
+
+                <div class="col-md-3">
+                  {% include 'resumenes/parametros/fechas.html' %}
+                </div>
+              {% endif %}
           </div>
           <br>
           <button type="submit" class="accion_envio btn btn-info btn-block">Generar resumen</button>

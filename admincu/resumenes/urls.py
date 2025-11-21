@@ -16,4 +16,5 @@ urlpatterns = [
 	path('g/estado-de-deuda/', res_edd, name='estado-de-deuda'),
 	path('g/costo-mercaderia-vendida/', res_cmv, name='costo-de-mercaderia-vendida'),
 	path('g/valorizacion-stock/', res_val_stock, name='valorizacion-de-stock-a-fecha'),	
+	path("g/resumen-de-solicitudes/", res_sol, name="resumen-de-solicitudes"),
 ]

@@ -13,6 +13,7 @@ from op.models import *
 from django.db.models import Sum, Avg, F, DecimalField, FloatField, ExpressionWrapper, Case, When, Value, Subquery, OuterRef
 from django.db.models.functions import Coalesce, Cast
 from decimal import Decimal
+from fosea.models import Solicitud, SolicitudLinea
 
 @group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
 def res_index(request):
@@ -750,5 +751,102 @@ def res_val_stock(request):
 			'rent_neto': tot_rent_neto,
 			'rent_pct': tot_rent_pct,
 		},
+	})
+
+@require_http_methods(["POST"])
+@group_required('administrativo', 'contable', 'fosea')
+def res_sol(request):
+	cons = consorcio(request)
+	resumen = Resumen.objects.get(slug='resumen-de-solicitudes')
+
+	# ----- PARÁMETROS -----
+	socios_ids = request.POST.getlist("socios")
+	convenios_ids = request.POST.getlist("convenios")
+	cultivo_id = request.POST.get("cultivo")
+	fecha_desde = request.POST.get("fecha_desde")
+	fecha_hasta = request.POST.get("fecha_hasta")
+
+	# ----- SOCIOS -----
+	socios = Socio.objects.filter(id__in=socios_ids)
+
+	if convenios_ids:
+		socios = socios.filter(convenio_id__in=convenios_ids)
+
+	# ----- SOLICITUDES -----
+	solicitudes = (
+		Solicitud.objects.filter(
+			consorcio=cons,
+			socio__in=socios
+		)
+		.select_related("socio", "campaña")
+		.prefetch_related("lineas__cultivo", "lineas__establecimiento")
+	)
+
+	if fecha_desde:
+		solicitudes = solicitudes.filter(fecha__gte=fecha_desde)
+
+	if fecha_hasta:
+		solicitudes = solicitudes.filter(fecha__lte=fecha_hasta)
+
+	# ----- CULTIVO -----
+	cultivo = None
+	if cultivo_id:
+		cultivo = Cultivo.objects.filter(pk=cultivo_id).first()
+
+	# ----- ARMADO DEL RESUMEN -----
+	data = []
+	for sol in solicitudes:
+		for linea in sol.lineas.all():
+
+			if cultivo and linea.cultivo_id != cultivo.id:
+				continue
+
+			data.append({
+				"socio": sol.socio,
+				"convenio": sol.socio.convenio,
+				"fecha": sol.fecha,
+				"campaña": sol.campaña,
+				"cultivo": linea.cultivo,
+				"establecimiento": linea.establecimiento,
+				"hectareas": linea.hectarea or 0,
+				"participacion": linea.participacion or 0,
+				"hectareas_reales": linea.hectareas_reales or 0,
+				"franquicia": linea.franquicia or 0,
+				"subsidio": linea.subsidio_max or 0,
+				"aporte_max": linea.aporte_max or 0,
+				"aporte_total_qq": linea.aporte_total_qq or 0,
+				"suscripcion": sol.suscripcion or 0,
+			})
+
+	# ----- TOTALES -----
+	total_hectareas = sum([d["hectareas"] for d in data])
+	total_participacion = sum([d["participacion"] for d in data])
+	total_hectareas_reales = sum([d["hectareas_reales"] for d in data])
+	total_subsidio = sum([d["subsidio"] for d in data])
+	total_aporte_max = sum([d["aporte_max"] for d in data])
+	total_aporte_total_qq = sum([d["aporte_total_qq"] for d in data])
+	total_suscripcion = sum([d["suscripcion"] for d in data])
+
+	# ----- RENDER -----
+	return render(request, 'resumenes/solicitudes/index.html', {
+		"resumen": resumen,
+		"socios": socios,
+		"solicitudes": solicitudes,
+		"data": data,
+
+		# Totales
+		"total_hectareas": total_hectareas,
+		"total_participacion": total_participacion,
+		"total_hectareas_reales": total_hectareas_reales,
+		"total_subsidio": total_subsidio,
+		"total_aporte_max": total_aporte_max,
+		"total_aporte_total_qq": total_aporte_total_qq,
+		"total_suscripcion": total_suscripcion,
+
+		# Parámetros
+		"consorcio": cons,
+		"cultivo": cultivo,
+		"fecha_desde": fecha_desde,
+		"fecha_hasta": fecha_hasta,
 	})
 

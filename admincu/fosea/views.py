@@ -728,15 +728,17 @@ class Registro(OrderQS):
 	def get_context_data(self, **kwargs):
 		ctx = super().get_context_data(**kwargs)
 
-		# asegurar 'lista'
+		# --- IMPORTANTE: conservar el Page original ---
 		page_obj = ctx.get('page_obj')
-		lista = list(page_obj.object_list) if page_obj else list(ctx.get('object_list', []))
-		ctx['lista'] = lista
-		if not lista:
+		ctx['lista'] = page_obj     # <<--- el paginador necesita esto tal cual
+		if not page_obj:
 			return ctx
 
-		# --- 1) Traer TODAS las líneas necesarias en UNA query liviana ---
-		ids = [s.pk for s in lista]
+		# pero para cálculos usamos una lista aparte
+		solicitudes = list(page_obj)
+
+		# --- 1) Traer líneas ---
+		ids = [s.pk for s in solicitudes]
 		lineas = (SolicitudLinea.objects
 				.filter(solicitud_id__in=ids)
 				.values('solicitud_id', 'hectarea', 'participacion', 'subsidio_max', 'aporte_max'))
@@ -750,13 +752,12 @@ class Registro(OrderQS):
 				Decimal(l['aporte_max'] or 0),
 			))
 
-		# --- 2) Mapa consorcio -> última cotización de Soja ---
-		cons_ids = {getattr(s.consorcio, 'id', None) for s in lista if getattr(s, 'consorcio', None)}
+		# --- 2) Cotización de soja ---
+		cons_ids = {getattr(s.consorcio, 'id', None) for s in solicitudes if getattr(s, 'consorcio', None)}
 		cons_ids.discard(None)
 
 		valor_soja_por_cons = {}
 		if cons_ids:
-			# ordenamos por consorcio y fecha desc; nos quedamos con la primera por consorcio
 			cot_qs = (Cotizacion.objects
 					.filter(consorcio_id__in=cons_ids, producto__nombre__iexact='Soja')
 					.only('consorcio_id', 'fecha', 'cotizacion')
@@ -765,29 +766,23 @@ class Registro(OrderQS):
 				if c.consorcio_id not in valor_soja_por_cons:
 					valor_soja_por_cons[c.consorcio_id] = Decimal(c.cotizacion or 0)
 
-		# --- 3) Calcular y "inyectar" en cada solicitud ---
-		for s in lista:
+		# --- 3) Inyectar cálculos ---
+		for s in solicitudes:
 			pares = agrup.get(s.pk, ())
 			hect_totales = Decimal('0')
 			hect_reales = Decimal('0')
 			aporte_total_qq_sum = Decimal('0')
 
 			for ha, part, subsidio_max, aporte_max in pares:
-				ha = ha or Decimal('0')
-				part = part or Decimal('0')
-				subsidio_max = subsidio_max or Decimal('0')
-				aporte_max = aporte_max or Decimal('0')
-
-				# ha reales de la línea
 				ha_reales_linea = (ha * part / Decimal('100'))
-
-				# aporte QQ de la línea = ha reales * subsidio_max * (aporte_max/100)
 				aporte_linea = ha * subsidio_max * (aporte_max / Decimal('100'))
 
-				hect_totales += ha				
+				hect_totales += ha
 				hect_reales += ha_reales_linea
 				aporte_total_qq_sum += aporte_linea
-			hect_totales = hect_totales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)	
+
+			# redondeo
+			hect_totales = hect_totales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 			hect_reales = hect_reales.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 			aporte_total_qq_sum = aporte_total_qq_sum.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
@@ -809,6 +804,7 @@ class Registro(OrderQS):
 			s.total_suscripcion_calc = total_suscripcion
 
 		return ctx
+
 
 # views.py (o donde tengas tus endpoints fosea)
 from django.views.decorators.http import require_GET
@@ -870,36 +866,36 @@ def establecimientos_filtrados(request):
 @login_required
 @require_GET
 def cobertura_por_cultivo(request):
-    """
-    Devuelve la cobertura máxima (subsidio_max) del cultivo y establecimiento
-    según el socio y la campaña seleccionados.
-    """
-    cons = consorcio(request)
-    cultivo_id = request.GET.get('cultivo_id')
-    establecimiento_id = request.GET.get('establecimiento_id')
-    socio_id = request.GET.get('socio_id')
-    campaña_id = request.GET.get('campaña_id')
+	"""
+	Devuelve la cobertura máxima (subsidio_max) del cultivo y establecimiento
+	según el socio y la campaña seleccionados.
+	"""
+	cons = consorcio(request)
+	cultivo_id = request.GET.get('cultivo_id')
+	establecimiento_id = request.GET.get('establecimiento_id')
+	socio_id = request.GET.get('socio_id')
+	campaña_id = request.GET.get('campaña_id')
 
-    if not all([cultivo_id, establecimiento_id, socio_id, campaña_id]):
-        return JsonResponse({'cobertura': None})
+	if not all([cultivo_id, establecimiento_id, socio_id, campaña_id]):
+		return JsonResponse({'cobertura': None})
 
-    from fosea.models import SolicitudLinea
-    from django.db.models import Max
+	from fosea.models import SolicitudLinea
+	from django.db.models import Max
 
-    max_subsidio = (
-        SolicitudLinea.objects
-        .filter(
-            solicitud__consorcio=cons,
-            solicitud__socio_id=socio_id,
-            solicitud__campaña_id=campaña_id,
-            establecimiento_id=establecimiento_id,
-            cultivo_id=cultivo_id,
-        )
-        .aggregate(Max('subsidio_max'))
-        .get('subsidio_max__max')
-    )
+	max_subsidio = (
+		SolicitudLinea.objects
+		.filter(
+			solicitud__consorcio=cons,
+			solicitud__socio_id=socio_id,
+			solicitud__campaña_id=campaña_id,
+			establecimiento_id=establecimiento_id,
+			cultivo_id=cultivo_id,
+		)
+		.aggregate(Max('subsidio_max'))
+		.get('subsidio_max__max')
+	)
 
-    return JsonResponse({'cobertura': max_subsidio or None})
+	return JsonResponse({'cobertura': max_subsidio or None})
 
 
 @method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
@@ -972,7 +968,7 @@ class RegistroSiniestros(OrderQS):
 	model = Siniestro
 	filterset_class = SiniestroFilter
 	template_name = 'registros/siniestros.html'
-	paginate_by = 50
+	paginate_by = None
 
 	def get_queryset(self):
 		# limitar por consorcio
@@ -984,8 +980,13 @@ class RegistroSiniestros(OrderQS):
 		ctx = super().get_context_data(**kwargs)
 
 		page_obj = ctx.get('page_obj')
-		lista = list(page_obj.object_list) if page_obj else list(ctx.get('object_list', []))
-		ctx['lista'] = lista
+
+		# dejar el Page original para el paginador
+		ctx['lista'] = page_obj
+
+		# pero usar una lista para el cálculo interno
+		lista = list(page_obj) if page_obj else []
+
 		if not lista:
 			return ctx
 
@@ -1070,4 +1071,3 @@ class EditarSiniestroView(View):
 			'siniestro': siniestro,
 			'modo_edicion': True,
 		})
-

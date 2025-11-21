@@ -49,6 +49,12 @@ class SolicitudLinea(models.Model):
 		except Exception:
 			# Ante cualquier inconsistencia, devolvemos 0.00 para no romper el PDF
 			return Decimal("0.00")
+	
+	
+	@property
+	def hectareas_reales(self):
+		hect_reales = Decimal(self.hectarea) * (Decimal(self.participacion) / Decimal("100"))
+		return hect_reales.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 

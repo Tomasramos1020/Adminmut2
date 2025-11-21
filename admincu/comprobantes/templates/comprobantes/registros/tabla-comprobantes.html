@@ -14,6 +14,7 @@
       <th class="text-right">Saldo a favor (nuevo)</th>
       <th class="text-right">Saldos utilizados</th>
       <th></th>
+      <th class="text-right"></th>
     </tr>
   </thead>
   <tbody>
@@ -36,7 +37,6 @@
         <td class="text-right">
           {% if comprobante.saldos_utilizados_total %}{{ comprobante.saldos_utilizados_total|intcomma }}{% endif %}
         </td>
-
         <td class="text-right">
           {% if user.groups.all.0.name == "contable" and comprobante.asiento %}
             <a href="{% url 'asiento_redireccion' id_asiento=comprobante.asiento.id %}" class="btn btn-icon btn-xs btn-info btn-bordered waves-efect waves-light">
@@ -52,6 +52,8 @@
             <i class="fa fa-print"></i>
           </a>
         </td>
+        <td>{{ comprobante.descripcion|default:"-" }}</td>
+
       </tr>
       {% endif %}
 
@@ -88,6 +90,7 @@
             <i class="fa fa-print"></i>
           </a>
         </td>
+        <td>{{ comprobante.descripcion|default:"-" }}</td>
       </tr>
       {% endif %}
 
@@ -108,7 +111,6 @@
         <td class="text-right">
           {% if comprobante.saldos_utilizados_total %}{{ comprobante.saldos_utilizados_total|intcomma }}{% endif %}
         </td>
-
         <td class="text-right">
           {% if user.groups.all.0.name == "contable" and comprobante.asiento %}
             <a href="{% url 'asiento_redireccion' id_asiento=comprobante.asiento.id %}" class="btn btn-icon btn-xs btn-info btn-bordered waves-efect waves-light">
@@ -124,6 +126,7 @@
             <i class="fa fa-print"></i>
           </a>
         </td>
+        <td>{{ comprobante.descripcion|default:"-" }}</td>
       </tr>
       {% endif %}
 

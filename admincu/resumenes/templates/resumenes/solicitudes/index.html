@@ -1,0 +1,110 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+{% load humanize %}
+
+{% block titulo %}
+  {{ resumen.nombre }}
+{% endblock %}
+
+{% block css %}
+  <link rel="stylesheet" href='{% static "plugins/datatables/jquery.dataTables.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/buttons.bootstrap.min.css" %}'>
+  <link rel="stylesheet" href='{% static "plugins/datatables/dataTables.bootstrap.min.css" %}'>
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="resumenes" bhijo1=resumen.nombre %}
+{% endblock %}
+
+{% block header %}
+  {{ resumen.nombre }}
+{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-md-12">
+    <div class="card-box">
+      <h4 class="header-title m-t-0">
+        Resumen de Solicitudes 
+        {% if fecha_desde or fecha_hasta %}
+          <small class="text-muted">
+            {% if fecha_desde %} desde {{ fecha_desde }}{% endif %}
+            {% if fecha_hasta %} hasta {{ fecha_hasta }}{% endif %}
+          </small>
+        {% endif %}
+        <a href="{% url 'res_par' resumen.slug %}" class="btn pull-right btn-pink waves-effect waves-light">
+          <i class="fa fa-hand-o-left"></i> Consultar otros parámetros
+        </a>
+      </h4>
+      <br>
+
+      <div class="table-responsive">
+        <table class="anopa table display nowrap" style="width:100%">
+          <thead>
+            <tr class="active">
+              <th>Socio</th>
+              <th>Convenio</th>
+              <th>Fecha</th>
+              <th>Campaña</th>
+              <th>Cultivo</th>
+              <th>Establecimiento</th>
+              <th>Hectáreas</th>
+              <th>Participación</th>
+              <th>Hect. reales</th>
+              <th>Franquicia (%)</th>
+              <th>Subsidio Máx</th>
+              <th>Aporte Máx (%)</th>
+              <th>Aporte Total QQ</th>
+              <th>Suscripción</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% for r in data %}
+              <tr>
+                <td>{{ r.socio }}</td>
+                <td>{{ r.convenio|default:"-" }}</td>
+                <td>{{ r.fecha|date:"d/m/Y" }}</td>
+                <td>{{ r.campaña|default:"-" }}</td>
+                <td>{{ r.cultivo|default:"-" }}</td>
+                <td>{{ r.establecimiento.nombre }}</td>
+                <td>{{ r.hectareas }}</td>
+                <td>{{ r.participacion }}</td>
+                <td>{{ r.hectareas_reales }}</td>
+                <td>{{ r.franquicia }}</td>
+                <td>{{ r.subsidio }}</td>
+                <td>{{ r.aporte_max }}</td>
+                <td>{{ r.aporte_total_qq }}</td>
+                <td>{{ r.suscripcion }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+
+          <tfoot>
+            <tr class="info">
+              <th colspan="6" class="text-right">Totales:</th>
+
+              <th>{{ total_hectareas }}</th>
+              <th>{{ total_participacion }}</th>
+              <th>{{ total_hectareas_reales }}</th>
+              <th></th>  {# franquicia no se suma #}
+              <th>{{ total_subsidio }}</th>
+              <th>{{ total_aporte_max }}</th>
+              <th>{{ total_aporte_total_qq }}</th>
+              <th>{{ total_suscripcion }}</th>
+            </tr>
+          </tfoot>
+
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block js %}
+  {% include 'comunes/js_datatable_print_excel_titulo.html' with titulo_print=resumen.nombre with_footer='True' %}
+{% endblock %}
+
+

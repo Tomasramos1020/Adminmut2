@@ -23,5 +23,6 @@ urlpatterns = [
     path('fosea/siniestros/registro/', RegistroSiniestros.as_view(), name='registro_siniestros'),
     path('fosea/siniestros/<int:pk>/editar/', EditarSiniestroView.as_view(), name='siniestro_editar'),
     path('cobertura_por_cultivo/', cobertura_por_cultivo, name='cobertura_por_cultivo'),
+    #Resumenes
 
 ]
