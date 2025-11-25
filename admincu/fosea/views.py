@@ -968,7 +968,7 @@ class RegistroSiniestros(OrderQS):
 	model = Siniestro
 	filterset_class = SiniestroFilter
 	template_name = 'registros/siniestros.html'
-	paginate_by = None
+	paginate_by = 50
 
 	def get_queryset(self):
 		# limitar por consorcio

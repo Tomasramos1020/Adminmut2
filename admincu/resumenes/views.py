@@ -15,14 +15,14 @@ from django.db.models.functions import Coalesce, Cast
 from decimal import Decimal
 from fosea.models import Solicitud, SolicitudLinea
 
-@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op','fosea')
 def res_index(request):
 
 	resumenes = Resumen.objects.all().order_by('nombre')
 
 	return render(request, 'resumenes/index.html', locals())
 
-@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op')
+@group_required('administrativo', 'contable','sin_op','sin_deudas_sin_op','fosea')
 def res_par(request, resumen):
 	try:
 		resumen = Resumen.objects.get(slug=resumen)
