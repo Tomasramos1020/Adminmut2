@@ -268,6 +268,35 @@ class Gasto(models.Model):
 	def __str__(self):
 		return self.nombre
 
+class CondicionIVA(models.Model):
+	nombre = models.CharField(max_length=50)
+	codigo = models.CharField(max_length=2)
+
+	def __str__(self):
+		return self.nombre
+
+	def to_document_type(self):
+		"""
+		Mapea la condición IVA a un tipo de documento AFIP.
+		"""
+		# Responsable Inscripto → CUIT (80)
+		if self.codigo == "1":
+			return DocumentType.objects.get(code="80")
+
+		# Monotributo → CUIT (80)
+		if self.codigo == "6":
+			return DocumentType.objects.get(code="80")
+
+		# Consumidor Final → DNI (96)
+		if self.codigo == "5":
+			return DocumentType.objects.get(code="96")
+
+		# Responsable Monotributista Exento / No alcanzado → CUIT
+		if self.codigo in ["4", "7"]:
+			return DocumentType.objects.get(code="80")
+
+		# Default → DNI
+		return DocumentType.objects.get(code="96")
 
 class Socio(models.Model):
 	""" Socios y NO SOCIOS y servicios mutuales. Quedo con el nombre de socio por intempestividad """
@@ -346,7 +375,7 @@ class Socio(models.Model):
 	departamento = models.CharField(max_length=10, blank=True, null=True)
 	codigo_postal = models.CharField(max_length=20, blank=True, null=True)
 	# Agregados
-	profesion = models.CharField(max_length=40, blank=True, null=True)
+	profesion = models.CharField(max_length=200, blank=True, null=True)
 	baja = models.DateField(blank=True, null=True)
 	codigo = models.CharField(max_length=5, blank=True, null=True)
 	mail = models.EmailField(blank=True, null=True)
@@ -373,6 +402,7 @@ class Socio(models.Model):
 	participantes = models.IntegerField(blank=True, null=True)
 	honorarios = models.IntegerField(blank=True, null=True)
 	convenio = models.ForeignKey(Convenio, on_delete=models.CASCADE, related_name='socio', blank=True, null=True)
+	condicionIVA = models.ForeignKey(CondicionIVA, on_delete=models.CASCADE, related_name='socio', blank=True, null=True)
 
 
 
@@ -836,3 +866,9 @@ class Campaña(models.Model):
 
 	def __str__(self):
 		return self.nombre
+
+	from django_afip.models import DocumentType
+
+
+
+

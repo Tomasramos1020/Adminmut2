@@ -1,7 +1,9 @@
 {% if user.groups.all.0.name == "afiliaciones" %}
 
   {% include 'sidebar/parametros.html' %}
-  {% include 'sidebar/documentacion.html' %}
+  {% if not consorcio.es_ri %}
+    {% include 'sidebar/documentacion.html' %}
+  {% endif %}
 
 {% elif user.groups.all.0.name == "superusuario" %}
 
@@ -13,13 +15,19 @@
 
   {% include 'sidebar/parametros.html' %}
   {% include 'sidebar/socio.html' %}
-  {% include 'sidebar/documentacion.html' %}
+
+  {% if not consorcio.es_ri %}  
+    {% include 'sidebar/documentacion.html' %}
+  {% endif %}
+
 
 
 {% elif user.groups.all.0.name == "contable" %}
 
   {% include 'sidebar/parametros.html' %}
-  {% include 'sidebar/documentacion.html' %}
+    {% if not consorcio.es_ri %}
+      {% include 'sidebar/documentacion.html' %}
+    {% endif %}
 	{% include 'sidebar/contable.html' %}
   {% include 'sidebar/reportes.html' %}
   {% include 'sidebar/herramientas.html' %}
@@ -32,7 +40,9 @@
 {% else %}
 
   {% include 'sidebar/parametros.html' %}
-  {% include 'sidebar/documentacion.html' %}
+  {% if not consorcio.es_ri %}
+    {% include 'sidebar/documentacion.html' %}
+  {% endif %}
   {% include 'sidebar/basico.html' %}
   {% include 'sidebar/reportes.html' %}
   {% include 'sidebar/herramientas.html' %}

@@ -1179,4 +1179,14 @@ class CreditoUSD(models.Model):
 		mm = self.periodo.month if self.periodo else "--"
 		return f"{sujeto} {self.ingreso}. {yy}-{mm}: {self.detalle} (USD)"
 
+class AlicuotaIVA(models.Model):
+    """
+    Tabla de alícuotas de IVA según AFIP.
+    """
+    nombre = models.CharField(max_length=50)       # Ej: "IVA 21%"
+    codigo_afip = models.CharField(max_length=3)   # Ej: "5" para 21%
+    porcentaje = models.DecimalField(max_digits=5, decimal_places=2)  # 21.00
+
+    def __str__(self):
+        return f"{self.nombre} ({self.porcentaje}%)"
 

@@ -6,11 +6,11 @@
 {% endblock %}
 
 {% block css %}
-  <link rel="stylesheet" href='{% static "plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css" %}'>
+<link rel="stylesheet" href='{% static "plugins/bootstrap-datepicker/css/bootstrap-datepicker.min.css" %}'>
 {% endblock %}
 
 {% block breadcrum %}
-  {% include 'comunes/breadcrum.html' with bpadre="parametros" bhijo1=parametro %}
+{% include 'comunes/breadcrum.html' with bpadre="parametros" bhijo1=parametro %}
 {% endblock %}
 
 {% block header %}
@@ -18,35 +18,231 @@
 {% endblock %}
 
 {% block contenido %}
-	<div class="row">
+<div class="row">
+
     <div class="col-md-3">
-      {% include 'arquitectura/barra.html' %}
+        {% include 'arquitectura/barra.html' %}
     </div>
-		<div class="col-md-6">
-  		{% include 'comunes/simple-form.html' %}
-		</div>
+
+    <div class="col-md-6">
+        {% include 'comunes/simple-form.html' %}
+    </div>
+
     {% if object.primario %}
-      <div class="col-md-3">
+    <div class="col-md-3">
         {% include 'comunes/alerta.html' with tipo="warning" %}
-      </div>
+    </div>
     {% endif %}
-	</div>
+
+</div>
 {% endblock %}
 
 {% block js %}
-  <script src='{% static "plugins/moment/moment.js" %}'></script>
-  <script src='{% static "plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js" %}'></script>
-  <script src='{% static "anopa/bootstrap-datepicker.es.js" %}'></script>
-  <script>
-    $(function () {
-      $('.datepicker-autoclose').datepicker({
-          autoclose: true,
-          todayHighlight: true,
-          format: 'yyyy-mm-dd',
-          language: 'es',
-          orientation: 'bottom'
-      });
-    })
-  </script>
+<script src='{% static "plugins/moment/moment.js" %}'></script>
+<script src='{% static "plugins/bootstrap-datepicker/js/bootstrap-datepicker.min.js" %}'></script>
+<script src='{% static "anopa/bootstrap-datepicker.es.js" %}'></script>
+
+<script>
+$(function () {
+  $('.datepicker-autoclose').datepicker({
+      autoclose: true,
+      todayHighlight: true,
+      format: 'yyyy-mm-dd',
+      language: 'es',
+      orientation: 'bottom'
+  });
+})
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    const modelo = "{{ parametro }}";
+    const usarAfip = (modelo === "Socio" || modelo === "Acreedor");
+    if (!usarAfip) return;
+
+    const esFederacion = {{ cons.es_federacion|yesno:"true,false" }};
+
+    const inputCUIT = document.getElementById("id_numero_documento");
+    if (!inputCUIT) return;
+
+    // ======================
+    // BOTÓN AFIP
+    // ======================
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.id = "btn-afip";
+    boton.className = "btn btn-info btn-sm";
+    boton.style.marginTop = "8px";
+    boton.innerHTML = '<i class="fa fa-download"></i> Obtener datos de AFIP';
+    inputCUIT.insertAdjacentElement("afterend", boton);
+
+    function setVal(id, val) {
+        const el = document.getElementById(id);
+        if (el && val !== null && val !== undefined && val !== "") {
+            el.value = val;
+        }
+    }
+
+    // ======================
+    // FUNCIÓN UI PERSONA
+    // ======================
+    function configurarPersonaJuridicaUI() {
+
+        const tipoPersona = document.getElementById("id_tipo_persona");
+        const lblNombre = document.querySelector("label[for='id_nombre']");
+        if (!tipoPersona) return;
+
+        const esJuridica = tipoPersona.value === "juridica";
+
+        // Label nombre
+        if (lblNombre) {
+            lblNombre.textContent = esJuridica
+                ? "Razón Social (obligatorio)"
+                : "Nombre (obligatorio)";
+        }
+
+        // Campos dinámicos
+        const campos = ["fecha_nacimiento", "genero"];
+        if (!esFederacion) campos.push("apellido");
+
+        campos.forEach(campo => {
+
+            const input = document.getElementById(`id_${campo}`);
+            if (!input) return;
+        
+            const grupo = input.closest(".form-group");
+            const label = document.querySelector(`label[for="id_${campo}"]`);
+            
+            if (!esFederacion && esJuridica) {
+            
+                // ocultar contenedor del campo
+                if (grupo) {
+                    grupo.style.display = "none";
+                } else {
+                    input.style.display = "none";
+                }
+            
+                // ocultar label también ✅
+                if (label) label.style.display = "none";
+            
+                input.disabled = true;
+                input.required = false;
+                input.value = "";
+            
+            } else {
+            
+                // mostrar campo nuevamente
+                if (grupo) {
+                    grupo.style.display = "";
+                } else {
+                    input.style.display = "";
+                }
+            
+                // restaurar label ✅
+                if (label) label.style.display = "";
+            
+                input.disabled = false;
+            }            
+        
+        });        
+
+        // Apellido SIEMPRE visible en federación
+        if (esFederacion) {
+            const input = document.getElementById("id_apellido");
+            if (input) {
+
+                let grupo = input.closest(".form-group") || input.closest("p");
+                if (!grupo) return;
+
+                grupo.style.display = "";
+                input.disabled = false;
+                input.required = true;
+            }
+        }
+
+    }
+
+    // ======================
+    // AFIP
+    // ======================
+    boton.addEventListener("click", function() {
+
+        const cuit = (inputCUIT.value || "").trim();
+        if (!cuit || cuit.length !== 11) {
+            alert("Ingresá un CUIT válido de 11 dígitos.");
+            return;
+        }
+
+        boton.disabled = true;
+        boton.innerHTML = "Consultando AFIP...";
+
+        fetch(`/parametros/afip-datos/?cuit=${encodeURIComponent(cuit)}`)
+            .then(r => r.json())
+            .then(data => {
+
+                if (!data.ok) {
+                    alert(data.error || "No se pudieron obtener datos de AFIP.");
+                    return;
+                }
+
+                const d = data.data;
+
+                if (modelo === "Socio") {
+
+                    setVal("id_nombre", d.nombre);
+                    setVal("id_apellido", d.apellido);
+                    setVal("id_domicilio", d.domicilio);
+                    setVal("id_numero_calle", d.numero_calle);
+                    setVal("id_localidad", d.localidad);
+                    setVal("id_codigo_postal", d.codigo_postal);
+                    setVal("id_provincia", d.provincia_id);
+                    setVal("id_tipo_persona", d.tipo_persona);
+
+                    // limpiar actividad
+                    const prof = document.getElementById("id_profesion");
+                    if (prof) prof.value = "";
+
+                    configurarPersonaJuridicaUI();
+                }
+
+                if (modelo === "Acreedor") {
+
+                    setVal("id_nombre", d.nombre);
+                    setVal("id_numero_documento", cuit);
+
+                    let direccion = d.domicilio || "";
+                    if (d.numero_calle) direccion += " " + d.numero_calle;
+                    if (d.localidad) direccion += " - " + d.localidad;
+
+                    setVal("id_direccion", direccion);
+                }
+
+                alert("Datos cargados correctamente.");
+
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error consultando AFIP");
+            })
+            .finally(() => {
+                boton.disabled = false;
+                boton.innerHTML = '<i class="fa fa-download"></i> Obtener datos de AFIP';
+            });
+
+    });
+
+    // ======================
+    // CHANGE TIPO PERSONA
+    // ======================
+    const tipoPersona = document.getElementById("id_tipo_persona");
+    if (tipoPersona) {
+        tipoPersona.addEventListener("change", configurarPersonaJuridicaUI);
+        configurarPersonaJuridicaUI();
+    }
+
+});
+</script>
 {% endblock %}
+
 

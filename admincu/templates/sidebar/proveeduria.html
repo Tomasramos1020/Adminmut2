@@ -1,3 +1,10 @@
+{% if consorcio.es_ri %}
 <li class="has-submenu">
-    <a href="{% url 'proveeduria' %}"><i class="fi-briefcase"></i>Proveeduria</a>
+    <a href="{% url 'proveeduria' %}"><i class="fi-briefcase"></i>Stock</a>
   </li>
+{% else %}
+<li class="has-submenu">
+  <a href="{% url 'proveeduria' %}"><i class="fi-briefcase"></i>Proveeduria</a>
+</li>
+{% endif %}
+  

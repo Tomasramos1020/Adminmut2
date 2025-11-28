@@ -125,6 +125,10 @@ class Listado(generic.ListView):
 		nombre_parametro = PIVOT[modelo][0]
 		if modelo == "Convenio" and cons.convenios and cons.es_federacion:
 			nombre_parametro = "Servicios AE"
+		# Si es Responsable Inscripto, cambiar Padron de Asociados por Clientes
+		if modelo == "Socio" and cons.es_ri:
+			nombre_parametro = "Clientes"
+
 		context.update({
 			"parametro": modelo,
 			"nombre_parametro": nombre_parametro,
@@ -165,6 +169,7 @@ class Crear(generic.CreateView):
 
 	def get_context_data(self, **kwargs):
 		context = super().get_context_data(**kwargs)
+		cons = consorcio(self.request)
 		parametro = self.kwargs['modelo']
 		pregunta = PIVOT[self.kwargs['modelo']][0]
 		alerta = "Solo podes modificar estas opciones en un %s principal. Si necesita ayuda comuniquese con el encargado de sistema" % parametro
@@ -995,3 +1000,111 @@ class ExportacionInaes(generic.ListView):
 		context['socios'] = self.get_queryset()
 		return context
 
+# admincu/arquitectura/views_afip_ajax.py  (o en el archivo donde tengas las views de parámetros)
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from django.contrib.auth.decorators import login_required
+from .afip.afip_a13 import consultar_padron
+import xml.etree.ElementTree as ET
+from consorcios.models import Codigo_Provincia
+
+@login_required
+@require_GET
+def consultar_padron_ajax(request):
+	cuit = request.GET.get("cuit", "").strip()
+
+	if not cuit or len(cuit) != 11 or not cuit.isdigit():
+		return JsonResponse({"ok": False, "error": "CUIT inválido."})
+
+	try:
+		xml_raw = consultar_padron(request, cuit)
+		root = ET.fromstring(xml_raw)
+
+		nodo = root.find(".//{*}personaReturn")
+		if nodo is None:
+			return JsonResponse({"ok": False, "error": "AFIP no devolvió datos."})
+
+		nombre = nodo.findtext(".//{*}nombre", "").strip()
+		apellido = nodo.findtext(".//{*}apellido", "").strip()
+
+		domicilio_nodo = nodo.find(".//{*}domicilio")
+		domicilio = domicilio_nodo.findtext(".//{*}direccion", "") if domicilio_nodo is not None else ""
+		numero = domicilio_nodo.findtext(".//{*}numero", "") if domicilio_nodo is not None else ""
+		localidad = domicilio_nodo.findtext(".//{*}localidad", "") if domicilio_nodo is not None else ""
+		cp = domicilio_nodo.findtext(".//{*}codigoPostal", "") if domicilio_nodo is not None else ""
+
+		# --- PROVINCIA ---
+		provincia_codigo = domicilio_nodo.findtext(".//{*}idProvincia", "").strip() if domicilio_nodo is not None else None
+
+		from consorcios.models import Codigo_Provincia
+		provincia_id = None
+		if provincia_codigo:
+			prov = Codigo_Provincia.objects.filter(codigo_afip=provincia_codigo).first()
+			if prov:
+				provincia_id = prov.id
+
+		# --- IVA ---
+		iva_nodo = nodo.find(".//{*}idIVA")
+		condicion_iva_codigo = iva_nodo.text if iva_nodo is not None else None
+
+		from arquitectura.models import CondicionIVA
+		condicion_id = None
+		if condicion_iva_codigo:
+			obj = CondicionIVA.objects.filter(codigo=str(condicion_iva_codigo)).first()
+			if obj:
+				condicion_id = obj.id
+
+		# === Tipo de persona: F o J ===
+		tipo_persona = nodo.findtext(".//{*}tipoPersona", "").lower()
+		es_empresa = tipo_persona.startswith("j")
+
+		# === Razón Social ===
+		razon_social = nodo.findtext(".//{*}razonSocial", "").strip()
+
+		# === Actividad económica ===
+		actividad = nodo.findtext(".//{*}descripcionActividadPrincipal", "").strip()
+
+
+		# === Nombre y apellido final ===
+		if es_empresa and razon_social:
+			nombre_final = razon_social
+			apellido_final = ""
+		else:
+			# Persona física → Nombre y apellido separados correctamente
+			nombre_final = nombre
+			apellido_final = apellido
+
+
+
+
+		data = {
+			"nombre": nombre_final,
+			"apellido": apellido_final,
+			"domicilio": domicilio,
+			"numero_calle": numero,
+			"localidad": localidad,
+			"codigo_postal": cp,
+			"condicionIVA_id": condicion_id,
+			"provincia_id": provincia_id,
+
+			# NUEVOS CAMPOS
+			"tipo_persona": "juridica" if es_empresa else "fisica",
+			"profesion": actividad,
+		}
+
+
+		return JsonResponse({"ok": True, "data": data})
+
+	except Exception as e:
+		return JsonResponse({"ok": False, "error": str(e)})
+
+
+from django.http import HttpResponse
+from .afip.afip_a13 import consultar_padron
+
+def consultar_padron_test(request, cuit):
+	try:
+		resp = consultar_padron(request, cuit)
+		return HttpResponse(f"<pre>{resp}</pre>")
+	except Exception as e:
+		return HttpResponse(f"<h3>Error:</h3><pre>{e}</pre>")

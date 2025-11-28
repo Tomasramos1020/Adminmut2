@@ -45,6 +45,8 @@ class Consorcio(models.Model):
 	convenios = models.BooleanField(default=False)
 	chatia = models.BooleanField(default=False)
 	fosea = models.BooleanField(default=False)
+	es_ri = models.BooleanField(default=False)
+
 
 
 

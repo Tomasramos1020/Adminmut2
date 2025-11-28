@@ -2,8 +2,14 @@
   <div class="ribbon ribbon-success">Area de relaciones humanas</div>
   <p class="text-muted m-b-10 font-14"></p>
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Acreedor' %}">Proveedores</a>
+  {% if not cons.es_ri %}
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Servicio_mutual' %}">Servicios Mutuales</a>
+  {% endif %}
+  {% if cons.es_ri %}
+  <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Socio' %}">Clientes</a>
+  {% else %}
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Socio' %}">Padron de Asociados</a>
+  {% endif %}
   {% if consorcio.convenios %}
     {% if cons.es_federacion %}
       <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Convenio' %}">Servicios financieros</a>
@@ -15,7 +21,9 @@
   <a class="btn btn-block btn-bordered btn-default" href="{% url 'parametro' modelo='Establecimiento' %}">Establecimientos</a>
   {% endif %}
 
+  {% if not cons.es_ri %}
   <a class="btn btn-block btn-bordered btn-default m-b-25" href="{% url 'parametro' modelo='Tipo_asociado' %}">Categorias de Asociados</a>
+  {% endif %}
 
 </div>
 <div class="card-box ribbon-box">

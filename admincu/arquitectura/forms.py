@@ -107,7 +107,7 @@ class cajaForm(FormControl, forms.ModelForm):
 
 		if (consorcio and consorcio.convenios) or (self.instance.pk and self.instance.convenio):
 			self.fields['convenio'] = forms.BooleanField(
-		        required=False,
+				required=False,
 				label='Convenio'
 		 )
 
@@ -162,17 +162,62 @@ class socioForm(FormControl, forms.ModelForm):
 	class Meta:
 		model = Socio
 		fields = [
-			'nombre', 'apellido','numero_asociado','tipo_asociado',
-			'fecha_alta',  'tipo_persona',
-			'numero_documento','fecha_nacimiento','genero',	
-			'es_extranjero', 'provincia','localidad','domicilio', 
-			'numero_calle','piso','departamento','codigo_postal',
-			'telefono','profesion', 
-			'mail',   'notificaciones', 'causa_baja',
-			'medida_disciplinaria', 'observacion', 'directivo', 'estado', 'presidente',
-			'gerente','secretario','tesorero','cant_socios','activos','adherentes','participantes',
-			'honorarios','convenio'
-			]
+			# ✅ Primero identificación
+			'numero_documento',
+			'tipo_persona',
+			'condicionIVA',
+
+			# ✅ Identidad
+			'nombre',
+			'apellido',
+
+			# ✅ Datos asociativos
+			'numero_asociado',
+			'tipo_asociado',
+			'fecha_alta',
+
+			# ✅ Personales
+			'fecha_nacimiento',
+			'genero',
+			'es_extranjero',
+
+			# ✅ Domicilio
+			'provincia',
+			'localidad',
+			'domicilio',
+			'numero_calle',
+			'piso',
+			'departamento',
+			'codigo_postal',
+
+			# ✅ Contacto / actividades
+			'telefono',
+			'profesion',
+			'mail',
+
+			# ✅ Administración
+			'notificaciones',
+			'causa_baja',
+			'medida_disciplinaria',
+			'observacion',
+			'directivo',
+			'estado',
+
+			# ✅ Federación
+			'presidente',
+			'gerente',
+			'secretario',
+			'tesorero',
+			'cant_socios',
+			'activos',
+			'adherentes',
+			'participantes',
+			'honorarios',
+
+			# ✅ Fiscal
+			'convenio',
+		]
+
 		labels = {
 			'nombre': "Nombre (obligatorio)",
 			'apellido':"Apellido (obligatorio)",
@@ -204,7 +249,8 @@ class socioForm(FormControl, forms.ModelForm):
 			'participantes':'Participantes',
 			'honorarios':'Honorarios',
 			'genero':'Genero',
-			'convenio':'Convenio'			
+			'convenio':'Convenio',
+			'condicionIVA':'Condicion de IVA',	
 		}
 		widgets = {
 			'notificaciones': NullBooleanSelect(),
@@ -231,6 +277,10 @@ class socioForm(FormControl, forms.ModelForm):
 		self.fields['localidad'].required = True
 		self.fields['domicilio'].required = True
 		self.fields['apellido'].required = True
+		# ✅ Si el POST indica persona jurídica, apellido no es obligatorio
+		if self.data.get('tipo_persona') == 'juridica':
+			self.fields['apellido'].required = False
+
 		self.fields['convenio'].queryset = Convenio.objects.filter(consorcio=consorcio, baja__isnull=True)
 
 		if self.consorcio and not self.consorcio.convenios:
@@ -265,6 +315,44 @@ class socioForm(FormControl, forms.ModelForm):
 			self.fields['adherentes'].widget = forms.HiddenInput()	
 			self.fields['participantes'].widget = forms.HiddenInput()	
 			self.fields['honorarios'].widget = forms.HiddenInput()	
+		
+		if self.consorcio and self.consorcio.es_ri == False:
+			self.fields['condicionIVA'].widget = forms.HiddenInput()
+			self.fields['condicionIVA'].required = False
+
+
+		if self.consorcio and self.consorcio.es_ri:
+
+			self.fields['nombre'].label = 'Razón social / Nombre (obligatorio)'
+			self.fields['numero_documento'].label = 'CUIT (obligatorio)'
+			self.fields['fecha_nacimiento'].widget = forms.HiddenInput()
+			self.fields['genero'].widget = forms.HiddenInput()
+			self.fields['notificaciones'].widget = forms.HiddenInput()
+			self.fields['causa_baja'].widget = forms.HiddenInput()
+			self.fields['medida_disciplinaria'].widget = forms.HiddenInput()
+			self.fields['observacion'].widget = forms.HiddenInput()
+			self.fields['estado'].widget = forms.HiddenInput()
+			self.fields['directivo'].widget = forms.HiddenInput()
+			self.fields['profesion'].label = 'Actividad'
+			self.fields['fecha_alta'].required = False
+			self.fields['fecha_alta'].widget = forms.HiddenInput()
+
+			# ✅ SOLO definimos obligatorios
+			obligatorios = [
+				'nombre',
+				'numero_documento',
+				'domicilio',
+				'localidad',
+				'provincia',
+				'codigo_postal',
+				'condicionIVA'
+			]
+
+			for campo in obligatorios:
+				if campo in self.fields:
+					self.fields[campo].required = True
+
+
 
 
 	def clean_numero_asociado(self):
@@ -296,6 +384,42 @@ class socioForm(FormControl, forms.ModelForm):
 			raise forms.ValidationError("El CUIT debe tener exactamente 11 dígitos")
 
 		return numero_documento
+
+	def clean(self):
+		cleaned = super().clean()
+		if self.consorcio and self.consorcio.es_federacion == False:
+			# Blindaje backend: persona jurídica no requiere apellido
+			if cleaned.get("tipo_persona") == "juridica":
+				cleaned["apellido"] = ""
+
+		return cleaned
+
+
+	def save(self, commit=True):
+
+		socio = super().save(commit=False)
+
+		if self.consorcio and self.consorcio.es_ri:
+			socio.apellido = socio.apellido or ''
+			socio.genero = None
+			socio.fecha_nacimiento = None
+			socio.tipo_asociado = None
+			socio.directivo = None
+			socio.estado = 'vigente'
+			socio.notificaciones = False
+			socio.fecha_alta = date.today()
+
+		if not socio.numero_asociado:
+			socio.numero_asociado = socio.cuit or socio.numero_documento or "SIN_NUMERO"
+
+		socio.tipo_documento = DocumentType.objects.get(id=1)
+
+		if commit:
+			socio.save()
+
+		return socio
+
+	
 
 
 
