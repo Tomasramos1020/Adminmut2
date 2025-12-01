@@ -247,13 +247,14 @@
     
       <!-- Nombre -->
       <td>{{ objeto.nombre }}</td>
-    
+      
+      <td>{{ objeto.apellido|default:"" }}</td>
+
       {% if cons.es_federacion %}
-        <td>{{ objeto.apellido|default:"" }}</td>
         <td>{{ objeto.presidente|default:"" }}</td>
       {% endif %}
 
-      <td>{{ objeto.apellido|default:"" }}</td>
+      
 
       {% if not cons.es_ri %}
         <td>{{ objeto.tipo_asociado|default:"" }}</td>
