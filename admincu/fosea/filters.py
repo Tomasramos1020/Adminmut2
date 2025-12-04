@@ -18,3 +18,11 @@ class SiniestroFilter(django_filters.FilterSet):
     class Meta:
         model = Siniestro
         fields = []
+
+class DenunciaFilter(django_filters.FilterSet):
+    socio__apellido = django_filters.CharFilter(label="Identificación del destinatario", lookup_expr="icontains")
+    fecha = django_filters.DateRangeFilter(label="Fecha")
+
+    class Meta:
+        model = Denuncia
+        fields = []

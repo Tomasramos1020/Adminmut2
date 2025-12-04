@@ -1108,3 +1108,75 @@ def consultar_padron_test(request, cuit):
 		return HttpResponse(f"<pre>{resp}</pre>")
 	except Exception as e:
 		return HttpResponse(f"<h3>Error:</h3><pre>{e}</pre>")
+
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.utils.encoding import smart_str
+
+@login_required
+@group_required('administrativo', 'contable', 'afiliaciones')
+def exportar_socios_txt(request):
+	cons = consorcio(request)
+
+	socios = Socio.objects.filter(
+		consorcio=cons,
+		baja__isnull=True
+	)
+
+	response = HttpResponse(content_type='text/plain; charset=utf-8')
+	response['Content-Disposition'] = 'attachment; filename="padron_farmacia.txt"'
+
+	for socio in socios:
+		# 1) Documento
+		documento = socio.numero_documento or ""
+
+		# 2) Nombre
+		if socio.tipo_persona == "juridica":
+			nombre = socio.nombre or ""
+		else:
+			nombre = f"{socio.apellido} {socio.nombre or ''}".strip()
+
+		# 3) Dirección
+		direccion = socio.domicilio or ""
+
+		# 4) CUIT
+		cuit = socio.cuit or ""
+
+		# 5) Tipo IVA
+		tipo_iva = "CF"
+		if socio.condicionIVA:
+			mapping = {
+				"Responsable Inscripto": "RI",
+				"Monotributo": "MT",
+				"Exento": "EX",
+				"Consumidor Final": "CF"
+			}
+			tipo_iva = mapping.get(socio.condicionIVA.nombre, "CF")
+
+		# 6) Límite (no lo tenés → por ahora va en 0)
+		limite = "0"
+
+		# 7) Legajo
+		legajo = socio.numero_asociado or socio.id
+
+		# 8) Tipo Cliente
+		tipo_cliente = "C" if socio.es_socio else "O"
+
+		# 9) Tipo Movimiento
+		tipo_mov = "A"  # Alta fija en exportación inicial
+
+		linea = "\t".join([
+			smart_str(documento),
+			smart_str(nombre),
+			smart_str(direccion),
+			smart_str(cuit),
+			smart_str(tipo_iva),
+			smart_str(limite),
+			smart_str(legajo),
+			smart_str(tipo_cliente),
+			smart_str(tipo_mov)
+		])
+
+		response.write(linea + "\n")
+
+	return response

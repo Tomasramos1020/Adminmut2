@@ -23,6 +23,11 @@ urlpatterns = [
     path('fosea/siniestros/registro/', RegistroSiniestros.as_view(), name='registro_siniestros'),
     path('fosea/siniestros/<int:pk>/editar/', EditarSiniestroView.as_view(), name='siniestro_editar'),
     path('cobertura_por_cultivo/', cobertura_por_cultivo, name='cobertura_por_cultivo'),
-    #Resumenes
+    path('fosea/ajax/denuncias-disponibles/', denuncias_disponibles, name='denuncias_disponibles'),
+    #Denuncias
+    path('fosea/denuncias/nueva/', CrearDenunciaView.as_view(), name='denuncia_crear'),
+    path('fosea/denuncias/<int:pk>/editar/', EditarDenunciaView.as_view(), name='denuncia_editar'),
+    path('fosea/denuncias/', RegistroDenuncias.as_view(), name='registro_denuncias'),
+
 
 ]

@@ -1,7 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
 from django.forms import formset_factory, BaseFormSet
-from .models import Solicitud, SolicitudLinea, Siniestro, SiniestroLinea
+from .models import Solicitud, SolicitudLinea, Siniestro, SiniestroLinea, Denuncia, DenunciaLinea
 from arquitectura.models import Establecimiento, Socio, ZonasPorCultivo
 from admincu.funciones import consorcio
 from django.forms.widgets import DateInput
@@ -339,7 +339,7 @@ class SiniestroForm(forms.ModelForm):
 
 	class Meta:
 		model = Siniestro
-		fields = ['fecha', 'campaña', 'socio']
+		fields = ['fecha', 'campaña', 'socio', 'denuncia']
 		widgets = {
 			'socio': forms.Select(attrs={'class': 'form-control'}),
 			'campaña': forms.Select(attrs={'class': 'form-control'}),
@@ -363,6 +363,9 @@ class SiniestroForm(forms.ModelForm):
 			self.fields['socio'].queryset = (self.fields['socio'].queryset
 				.filter(consorcio=cons, es_socio=True, baja__isnull=True)
 				.exclude(nombre_servicio_mutual__isnull=False))
+			self.fields['denuncia'].queryset = Denuncia.objects.none()
+			self.fields['denuncia'].required = False
+			self.fields['denuncia'].widget.attrs['class'] = 'form-control'
 		for f in self.fields.values():
 			f.widget.attrs.setdefault('class', 'form-control')
 
@@ -507,6 +510,90 @@ SiniestroLineaFormSet = inlineformset_factory(
 	model=SiniestroLinea,
 	form=SiniestroLineaForm,
 	formset=_LineasSiniestroBaseFormSet,
+	extra=0,
+	can_delete=True,
+	min_num=1,
+	validate_min=True,
+)
+
+class DenunciaForm(forms.ModelForm):
+	class Meta:
+		model = Denuncia
+		fields = ['fecha', 'campaña', 'socio']
+		widgets = {
+			'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+			'campaña': forms.Select(attrs={'class': 'form-control'}),
+			'socio': forms.Select(attrs={'class': 'form-control'}),
+		}
+
+	def __init__(self, *args, **kwargs):
+		request = kwargs.pop('request', None)
+		super().__init__(*args, **kwargs)
+
+		if request:
+			cons = consorcio(request)
+			self.fields['campaña'].queryset = Campaña.objects.filter(consorcio=cons)
+			self.fields['socio'].queryset = Socio.objects.filter(consorcio=cons)
+
+class DenunciaLineaForm(forms.ModelForm):
+	class Meta:
+		model = DenunciaLinea
+		fields = ['establecimiento', 'cultivo', 'hectareas_afectadas', 'observacion']
+		widgets = {
+			'establecimiento': forms.Select(attrs={'class': 'form-control'}),
+			'cultivo': forms.Select(attrs={'class': 'form-control'}),
+			'hectareas_afectadas': forms.NumberInput(attrs={'class': 'form-control'}),
+			'observacion': forms.TextInput(attrs={'class': 'form-control'}),
+		}
+
+	def __init__(self, *args, **kwargs):
+		request = kwargs.pop('request', None)
+		cons = kwargs.pop('consorcio', None)
+		socio = kwargs.pop('socio', None)
+		super().__init__(*args, **kwargs)
+
+		if request and not cons:
+			cons = consorcio(request)
+
+		if cons:
+			self.fields['cultivo'].queryset = Cultivo.objects.filter(consorcio=cons)
+			if socio:
+				self.fields['establecimiento'].queryset = Establecimiento.objects.filter(
+					consorcio=cons, socio__id=socio.id
+				).distinct()
+			else:
+				self.fields['establecimiento'].queryset = Establecimiento.objects.filter(consorcio=cons)
+
+	def clean(self):
+		cd = super().clean()
+		if not cd.get('establecimiento'):
+			self.add_error('establecimiento', 'Seleccioná el establecimiento.')
+		if not cd.get('cultivo'):
+			self.add_error('cultivo', 'Seleccioná el cultivo.')
+		if (cd.get('hectareas_afectadas') or 0) <= 0:
+			self.add_error('hectareas_afectadas', 'Debe ser mayor a 0.')
+		return cd
+
+class _LineasDenunciaBaseFormSet(BaseInlineFormSet):
+	def clean(self):
+		super().clean()
+		validas = 0
+
+		for form in self.forms:
+			if not hasattr(form, "cleaned_data") or not form.cleaned_data:
+				continue
+			if self.can_delete and form.cleaned_data.get("DELETE"):
+				continue
+			validas += 1
+
+		if validas == 0:
+			raise forms.ValidationError("Debe cargar al menos una línea de denuncia.")
+
+DenunciaLineaFormSet = inlineformset_factory(
+	parent_model=Denuncia,
+	model=DenunciaLinea,
+	form=DenunciaLineaForm,
+	formset=_LineasDenunciaBaseFormSet,
 	extra=0,
 	can_delete=True,
 	min_num=1,

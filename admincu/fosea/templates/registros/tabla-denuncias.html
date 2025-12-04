@@ -1,0 +1,52 @@
+{% load staticfiles %}
+{% load humanize %}
+
+<table class="anopa table table-sm display nowrap" style="width:100%">
+  <thead>
+    <tr>
+      <th>Tipo</th>
+      <th>Fecha</th>
+      {% if not user.groups.all.0.name == "socio" %}
+        <th>Socio</th>
+      {% endif %}
+      <th>Campaña</th>
+      <th class="text-right">Líneas</th>
+      <th class="text-right">Ha denunciadas</th>
+      <th></th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for d in denuncias %}
+      <tr>
+        <td>Denuncia</td>
+        <td>{{ d.fecha|date:"d/m/Y" }}</td>
+
+        {% if not user.groups.all.0.name == "socio" %}
+          <td style="white-space: nowrap;" title="{{ d.socio }}">
+            {{ d.socio|truncatechars:70 }}
+          </td>
+        {% endif %}
+
+        <td>{{ d.campaña }}</td>
+
+        <td class="text-right">
+          {{ d.cant_lineas_calc|default:"0" }}
+        </td>
+
+        <td class="text-right">
+          {{ d.ha_denunciadas_calc|default:"0.00"|floatformat:2 }}
+        </td>
+
+        <td class="text-right">
+          <a href="{% url 'denuncia_editar' d.pk %}"
+             class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light"
+             title="Editar denuncia">
+            <i class="fa fa-pencil"></i>
+          </a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+

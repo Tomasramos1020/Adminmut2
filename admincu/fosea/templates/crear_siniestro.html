@@ -82,6 +82,12 @@
       <div class="form-group">
         {{ form.socio.label_tag }} {{ form.socio }}
       </div>
+      <div class="form-group">
+        <label for="id_denuncia">Denuncia asociada:</label>
+        <select id="id_denuncia" name="denuncia" class="form-control" disabled>
+          <option value="">---------</option>
+        </select>
+      </div>      
     </div>
 
     <hr>
@@ -361,6 +367,44 @@
   });
 })();
 </script>
+<script>
+  (function(){
+  
+    const socioSel = document.getElementById('id_socio');
+    const denunciaSel = document.getElementById('id_denuncia');
+  
+    function cargarDenuncias(socioId){
+      if(!socioId){
+        denunciaSel.innerHTML = '<option value="">---------</option>';
+        denunciaSel.disabled = true;
+        return;
+      }
+  
+      fetch("{% url 'denuncias_disponibles' %}?socio_id=" + encodeURIComponent(socioId))
+        .then(r => r.json())
+        .then(data => {
+          denunciaSel.innerHTML = '<option value="">---------</option>';
+          (data.denuncias || []).forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.id;
+            opt.textContent = d.texto;
+            denunciaSel.appendChild(opt);
+          });
+          denunciaSel.disabled = false;
+        });
+    }
+  
+    socioSel?.addEventListener('change', () => {
+      cargarDenuncias(socioSel.value);
+    });
+  
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarDenuncias(socioSel.value);
+    });
+  
+  })();
+  </script>
+  
 
 {% endblock %}
 

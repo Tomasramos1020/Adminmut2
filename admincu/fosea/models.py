@@ -56,7 +56,31 @@ class SolicitudLinea(models.Model):
 		hect_reales = Decimal(self.hectarea) * (Decimal(self.participacion) / Decimal("100"))
 		return hect_reales.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
+class Denuncia(models.Model):
+	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
+	socio = models.ForeignKey(Socio, on_delete=models.CASCADE)
+	fecha = models.DateField()
+	campaña = models.ForeignKey(Campaña, null=True, blank=True, on_delete=models.SET_NULL)
 
+	class Meta:
+		ordering = ['-id']
+
+	def __str__(self):
+		return f"Denuncia #{self.pk or '—'} - {self.socio}"
+
+class DenunciaLinea(models.Model):
+	denuncia = models.ForeignKey(Denuncia, on_delete=models.CASCADE, related_name='lineas')
+	establecimiento = models.ForeignKey(Establecimiento, on_delete=models.CASCADE)
+	cultivo = models.ForeignKey(Cultivo, on_delete=models.CASCADE)
+
+	hectareas_afectadas = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+	observacion = models.CharField(max_length=255, blank=True, null=True)
+
+	class Meta:
+		ordering = ['id']
+
+	def __str__(self):
+		return f"Línea #{self.pk or '—'} ({self.establecimiento})"
 
 LIBERACION_OPCIONES = (
 	('plena', 'Cobertura plena (100%)'),
@@ -78,6 +102,7 @@ class Siniestro(models.Model):
 	socio = models.ForeignKey(Socio, on_delete=models.CASCADE)
 	fecha = models.DateField()
 	campaña = models.ForeignKey(Campaña, null=True, blank=True, on_delete=models.SET_NULL)
+	denuncia = models.OneToOneField(Denuncia, null=True, blank=True, on_delete=models.SET_NULL, related_name="siniestro")
 
 	# Totales (se mantienen por conveniencia; se recalculan en save())
 	indemnizacion_total_qq = models.DecimalField(max_digits=14, decimal_places=2, default=Decimal('0.00'))
@@ -232,3 +257,5 @@ class SiniestroLinea(models.Model):
 		# Actualiza totales del padre
 		self.siniestro.recomputar_totales()
 		self.siniestro.save(update_fields=['indemnizacion_total_qq', 'indemnizacion_total_ajustada'])
+
+

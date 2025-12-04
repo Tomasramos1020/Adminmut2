@@ -897,6 +897,28 @@ def cobertura_por_cultivo(request):
 
 	return JsonResponse({'cobertura': max_subsidio or None})
 
+@login_required
+@require_GET
+def denuncias_disponibles(request):
+	cons = consorcio(request)
+	socio_id = request.GET.get("socio_id")
+
+	if not socio_id:
+		return JsonResponse({"denuncias": []})
+
+	denuncias = Denuncia.objects.filter(
+		consorcio=cons,
+		socio_id=socio_id,
+		siniestro__isnull=True   # ✅ solo no usadas
+	).order_by('-fecha')
+
+	data = [
+		{"id": d.id, "texto": f"{d.fecha.strftime('%d/%m/%Y')} - {d.campaña}"}
+		for d in denuncias
+	]
+
+	return JsonResponse({"denuncias": data})
+
 
 @method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
 class CrearSiniestroView(View):
@@ -1071,3 +1093,146 @@ class EditarSiniestroView(View):
 			'siniestro': siniestro,
 			'modo_edicion': True,
 		})
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class CrearDenunciaView(View):
+	template_name = 'crear_denuncia.html'
+
+	def get(self, request):
+		cons = consorcio(request)
+		form = DenunciaForm(request=request)
+		tmp = Denuncia(consorcio=cons)
+		formset = DenunciaLineaFormSet(
+			instance=tmp,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': None}
+		)
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+	def post(self, request):
+		cons = consorcio(request)
+		form = DenunciaForm(request.POST, request=request)
+
+		if form.is_valid():
+			denuncia = form.save(commit=False)
+			denuncia.consorcio = cons
+			socio = denuncia.socio
+
+			formset = DenunciaLineaFormSet(
+				request.POST,
+				instance=denuncia,
+				prefix='form',
+				form_kwargs={'request': request, 'consorcio': cons, 'socio': socio}
+			)
+
+			# inyectamos denuncia
+			for f in formset.forms:
+				f.instance.denuncia = denuncia
+
+			if formset.is_valid():
+				with transaction.atomic():
+					denuncia.save()
+					formset.instance = denuncia
+					formset.save()
+				return redirect('fosea')
+
+			return render(request, self.template_name, {'form': form, 'formset': formset})
+
+		tmp = Denuncia(consorcio=cons)
+		formset = DenunciaLineaFormSet(
+			request.POST,
+			instance=tmp,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': None}
+		)
+		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class EditarDenunciaView(View):
+	template_name = 'editar_denuncia.html'
+
+	def get(self, request, pk):
+		cons = consorcio(request)
+		denuncia = get_object_or_404(Denuncia, pk=pk, consorcio=cons)
+
+		form = DenunciaForm(instance=denuncia, request=request)
+		formset = DenunciaLineaFormSet(
+			instance=denuncia,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': denuncia.socio}
+		)
+
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'denuncia': denuncia,
+			'modo_edicion': True
+		})
+
+	def post(self, request, pk):
+		cons = consorcio(request)
+		denuncia = get_object_or_404(Denuncia, pk=pk, consorcio=cons)
+
+		form = DenunciaForm(request.POST, instance=denuncia, request=request)
+		formset = DenunciaLineaFormSet(
+			request.POST,
+			instance=denuncia,
+			prefix='form',
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': denuncia.socio}
+		)
+
+		if form.is_valid() and formset.is_valid():
+			with transaction.atomic():
+				form.save()
+				formset.save()
+			messages.success(request, "Denuncia actualizada correctamente.")
+			return redirect('registro_deudas')
+
+		return render(request, self.template_name, {
+			'form': form,
+			'formset': formset,
+			'denuncia': denuncia,
+			'modo_edicion': True
+		})
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class RegistroDenuncias(OrderQS):
+	model = Denuncia
+	filterset_class = DenunciaFilter
+	template_name = 'registros/denuncias.html'
+	paginate_by = 50
+
+	def get_queryset(self):
+		return super().get_queryset().filter(consorcio=consorcio(self.request))\
+			.select_related('socio', 'campaña')\
+			.order_by('-fecha','-id')
+
+	def get_context_data(self, **kwargs):
+		ctx = super().get_context_data(**kwargs)
+
+		page_obj = ctx.get('page_obj')
+		ctx['lista'] = page_obj
+
+		denuncias = list(page_obj) if page_obj else []
+		if not denuncias:
+			return ctx
+
+		ids = [d.pk for d in denuncias]
+
+		lineas = (DenunciaLinea.objects
+			.filter(denuncia_id__in=ids)
+			.values('denuncia_id', 'hectareas_afectadas')
+		)
+
+		agrup = defaultdict(list)
+		for l in lineas:
+			agrup[l['denuncia_id']].append(Decimal(l['hectareas_afectadas'] or 0))
+
+		for d in denuncias:
+			hs = agrup.get(d.pk, [])
+			d.ha_denunciadas_calc = sum(hs).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			d.cant_lineas_calc = len(hs)
+
+		return ctx
+
+

@@ -46,6 +46,8 @@ class Consorcio(models.Model):
 	chatia = models.BooleanField(default=False)
 	fosea = models.BooleanField(default=False)
 	es_ri = models.BooleanField(default=False)
+	farmacia = models.BooleanField(default=False)
+
 
 
 

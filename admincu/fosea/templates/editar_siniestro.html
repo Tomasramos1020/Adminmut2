@@ -70,8 +70,18 @@
         {{ form.fecha.label_tag }} {{ form.fecha }}
       </div>
       <div class="form-group">
-        {{ form.campaña.label_tag }} {{ form.campaña }}
-      </div>
+        <label for="id_campaña">Campaña:</label>
+        <select name="campaña" id="id_campaña" class="form-control">
+          <option value="">---------</option>
+          {% for c in form.fields.campaña.queryset %}
+            <option value="{{ c.id }}"
+                    data-ajuste="{{ c.ajuste|default_if_none:0 }}"
+                    {% if form.instance.campaña_id == c.id %}selected{% endif %}>
+              {{ c }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>      
       <div class="form-group">
         {{ form.socio.label_tag }} {{ form.socio }}
       </div>
@@ -230,6 +240,58 @@
     recomputarTotal();
   });
 })();
+/* ===================== FILTRAR ESTABLECIMIENTOS ===================== */
+function filtrarEstablecimientosGlobal(socioId,campañaId){
+  document.querySelectorAll("select[name$='establecimiento']").forEach(sel=>{
+    filtrarEstablecimientosNodo(sel.closest('.formset-linea'), socioId, campañaId);
+  });
+}
+
+function filtrarEstablecimientosNodo(node,socioId,campañaId){
+  const sel=node.querySelector("select[name$='establecimiento']");
+  if(!sel)return;
+
+  if(!socioId){
+    sel.innerHTML='<option value="">Seleccioná un socio primero</option>';
+    sel.disabled=true;
+    return;
+  }
+
+  const url="{% url 'establecimientos_filtrados' %}?socio_id="+encodeURIComponent(socioId)+
+            (campañaId ? "&campaña_id="+encodeURIComponent(campañaId) : "");
+
+  fetch(url).then(r=>r.json()).then(data=>{
+    const current = sel.value;
+
+    sel.innerHTML='<option value="">---------</option>';
+    (data.establecimientos||[]).forEach(est=>{
+      const opt=document.createElement('option');
+      opt.value=est.id;
+      opt.textContent=est.nombre;
+      sel.appendChild(opt);
+    });
+
+    if(current && sel.querySelector(`option[value="${current}"]`)) {
+      sel.value = current;
+    }
+
+    sel.disabled=false;
+  });
+}
+
+const socioSel=document.getElementById('id_socio');
+const campañaSel=document.getElementById('id_campaña');
+
+function initFiltroSocioCampaña(){
+  const actualizar=()=>filtrarEstablecimientosGlobal(socioSel.value,campañaSel?.value);
+  socioSel?.addEventListener('change',actualizar);
+  campañaSel?.addEventListener('change',actualizar);
+  actualizar();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  initFiltroSocioCampaña();
+});
 </script>
 
 {% endblock %}
