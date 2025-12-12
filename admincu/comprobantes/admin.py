@@ -83,7 +83,7 @@ def asien_x_recibo_eliminarprimeroasientodiario(modeladmin, request, queryset):
 	for comprobante in queryset:
 		dia = comprobante.fecha
 		consorcio = comprobante.consorcio
-		asiento_diario(dia, consorcio, comprobante)
+		asiento_diario(dia, consorcio, [comprobante])
 		messages.success(request, 'Asiento CREADO con exito.')
 
 def eliminar_asiento_por_recibo(modeladmin, request, queryset):
