@@ -177,7 +177,9 @@ class ComprobanteAdmin(admin.ModelAdmin):
 		reenviar_mail,
 		hacer_asiento_diario,
 		buscar_caja_pdf,
-		procesar_recibos_masivos
+		procesar_recibos_masivos,
+		asien_x_recibo_eliminarprimeroasientodiario,
+		eliminar_asiento_por_recibo	
 
 	]
 	inlines = [
