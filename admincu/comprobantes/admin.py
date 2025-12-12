@@ -77,8 +77,21 @@ def hacer_asiento_diario(modeladmin, request, queryset):
 		if asiento:
 			asiento.delete()
 		asiento_diario(dia, consorcio, comprobantes_dia)
-		comprobantes_dia = Comprobante.objects.filter(consorcio=consorcio, fecha=dia)
 		messages.success(request, 'Asiento CREADO con exito.')
+
+def asien_x_recibo_eliminarprimeroasientodiario(modeladmin, request, queryset):
+	for comprobante in queryset:
+		dia = comprobante.fecha
+		consorcio = comprobante.consorcio
+		asiento_diario(dia, consorcio, comprobante)
+		messages.success(request, 'Asiento CREADO con exito.')
+
+def eliminar_asiento_por_recibo(modeladmin, request, queryset):
+	for comprobante in queryset:
+		asiento = comprobante.asiento
+		if asiento:
+			asiento.delete()
+		
 
 
 def procesar_recibos_masivos(modeladmin, request, queryset):
