@@ -92,8 +92,17 @@ def eliminar_asiento_por_recibo(modeladmin, request, queryset):
 		asiento = comprobante.asiento
 		if asiento:
 			asiento.delete()
-		
 
+def eliminar_asiento_por_fecha(modeladmin, request, queryset):
+
+	for comprobante in queryset:
+		fecha = comprobante.fecha
+		comprobantes_aelim = Comprobante.objects.filter(fecha=fecha)
+		for c in comprobantes_aelim:
+			asiento = c.asiento
+			if asiento:
+				asiento.delete()
+				messages.success(request, 'Asiento ELIMINDADO con exito.')
 
 def procesar_recibos_masivos(modeladmin, request, queryset):
 	for comprobante in queryset:
@@ -180,7 +189,8 @@ class ComprobanteAdmin(admin.ModelAdmin):
 		buscar_caja_pdf,
 		procesar_recibos_masivos,
 		asien_x_recibo_eliminarprimeroasientodiario,
-		eliminar_asiento_por_recibo	
+		eliminar_asiento_por_recibo,
+		eliminar_asiento_por_fecha
 
 	]
 	inlines = [
