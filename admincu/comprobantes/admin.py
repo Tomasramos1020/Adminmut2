@@ -111,9 +111,10 @@ def asientos_del_dia_por_comprobante(modeladmin, request, queryset):
 		consorcio = comprobante.consorcio
 		comprobantes_q = Comprobante.objects.filter(consorcio=consorcio,fecha=fecha)
 		for c in comprobantes_q:
-			comprobantes = Comprobante.objects.filter(id=c.id)
-			asiento_diario(fecha, consorcio, comprobantes)
-			messages.success(request, 'Asiento CREADO con exito.')
+			if not c.asiento:
+				comprobantes = Comprobante.objects.filter(id=c.id)
+				asiento_diario(fecha, consorcio, comprobantes)
+				messages.success(request, 'Asiento CREADO con exito.')
 
 
 
