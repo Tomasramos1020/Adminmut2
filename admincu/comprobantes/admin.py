@@ -97,7 +97,8 @@ def eliminar_asiento_por_fecha(modeladmin, request, queryset):
 
 	for comprobante in queryset:
 		fecha = comprobante.fecha
-		comprobantes_aelim = Comprobante.objects.filter(fecha=fecha)
+		consorcio = comprobante.consorcio
+		comprobantes_aelim = Comprobante.objects.filter(consorcio=consorcio,fecha=fecha)
 		for c in comprobantes_aelim:
 			asiento = c.asiento
 			if asiento:
