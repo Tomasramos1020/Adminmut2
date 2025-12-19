@@ -10,7 +10,8 @@ from contabilidad.funciones import *
 from contabilidad.models import *
 from django_afip.models import *
 from .forms import *
-
+from collections import defaultdict
+from decimal import Decimal
 
 @group_required('contable')
 def mayores_index(request):
@@ -61,18 +62,72 @@ def mayores_index(request):
 
 @group_required('contable')
 def sys_index(request):
+	cons = consorcio(request)
+
+	cuentas = []
+	fecha_ini = fecha_fin = None
 
 	if request.method == "POST":
 		fechas = request.POST.get('fechas')
 		fecha_ini, fecha_fin = fechas.split(" / ")
-		cuentas = Plan.objects.get(consorcio=consorcio(request)).cuentas.filter(nivel=4).order_by('numero')
-		asientos = Asiento.objects.filter(
-				consorcio=consorcio(request),
-				fecha_asiento__range=[fecha_ini, fecha_fin]
-			).order_by('fecha_asiento', 'id')
-		operaciones = [op.id for a in asientos for op in a.operaciones.all()]
-		operaciones = Operacion.objects.filter(id__in=operaciones)
-		generacionSyS(cuentas, operaciones)
 
+		# 1️⃣ Plan de cuentas (robusto)
+		plan = Plan.objects.filter(consorcio=cons).first()
+		if not plan:
+			messages.error(request, "No existe un plan de cuentas para el consorcio.")
+			return render(request, 'contabilidad/libros/sys.html', locals())
+
+		# 2️⃣ Cuentas nivel 4 (evaluadas en memoria)
+		cuentas = list(
+			plan.cuentas.filter(nivel=4).order_by('numero')
+		)
+
+		# Inicialización CONTABLE explícita
+		for c in cuentas:
+			c.debe = Decimal('0.00')
+			c.haber = Decimal('0.00')
+			c.saldo = Decimal('0.00')
+
+		# 3️⃣ Operaciones relevantes (1 sola query)
+		operaciones = Operacion.objects.select_related(
+			'cuenta'
+		).filter(
+			asiento__consorcio=cons,
+			asiento__fecha_asiento__range=[fecha_ini, fecha_fin],
+		)
+
+		# 4️⃣ Agrupación por cuenta (clave para performance)
+		ops_por_cuenta = defaultdict(list)
+		for op in operaciones:
+			ops_por_cuenta[op.cuenta_id].append(op)
+
+		# 5️⃣ Cálculo FINAL (determinístico)
+		for c in cuentas:
+			for op in ops_por_cuenta.get(c.id, []):
+				c.debe += op.debe or Decimal('0.00')
+				c.haber += op.haber or Decimal('0.00')
+
+			c.saldo = c.debe - c.haber
 
 	return render(request, 'contabilidad/libros/sys.html', locals())
+
+
+
+
+# @group_required('contable')
+# def sys_index_viejo(request):
+
+# 	if request.method == "POST":
+# 		fechas = request.POST.get('fechas')
+# 		fecha_ini, fecha_fin = fechas.split(" / ")
+# 		cuentas = Plan.objects.get(consorcio=consorcio(request)).cuentas.filter(nivel=4).order_by('numero')
+# 		asientos = Asiento.objects.filter(
+# 				consorcio=consorcio(request),
+# 				fecha_asiento__range=[fecha_ini, fecha_fin]
+# 			).order_by('fecha_asiento', 'id')
+# 		operaciones = [op.id for a in asientos for op in a.operaciones.all()]
+# 		operaciones = Operacion.objects.filter(id__in=operaciones)
+# 		generacionSyS(cuentas, operaciones)
+
+
+# 	return render(request, 'contabilidad/libros/sys.html', locals())
