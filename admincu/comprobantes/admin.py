@@ -132,7 +132,7 @@ def evaluar_asiento(modeladmin, request, queryset):
 
 			resultado = debe - haber
 			if resultado != 0:
-				messages.success(request, comprobante)
+				messages.success(request, c)
 
 
 def procesar_recibos_masivos(modeladmin, request, queryset):
