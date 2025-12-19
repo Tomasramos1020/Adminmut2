@@ -117,22 +117,30 @@ def asientos_del_dia_por_comprobante(modeladmin, request, queryset):
 				messages.success(request, 'Asiento CREADO con exito.')
 
 def evaluar_asiento(modeladmin, request, queryset):
-	for comprobante in queryset:
-		fecha = comprobante.fecha
-		consorcio = comprobante.consorcio
-		comprobantes_q = Comprobante.objects.filter(consorcio=consorcio,fecha=fecha)
-		for c in comprobantes_q:
-			asiento =  c.asiento
-			operaciones =  asiento.operaciones.all()
-			debe = 0
-			haber = 0
-			for o in operaciones:
-				debe += o.debe
-				haber += o.haber
+    comprobante_ref = queryset.first()
+    if not comprobante_ref:
+        return
 
-			resultado = debe - haber
-			if resultado != 0:
-				messages.success(request, c)
+    consorcio = comprobante_ref.consorcio
+    fecha = comprobante_ref.fecha
+
+    comprobantes = Comprobante.objects.filter(
+        consorcio=consorcio,
+        fecha=fecha
+    )
+
+    for c in comprobantes:
+        asiento = c.asiento
+
+        debe = sum(o.debe for o in asiento.operaciones.all())
+        haber = sum(o.haber for o in asiento.operaciones.all())
+
+        if debe != haber:
+            messages.error(
+                request,
+                f"Comprobante {c} DESCALZADO → Debe: {debe} Haber: {haber}"
+            )
+
 
 
 def procesar_recibos_masivos(modeladmin, request, queryset):
