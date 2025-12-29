@@ -463,7 +463,10 @@ class Factura(models.Model):
 
 	def hacer_pdf(self):
 		pass
-	
+	def creditos_para_pdf(self):
+		return (self.credito_set
+			.filter(padre__isnull=True)
+			)
 	def hacer_pdf_inst(self):
 		"""Genera PDF de la factura y lo devuelve como bytes sin guardarlo en media."""
 		es_proveeduria = self.credito_set.filter(ingreso__es_proveeduria=True).exists()

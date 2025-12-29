@@ -68,7 +68,7 @@
           </tr>
         </thead>
         <tbody>
-          {% for credito in factura.credito_set.all %}
+          {% for credito in factura.creditos_para_pdf %}
             <tr>
               <td>{{ credito.ingreso }}{% if credito.detalle_limpio %}*{% endif %}</td>
               <td>{{ credito.periodo|date:"Y-m" }}</td>
