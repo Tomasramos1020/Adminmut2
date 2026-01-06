@@ -7,14 +7,20 @@
       <th>Tipo</th>
       <th>Numero</th>
       <th>Fecha</th>
-      {% if not user.groups.all.0.name == "socio" %}
+      {% if not user.groups.all.0.name == "socio" and not consorcio.es_ri%}
         <th>Socio</th>
+      {% else%}
+        <th>Cliente</th>
       {% endif %}
       <th class="text-right">Valor</th>
       <th class="text-right">Saldo a favor (nuevo)</th>
       <th class="text-right">Saldos utilizados</th>
       <th></th>
-      <th class="text-right"></th>
+      <th class="text-right">Caja/s utilizada</th>
+      {% if consorcio.convenios %}
+      <th class="text-right">Convenio</th>
+      {% endif %}
+      <th class="text-right">Descripcion</th>
     </tr>
   </thead>
   <tbody>
@@ -36,7 +42,7 @@
         </td>
         <td class="text-right">
           {% if comprobante.saldos_utilizados_total %}{{ comprobante.saldos_utilizados_total|intcomma }}{% endif %}
-        </td>
+        </td>                
         <td class="text-right">
           {% if user.groups.all.0.name == "contable" and comprobante.asiento %}
             <a href="{% url 'asiento_redireccion' id_asiento=comprobante.asiento.id %}" class="btn btn-icon btn-xs btn-info btn-bordered waves-efect waves-light">
@@ -52,6 +58,14 @@
             <i class="fa fa-print"></i>
           </a>
         </td>
+        <td class="text-right">
+          {% if comprobante.cajas_utilizadas_str %}{{ comprobante.cajas_utilizadas_str}}{% else %}-{% endif %}
+        </td>
+        {% if consorcio.convenios %}
+        <td class="text-right">
+          {% if comprobante.socio.convenio %}{{ comprobante.socio.convenio }}{% else %}-{% endif %}
+        </td>
+        {% endif %}
         <td>{{ comprobante.descripcion|default:"-" }}</td>
 
       </tr>
@@ -73,8 +87,7 @@
         </td>
         <td class="text-right">
           {% if comprobante.saldos_utilizados_total %}{{ comprobante.saldos_utilizados_total|intcomma }}{% endif %}
-        </td>
-
+        </td>        
         <td class="text-right">
           {% if user.groups.all.0.name == "contable" and comprobante.asiento %}
             <a href="{% url 'asiento_redireccion' id_asiento=comprobante.asiento.id %}" class="btn btn-icon btn-xs btn-info btn-bordered waves-efect waves-light">
@@ -90,6 +103,14 @@
             <i class="fa fa-print"></i>
           </a>
         </td>
+        <td class="text-right">
+          {% if comprobante.cajas_utilizadas_str %}{{ comprobante.cajas_utilizadas_str}}{% else %}-{% endif %}
+        </td>
+        {% if consorcio.convenios %}
+        <td class="text-right">
+          {% if comprobante.socio.convenio %}{{ comprobante.socio.convenio }}{% else %}-{% endif %}
+        </td>
+        {% endif %}
         <td>{{ comprobante.descripcion|default:"-" }}</td>
       </tr>
       {% endif %}
@@ -110,7 +131,7 @@
         </td>
         <td class="text-right">
           {% if comprobante.saldos_utilizados_total %}{{ comprobante.saldos_utilizados_total|intcomma }}{% endif %}
-        </td>
+        </td>        
         <td class="text-right">
           {% if user.groups.all.0.name == "contable" and comprobante.asiento %}
             <a href="{% url 'asiento_redireccion' id_asiento=comprobante.asiento.id %}" class="btn btn-icon btn-xs btn-info btn-bordered waves-efect waves-light">
@@ -126,6 +147,14 @@
             <i class="fa fa-print"></i>
           </a>
         </td>
+        <td class="text-right">
+          {% if comprobante.cajas_utilizadas_str %}{{ comprobante.cajas_utilizadas_str}}{% else %}-{% endif %}
+        </td>
+        {% if consorcio.convenios %}
+        <td class="text-right">
+          {% if comprobante.socio.convenio %}{{ comprobante.socio.convenio }}{% else %}-{% endif %}
+        </td>
+        {% endif %}    
         <td>{{ comprobante.descripcion|default:"-" }}</td>
       </tr>
       {% endif %}

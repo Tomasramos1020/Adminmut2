@@ -135,6 +135,17 @@ class Comprobante(models.Model):
 			tipo = "Nota de Credito C"
 		return tipo
 
+	@property
+	def cajas_utilizadas_str(self):
+		movs = getattr(self, 'movs_caja', None)
+		if not movs:
+			return ""
+		nombres = []
+		for m in movs:
+			if m.caja and m.caja.nombre:
+				nombres.append(m.caja.nombre)
+		# únicos conservando orden
+		return ", ".join(dict.fromkeys(nombres))
 
 	def __str__(self):
 		return self.nombre()
