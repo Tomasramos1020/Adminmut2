@@ -1,3 +1,4 @@
+{# crear_siniestro.html #}
 {% extends 'raiz.html' %}
 {% load static %}
 
@@ -7,7 +8,7 @@
 {% block contenido %}
 <style>
   .contenido-interno{
-    background:#fff; padding:20px; border-radius:12px; 
+    background:#fff; padding:20px; border-radius:12px;
     max-width:1500px; margin:20px auto;
     box-shadow:0 6px 22px rgba(0,0,0,.08);
   }
@@ -22,7 +23,7 @@
 
   .formset-linea{
     display:grid;
-    grid-template-columns: 1.6fr 1.2fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 1fr 1fr 56px; 
+    grid-template-columns: 1.6fr 1.2fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 1fr 1fr 56px;
     gap:12px; padding:16px;
     border:1px dashed #e6e6e6; border-radius:10px; background:#fafafa;
     align-items:start; margin-bottom:10px;
@@ -50,6 +51,7 @@
     .formset-linea{ grid-template-columns: 1fr 1fr; }
     .eliminar-wrapper{ grid-column: 2; }
   }
+
   .errorlist {
     color: #e74c3c;
     margin-top: 4px;
@@ -59,42 +61,79 @@
     list-style: none;
     padding-left: 0;
   }
+
+  .alert{
+    border-radius:10px;
+    padding:12px 14px;
+    margin: 0 0 14px 0;
+    border:1px solid #f1c2c2;
+    background:#fff5f5;
+    color:#b42318;
+    font-weight:600;
+  }
+  .alert small{ display:block; font-weight:500; margin-top:6px; }
 </style>
 
 <div class="contenido-interno">
-  <form method="post">
+  <form method="post" id="form-siniestro">
     {% csrf_token %}
+
+    {# ✅ Mostrar errores reales #}
+    {% if form.errors or formset.non_form_errors or formset.errors %}
+      <div class="alert">
+        No se pudo guardar. Revisá los errores marcados en rojo.
+        <small>
+          {{ form.non_field_errors }}
+          {{ formset.non_form_errors }}
+        </small>
+      </div>
+    {% endif %}
 
     <div class="form-row">
       <div class="form-group">
         {{ form.fecha.label_tag }} {{ form.fecha }}
+        {{ form.fecha.errors }}
       </div>
+
       <div class="form-group">
         <label for="id_campaña">Campaña:</label>
-          <select name="campaña" id="id_campaña" class="form-control">
-            <option value="">---------</option>
-            {% for c in form.fields.campaña.queryset %}
-              <option value="{{ c.id }}" data-ajuste="{{ c.ajuste|default_if_none:0 }}" {% if form.initial.campaña == c.id %}selected{% endif %}>{{ c }}</option>
-            {% endfor %}
-          </select>
-
+        <select name="campaña" id="id_campaña" class="form-control">
+          <option value="">---------</option>
+          {% for c in form.fields.campaña.queryset %}
+            <option
+              value="{{ c.id }}"
+              data-ajuste="{{ c.ajuste|default_if_none:0 }}"
+              {% if form.campaña.value|stringformat:"s" == c.id|stringformat:"s" %}selected{% endif %}
+            >
+              {{ c }}
+            </option>
+          {% endfor %}
+        </select>
+        {{ form.campaña.errors }}
       </div>
+
       <div class="form-group">
         {{ form.socio.label_tag }} {{ form.socio }}
+        {{ form.socio.errors }}
       </div>
+
       <div class="form-group">
         <label for="id_denuncia">Denuncia asociada:</label>
         <select id="id_denuncia" name="denuncia" class="form-control" disabled>
           <option value="">---------</option>
         </select>
-      </div>      
+        {{ form.denuncia.errors }}
+      </div>
     </div>
 
     <hr>
     <h3>Líneas de Daño</h3>
-    {{ form.non_field_errors }}
+
+    {# ✅ Errores generales del formset y errores no-field por línea #}
     {{ formset.non_form_errors }}
-    {% for f in formset %}{{ f.non_field_errors }}{% endfor %}
+    {% for f in formset %}
+      {{ f.non_field_errors }}
+    {% endfor %}
 
     <div id="formset">
       {{ formset.management_form }}
@@ -103,19 +142,51 @@
       <div class="formset-linea">
         {{ f.id }}
 
-        <div class="campo">{{ f.establecimiento.label_tag }}{{ f.establecimiento }}{{ f.establecimiento.errors }}</div>
-        <div class="campo">{{ f.cultivo.label_tag }}{{ f.cultivo }}{{ f.cultivo.errors }}</div>
-        <div class="campo">{{ f.hectareas_afectadas.label_tag }}{{ f.hectareas_afectadas }}{{ f.hectareas_afectadas.errors }}</div>
-        <div class="campo">{{ f.danio_porcentaje.label_tag }}{{ f.danio_porcentaje }}{{ f.danio_porcentaje.errors }}</div>
-        <div class="campo">{{ f.franquicia_porcentaje.label_tag }}{{ f.franquicia_porcentaje }}</div>
-        <div class="campo">{{ f.cobertura_qq.label_tag }}{{ f.cobertura_qq }}</div>
-        <div class="campo">{{ f.estadio.label_tag }}{{ f.estadio }}</div>
-        <div class="campo">{{ f.liberacion.label_tag }}{{ f.liberacion }}</div>
+        <div class="campo">
+          {{ f.establecimiento.label_tag }}{{ f.establecimiento }}
+          {{ f.establecimiento.errors }}
+        </div>
+
+        <div class="campo">
+          {{ f.cultivo.label_tag }}{{ f.cultivo }}
+          {{ f.cultivo.errors }}
+        </div>
+
+        <div class="campo">
+          {{ f.hectareas_afectadas.label_tag }}{{ f.hectareas_afectadas }}
+          {{ f.hectareas_afectadas.errors }}
+        </div>
+
+        <div class="campo">
+          {{ f.danio_porcentaje.label_tag }}{{ f.danio_porcentaje }}
+          {{ f.danio_porcentaje.errors }}
+        </div>
+
+        <div class="campo">
+          {{ f.franquicia_porcentaje.label_tag }}{{ f.franquicia_porcentaje }}
+          {{ f.franquicia_porcentaje.errors }}
+        </div>
+
+        <div class="campo">
+          {{ f.cobertura_qq.label_tag }}{{ f.cobertura_qq }}
+          {{ f.cobertura_qq.errors }}
+        </div>
+
+        <div class="campo">
+          {{ f.estadio.label_tag }}{{ f.estadio }}
+          {{ f.estadio.errors }}
+        </div>
+
+        <div class="campo">
+          {{ f.liberacion.label_tag }}{{ f.liberacion }}
+          {{ f.liberacion.errors }}
+        </div>
 
         <div class="campo">
           <label>Indemnización:</label>
           <input type="text" class="calc-indemnizacion" readonly>
         </div>
+
         <div class="campo">
           <label>Indem. Ajus.:</label>
           <input type="text" class="calc-indemnizacion-ajustada" readonly>
@@ -136,14 +207,16 @@
     <template id="tpl-empty">
       <div class="formset-linea">
         {{ formset.empty_form.id }}
-        <div class="campo">{{ formset.empty_form.establecimiento.label_tag }}{{ formset.empty_form.establecimiento }}</div>
-        <div class="campo">{{ formset.empty_form.cultivo.label_tag }}{{ formset.empty_form.cultivo }}</div>
-        <div class="campo">{{ formset.empty_form.hectareas_afectadas.label_tag }}{{ formset.empty_form.hectareas_afectadas }}</div>
-        <div class="campo">{{ formset.empty_form.danio_porcentaje.label_tag }}{{ formset.empty_form.danio_porcentaje }}</div>
-        <div class="campo">{{ formset.empty_form.franquicia_porcentaje.label_tag }}{{ formset.empty_form.franquicia_porcentaje }}</div>
-        <div class="campo">{{ formset.empty_form.cobertura_qq.label_tag }}{{ formset.empty_form.cobertura_qq }}</div>
-        <div class="campo">{{ formset.empty_form.estadio.label_tag }}{{ formset.empty_form.estadio }}</div>
-        <div class="campo">{{ formset.empty_form.liberacion.label_tag }}{{ formset.empty_form.liberacion }}</div>
+
+        <div class="campo">{{ formset.empty_form.establecimiento.label_tag }}{{ formset.empty_form.establecimiento }}{{ formset.empty_form.establecimiento.errors }}</div>
+        <div class="campo">{{ formset.empty_form.cultivo.label_tag }}{{ formset.empty_form.cultivo }}{{ formset.empty_form.cultivo.errors }}</div>
+        <div class="campo">{{ formset.empty_form.hectareas_afectadas.label_tag }}{{ formset.empty_form.hectareas_afectadas }}{{ formset.empty_form.hectareas_afectadas.errors }}</div>
+        <div class="campo">{{ formset.empty_form.danio_porcentaje.label_tag }}{{ formset.empty_form.danio_porcentaje }}{{ formset.empty_form.danio_porcentaje.errors }}</div>
+        <div class="campo">{{ formset.empty_form.franquicia_porcentaje.label_tag }}{{ formset.empty_form.franquicia_porcentaje }}{{ formset.empty_form.franquicia_porcentaje.errors }}</div>
+        <div class="campo">{{ formset.empty_form.cobertura_qq.label_tag }}{{ formset.empty_form.cobertura_qq }}{{ formset.empty_form.cobertura_qq.errors }}</div>
+        <div class="campo">{{ formset.empty_form.estadio.label_tag }}{{ formset.empty_form.estadio }}{{ formset.empty_form.estadio.errors }}</div>
+        <div class="campo">{{ formset.empty_form.liberacion.label_tag }}{{ formset.empty_form.liberacion }}{{ formset.empty_form.liberacion.errors }}</div>
+
         <div class="campo">
           <label>Indemnización:</label>
           <input type="text" class="calc-indemnizacion" readonly>
@@ -152,6 +225,7 @@
           <label>Indem. Ajus.:</label>
           <input type="text" class="calc-indemnizacion-ajustada" readonly>
         </div>
+
         {{ formset.empty_form.DELETE }}
         <div class="eliminar-wrapper">
           <button type="button" class="icon-btn eliminar-linea" title="Eliminar línea">
@@ -163,7 +237,9 @@
       </div>
     </template>
 
-    <button type="button" id="agregar-linea" class="btn" style="background:#2ecc71;color:#fff;margin-bottom:10px; border:none; border-radius:10px; padding:10px 16px;">Agregar línea</button>
+    <button type="button" id="agregar-linea" class="btn" style="background:#2ecc71;color:#fff;margin-bottom:10px; border:none; border-radius:10px; padding:10px 16px;">
+      Agregar línea
+    </button>
 
     <div class="totales">
       <span>Total Indemnización: <strong id="total-indemnizacion">0,00</strong></span>
@@ -243,18 +319,16 @@
     const val=calcIndemnizacionQQ(row);
     const out=row.querySelector('.calc-indemnizacion');
     if(out) out.value=nf.format(val.toFixed(2));
-  
-    // ✅ Tomar el ajuste de la campaña seleccionada
+
     const ajusteOpt = document.getElementById('id_campaña')?.selectedOptions[0];
     const ajuste = ajusteOpt ? parseFloat(ajusteOpt.dataset.ajuste || '0') : 0;
-  
+
     const valAdj=calcIndemnizacionAjustada(row,ajuste);
     const outAdj=row.querySelector('.calc-indemnizacion-ajustada');
     if(outAdj) outAdj.value=nf.format(valAdj.toFixed(2));
     return {qq:val,ajustada:valAdj};
   }
-  
-  
+
   function recomputarTotal(){
     let tot=0, totAdj=0;
     qa('.formset-linea',$formset).forEach(r=>{
@@ -367,46 +441,71 @@
   });
 })();
 </script>
+
 <script>
-  (function(){
-  
-    const socioSel = document.getElementById('id_socio');
-    const denunciaSel = document.getElementById('id_denuncia');
-  
-    function cargarDenuncias(socioId){
-      if(!socioId){
-        denunciaSel.innerHTML = '<option value="">---------</option>';
-        denunciaSel.disabled = true;
-        return;
-      }
-  
-      fetch("{% url 'denuncias_disponibles' %}?socio_id=" + encodeURIComponent(socioId))
-        .then(r => r.json())
-        .then(data => {
-          denunciaSel.innerHTML = '<option value="">---------</option>';
-          (data.denuncias || []).forEach(d => {
-            const opt = document.createElement('option');
-            opt.value = d.id;
-            opt.textContent = d.texto;
-            denunciaSel.appendChild(opt);
-          });
-          denunciaSel.disabled = false;
-        });
+(function(){
+  const socioSel = document.getElementById('id_socio');
+  const denunciaSel = document.getElementById('id_denuncia');
+  const campSel = document.getElementById('id_campaña');
+  const formEl = document.getElementById('form-siniestro');
+
+  function setDenunciaValueFromBound(){
+    const bound = "{{ form.denuncia.value|default_if_none:'' }}";
+    if(!bound) return;
+    // se aplicará cuando ya estén cargadas las options
+    const opt = denunciaSel.querySelector(`option[value="${bound}"]`);
+    if(opt) denunciaSel.value = bound;
+  }
+
+  function cargarDenuncias(socioId){
+    if(!socioId){
+      denunciaSel.innerHTML = '<option value="">---------</option>';
+      denunciaSel.disabled = true;
+      return;
     }
-  
-    socioSel?.addEventListener('change', () => {
-      cargarDenuncias(socioSel.value);
-    });
-  
-    document.addEventListener('DOMContentLoaded', () => {
-      cargarDenuncias(socioSel.value);
-    });
-  
-  })();
-  </script>
-  
+
+    // Si estamos editando y querés incluir denuncia actual, podés pasar actual_id acá:
+    // const actualId = "{{ form.denuncia.value|default_if_none:'' }}";
+    // const extra = actualId ? "&actual_id=" + encodeURIComponent(actualId) : "";
+    // fetch("{% url 'denuncias_disponibles' %}?socio_id=" + encodeURIComponent(socioId) + extra)
+
+    fetch("{% url 'denuncias_disponibles' %}?socio_id=" + encodeURIComponent(socioId))
+      .then(r => r.json())
+      .then(data => {
+        denunciaSel.innerHTML = '<option value="">---------</option>';
+        (data.denuncias || []).forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.id;
+          opt.textContent = d.texto;
+          denunciaSel.appendChild(opt);
+        });
+        denunciaSel.disabled = false;
+
+        // ✅ re-seleccionar denuncia si el POST volvió con error
+        setDenunciaValueFromBound();
+      });
+  }
+
+  socioSel?.addEventListener('change', () => {
+    cargarDenuncias(socioSel.value);
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    cargarDenuncias(socioSel?.value || '');
+  });
+
+  // ✅ MUY IMPORTANTE: si está disabled, no se envía en el POST
+  formEl?.addEventListener('submit', () => {
+    if (denunciaSel) denunciaSel.disabled = false;
+  });
+
+  // opcional: si cambiás campaña, solo recalculás totales visuales (tu código ya lo hace en recomputar)
+  campSel?.addEventListener('change', () => {});
+})();
+</script>
 
 {% endblock %}
+
 
 
 

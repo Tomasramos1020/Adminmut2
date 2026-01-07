@@ -1,0 +1,31 @@
+{% extends 'raiz.html' %}
+
+{% block titulo %}Eliminar Denuncia{% endblock %}
+{% block header %}Eliminar Denuncia{% endblock %}
+
+{% block contenido %}
+<div class="card-box">
+  <h4>¿Confirmar eliminación?</h4>
+
+  <p>
+    Está a punto de eliminar la denuncia del socio
+    <strong>{{ object.socio }}</strong>
+    con fecha <strong>{{ object.fecha|date:"d/m/Y" }}</strong>.
+  </p>
+
+  <p class="text-danger">
+    ⚠️ Esta acción eliminará también todas las líneas asociadas
+    y no se puede deshacer.
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+    <a href="{% url 'registro_denuncias' %}" class="btn btn-default">
+      Cancelar
+    </a>
+    <button type="submit" class="btn btn-danger">
+      Eliminar
+    </button>
+  </form>
+</div>
+{% endblock %}

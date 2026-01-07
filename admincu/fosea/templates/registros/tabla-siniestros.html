@@ -32,7 +32,17 @@
         <td class="text-right">
           {{ s.indemnizacion_total|default:s.indemnizacion_total_calc|default_if_none:"0.00"|floatformat:2 }}
         </td>
+
+        
         <td class="text-right">
+          <!-- Eliminar -->
+          <a href="{% url 'siniestro_eliminar' s.pk %}"
+            class="btn btn-icon btn-xs btn-danger btn-bordered waves-efect waves-light"
+            title="Eliminar siniestro">
+            <i class="fa fa-trash"></i>
+          </a>
+
+        <!-- Editar -->
           <a href="{% url 'siniestro_editar' s.pk %}"
              class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light"
              title="Editar">

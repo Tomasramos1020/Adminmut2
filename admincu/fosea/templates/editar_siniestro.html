@@ -6,69 +6,51 @@
 
 {% block contenido %}
 <style>
-  .contenido-interno{
-    background:#fff; padding:20px; border-radius:12px; 
-    max-width:1500px; margin:20px auto;
-    box-shadow:0 6px 22px rgba(0,0,0,.08);
-  }
-
+  /* (tu CSS igual) */
+  .contenido-interno{ background:#fff; padding:20px; border-radius:12px; max-width:1500px; margin:20px auto; box-shadow:0 6px 22px rgba(0,0,0,.08); }
   .form-row{ display:flex; gap:12px; flex-wrap:wrap; margin-bottom:15px; }
   .form-row .form-group{ flex:1; min-width:220px; }
   .form-group{ margin-bottom:15px; }
   label{ display:block; font-weight:600; margin-bottom:6px; color:#333; }
-  select, input[type="text"], input[type="date"], input[type="number"]{
-    width:100%; padding:8px 10px; border:1px solid #dcdcdc; border-radius:8px; background:#fff;
-  }
-
-  .formset-linea{
-    display:grid;
-    grid-template-columns: 1.6fr 1.2fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 1.0fr 1.0fr 56px; 
-    gap:12px; padding:16px;
-    border:1px dashed #e6e6e6; border-radius:10px; background:#fafafa;
-    align-items:start; margin-bottom:10px;
-  }
+  select, input[type="text"], input[type="date"], input[type="number"]{ width:100%; padding:8px 10px; border:1px solid #dcdcdc; border-radius:8px; background:#fff; }
+  .formset-linea{ display:grid; grid-template-columns: 1.6fr 1.2fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr 1.0fr 1.0fr 56px; gap:12px; padding:16px; border:1px dashed #e6e6e6; border-radius:10px; background:#fafafa; align-items:start; margin-bottom:10px; }
   .formset-linea .campo{ display:flex; flex-direction:column; }
-
   .eliminar-wrapper{ align-self:center; justify-self:center; }
-  .icon-btn{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:36px; height:36px; border:none; border-radius:10px; cursor:pointer;
-    background:#ffe8e6; transition:transform .08s ease, background .15s ease;
-  }
+  .icon-btn{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border:none; border-radius:10px; cursor:pointer; background:#ffe8e6; transition:transform .08s ease, background .15s ease; }
   .icon-btn:hover{ background:#ffd5d1; transform:translateY(-1px); }
   .icon-btn:active{ transform:translateY(0); }
   .icon-trash{ width:18px; height:18px; fill:#e74c3c; }
-
   input[name$="-DELETE"]{ display:none; }
-
   .totales{ display:flex; justify-content:flex-end; margin-top:8px; font-weight:700; gap:10px; flex-wrap:wrap; }
-  .totales span{
-    background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 12px;
-  }
-
-  @media (max-width: 1100px){
-    .formset-linea{ grid-template-columns: 1fr 1fr; }
-    .eliminar-wrapper{ grid-column: 2; }
-  }
-  .errorlist {
-    color: #e74c3c;
-    margin-top: 4px;
-    margin-bottom: 0;
-    font-size: 0.9em;
-    font-weight: 500;
-    list-style: none;
-    padding-left: 0;
-  }
+  .totales span{ background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 12px; }
+  @media (max-width: 1100px){ .formset-linea{ grid-template-columns: 1fr 1fr; } .eliminar-wrapper{ grid-column: 2; } }
+  .errorlist{ color:#e74c3c; margin-top:4px; margin-bottom:0; font-size:.9em; font-weight:500; list-style:none; padding-left:0; }
+  .alert{ border-radius:10px; padding:12px 14px; margin:0 0 14px 0; border:1px solid #f1c2c2; background:#fff5f5; color:#b42318; font-weight:600; }
 </style>
 
 <div class="contenido-interno">
-  <form method="post">
+  <form method="post" id="form-siniestro-edit">
     {% csrf_token %}
+
+    {# ✅ mostrar errores reales #}
+    {% if form.errors or formset.errors or formset.non_form_errors %}
+      <div class="alert">
+        No se pudo guardar. Revisá los errores marcados en rojo.
+        {{ form.non_field_errors }}
+        {{ formset.non_form_errors }}
+      </div>
+      {# opcional debug visual:
+      <pre>{{ form.errors }}</pre>
+      <pre>{{ formset.errors }}</pre>
+      #}
+    {% endif %}
 
     <div class="form-row">
       <div class="form-group">
         {{ form.fecha.label_tag }} {{ form.fecha }}
+        {{ form.fecha.errors }}
       </div>
+
       <div class="form-group">
         <label for="id_campaña">Campaña:</label>
         <select name="campaña" id="id_campaña" class="form-control">
@@ -76,20 +58,30 @@
           {% for c in form.fields.campaña.queryset %}
             <option value="{{ c.id }}"
                     data-ajuste="{{ c.ajuste|default_if_none:0 }}"
-                    {% if form.instance.campaña_id == c.id %}selected{% endif %}>
+                    {% if form.campaña.value|stringformat:"s" == c.id|stringformat:"s" %}selected{% endif %}>
               {{ c }}
             </option>
           {% endfor %}
         </select>
-      </div>      
+        {{ form.campaña.errors }}
+      </div>
+
       <div class="form-group">
         {{ form.socio.label_tag }} {{ form.socio }}
+        {{ form.socio.errors }}
+      </div>
+
+      <div class="form-group">
+        <label for="id_denuncia">Denuncia asociada:</label>
+        <select id="id_denuncia" name="denuncia" class="form-control">
+          <option value="">---------</option>
+        </select>
+        {{ form.denuncia.errors }}
       </div>
     </div>
 
     <hr>
     <h3>Líneas de Daño</h3>
-    {{ form.non_field_errors }}
     {{ formset.non_form_errors }}
     {% for f in formset %}{{ f.non_field_errors }}{% endfor %}
 
@@ -104,10 +96,10 @@
         <div class="campo">{{ f.cultivo.label_tag }}{{ f.cultivo }}{{ f.cultivo.errors }}</div>
         <div class="campo">{{ f.hectareas_afectadas.label_tag }}{{ f.hectareas_afectadas }}{{ f.hectareas_afectadas.errors }}</div>
         <div class="campo">{{ f.danio_porcentaje.label_tag }}{{ f.danio_porcentaje }}{{ f.danio_porcentaje.errors }}</div>
-        <div class="campo">{{ f.franquicia_porcentaje.label_tag }}{{ f.franquicia_porcentaje }}</div>
-        <div class="campo">{{ f.cobertura_qq.label_tag }}{{ f.cobertura_qq }}</div>
-        <div class="campo">{{ f.estadio.label_tag }}{{ f.estadio }}</div>
-        <div class="campo">{{ f.liberacion.label_tag }}{{ f.liberacion }}</div>
+        <div class="campo">{{ f.franquicia_porcentaje.label_tag }}{{ f.franquicia_porcentaje }}{{ f.franquicia_porcentaje.errors }}</div>
+        <div class="campo">{{ f.cobertura_qq.label_tag }}{{ f.cobertura_qq }}{{ f.cobertura_qq.errors }}</div>
+        <div class="campo">{{ f.estadio.label_tag }}{{ f.estadio }}{{ f.estadio.errors }}</div>
+        <div class="campo">{{ f.liberacion.label_tag }}{{ f.liberacion }}{{ f.liberacion.errors }}</div>
 
         <div class="campo">
           <label>Indemnización:</label>
@@ -130,13 +122,49 @@
       {% endfor %}
     </div>
 
+    <template id="tpl-empty">
+      <div class="formset-linea">
+        {{ formset.empty_form.id }}
+        <div class="campo">{{ formset.empty_form.establecimiento.label_tag }}{{ formset.empty_form.establecimiento }}</div>
+        <div class="campo">{{ formset.empty_form.cultivo.label_tag }}{{ formset.empty_form.cultivo }}</div>
+        <div class="campo">{{ formset.empty_form.hectareas_afectadas.label_tag }}{{ formset.empty_form.hectareas_afectadas }}</div>
+        <div class="campo">{{ formset.empty_form.danio_porcentaje.label_tag }}{{ formset.empty_form.danio_porcentaje }}</div>
+        <div class="campo">{{ formset.empty_form.franquicia_porcentaje.label_tag }}{{ formset.empty_form.franquicia_porcentaje }}</div>
+        <div class="campo">{{ formset.empty_form.cobertura_qq.label_tag }}{{ formset.empty_form.cobertura_qq }}</div>
+        <div class="campo">{{ formset.empty_form.estadio.label_tag }}{{ formset.empty_form.estadio }}</div>
+        <div class="campo">{{ formset.empty_form.liberacion.label_tag }}{{ formset.empty_form.liberacion }}</div>
+
+        <div class="campo">
+          <label>Indemnización:</label>
+          <input type="text" class="calc-indemnizacion" readonly>
+        </div>
+        <div class="campo">
+          <label>Indem. Ajus.:</label>
+          <input type="text" class="calc-indemnizacion-ajustada" readonly>
+        </div>
+
+        {{ formset.empty_form.DELETE }}
+        <div class="eliminar-wrapper">
+          <button type="button" class="icon-btn eliminar-linea" title="Eliminar línea">
+            <svg class="icon-trash" viewBox="0 0 24 24">
+              <path d="M9 3h6a1 1 0 0 1 1 1v1h4v2h-1v12a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V7H4V5h4V4a1 1 0 0 1 1-1zm1 4H7v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7h-3H10zm1 3h2v8h-2V10zm-4 0h2v8H7v-8zm8 0h2v8h-2v-8zM10 5v0h4V4h-4v1z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <button type="button" id="agregar-linea" class="btn" style="background:#2ecc71;color:#fff;margin-bottom:10px; border:none; border-radius:10px; padding:10px 16px;">
+      Agregar línea
+    </button>
+
     <div class="totales">
       <span>Total Indemnización: <strong id="total-indemnizacion">0,00</strong></span>
       <span>Total Indemnización Ajustada: <strong id="total-indemnizacion-ajustada">0,00</strong></span>
     </div>
 
     <div class="botones" style="margin-top:22px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
-      <a href="{% url 'fosea' %}" class="btn btn-cancelar" style="background:#95a5a6;color:#fff;border:none;border-radius:10px;padding:10px 16px;">Cancelar</a>
+      <a href="{% url 'registro_siniestros' %}" class="btn btn-cancelar" style="background:#95a5a6;color:#fff;border:none;border-radius:10px;padding:10px 16px;">Cancelar</a>
       <button type="submit" class="btn btn-guardar" style="background:#3498db;color:#fff;border:none;border-radius:10px;padding:10px 16px;">Guardar</button>
     </div>
   </form>
@@ -146,10 +174,69 @@
 (function(){
   const nf = new Intl.NumberFormat('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
   const $formset=document.getElementById('formset');
-  function qa(s,c=document){return Array.from(c.querySelectorAll(s));}
-  function q(s,c=document){return c.querySelector(s);}
+  const $tpl=document.getElementById('tpl-empty');
+  const $btnAdd=document.getElementById('agregar-linea');
 
-  /* ======== CÁLCULO DE INDEMNIZACIONES ======== */
+  function q(s,c=document){return c.querySelector(s);}
+  function qa(s,c=document){return Array.from(c.querySelectorAll(s));}
+  function totalFormsEl(){return q('#id_form-TOTAL_FORMS');}
+  function getTotal(){return parseInt(totalFormsEl().value||'0',10);}
+  function setTotal(v){totalFormsEl().value=String(v);}
+
+  /* ===================== FILTRAR ESTABLECIMIENTOS ===================== */
+  function filtrarEstablecimientosNodo(node,socioId,campañaId){
+    const sel=node.querySelector("select[name$='establecimiento']");
+    if(!sel)return;
+    if(!socioId){
+      sel.innerHTML='<option value="">Seleccioná un socio primero</option>';
+      sel.disabled=true;
+      return;
+    }
+    const url="{% url 'establecimientos_filtrados' %}?socio_id="+encodeURIComponent(socioId)+(campañaId?"&campaña_id="+encodeURIComponent(campañaId):"");
+    fetch(url).then(r=>r.json()).then(data=>{
+      const current=sel.value;
+      sel.innerHTML='<option value="">---------</option>';
+      (data.establecimientos||[]).forEach(est=>{
+        const opt=document.createElement('option');
+        opt.value=est.id;
+        opt.textContent=est.nombre;
+        sel.appendChild(opt);
+      });
+      if(current&&sel.querySelector(`option[value="${current}"]`)) sel.value=current;
+      sel.disabled=false;
+    });
+  }
+
+  function filtrarEstablecimientosGlobal(){
+    const socioId=q('#id_socio')?.value||'';
+    const campañaId=q('#id_campaña')?.value||'';
+    qa('.formset-linea',$formset).forEach(row=>filtrarEstablecimientosNodo(row,socioId,campañaId));
+  }
+
+  q('#id_socio')?.addEventListener('change',filtrarEstablecimientosGlobal);
+  q('#id_campaña')?.addEventListener('change',()=>{
+    filtrarEstablecimientosGlobal();
+    recomputarTotal();
+  });
+
+  /* ===================== COBERTURA AUTO ===================== */
+  function cargarCoberturaPorCultivoYCampania(row){
+    const selCult=row.querySelector("select[name$='cultivo']");
+    const selEst=row.querySelector("select[name$='establecimiento']");
+    const socioId=q('#id_socio')?.value||'';
+    const campaniaId=q('#id_campaña')?.value||'';
+    const cobInput=row.querySelector("input[name$='cobertura_qq']");
+    if(selCult&&selEst&&selCult.value&&selEst.value&&socioId&&campaniaId){
+      fetch("{% url 'cobertura_por_cultivo' %}?cultivo_id="+encodeURIComponent(selCult.value)+"&establecimiento_id="+encodeURIComponent(selEst.value)+"&socio_id="+encodeURIComponent(socioId)+"&campaña_id="+encodeURIComponent(campaniaId))
+      .then(r=>r.json()).then(data=>{
+        const cob=(data&&data.cobertura!=null)?Number(data.cobertura):null;
+        if(cobInput)cobInput.value=(cob!=null)?cob.toFixed(2):'';
+        recomputarTotal();
+      });
+    }
+  }
+
+  /* ===================== CÁLCULOS ===================== */
   function calcIndemnizacionQQ(row){
     const ha=parseFloat((row.querySelector("input[name$='hectareas_afectadas']")?.value||'0').replace(',','.'))||0;
     const danio=parseFloat((row.querySelector("input[name$='danio_porcentaje']")?.value||'0').replace(',','.'))||0;
@@ -165,134 +252,127 @@
     return ha*cob*factor;
   }
 
-  function calcIndemnizacionAjustada(row, ajuste){
+  function calcIndemnizacionAjustada(row){
     const indemn=calcIndemnizacionQQ(row);
-    const aj=parseFloat(ajuste||'0')/100.0;
-    return indemn*(1-aj);
+    const ajusteOpt=q('#id_campaña')?.selectedOptions[0];
+    const ajuste=ajusteOpt?parseFloat(ajusteOpt.dataset.ajuste||'0'):0;
+    return indemn*(1-(ajuste/100.0));
   }
 
-  function recomputarIndemnizacionFila(row){
-    if(row.querySelector("input[name$='-DELETE']")?.checked)return {qq:0,ajustada:0};
-    const val=calcIndemnizacionQQ(row);
+  function recomputarFila(row){
+    if(row.querySelector("input[name$='-DELETE']")?.checked) return {qq:0,aj:0};
+    const qq=calcIndemnizacionQQ(row);
+    const aj=calcIndemnizacionAjustada(row);
     const out=row.querySelector('.calc-indemnizacion');
-    if(out) out.value=nf.format(val.toFixed(2));
-
-    const ajusteOpt=document.getElementById('id_campaña')?.selectedOptions[0];
-    const ajuste=ajusteOpt?parseFloat(ajusteOpt.dataset.ajuste||'0'):0;
-    const valAdj=calcIndemnizacionAjustada(row,ajuste);
-    const outAdj=row.querySelector('.calc-indemnizacion-ajustada');
-    if(outAdj) outAdj.value=nf.format(valAdj.toFixed(2));
-
-    return {qq:val,ajustada:valAdj};
+    const outAj=row.querySelector('.calc-indemnizacion-ajustada');
+    if(out) out.value=nf.format(qq.toFixed(2));
+    if(outAj) outAj.value=nf.format(aj.toFixed(2));
+    return {qq,aj};
   }
 
   function recomputarTotal(){
-    let tot=0, totAdj=0;
+    let tot=0, totAj=0;
     qa('.formset-linea',$formset).forEach(r=>{
-      if(r.style.display==='none')return;
-      const vals=recomputarIndemnizacionFila(r);
-      tot+=vals.qq;
-      totAdj+=vals.ajustada;
+      if(r.style.display==='none') return;
+      const v=recomputarFila(r);
+      tot+=v.qq; totAj+=v.aj;
     });
     q('#total-indemnizacion').textContent=nf.format(tot.toFixed(2));
-    q('#total-indemnizacion-ajustada').textContent=nf.format(totAdj.toFixed(2));
-  }
-
-  /* ======== AUTO CARGA DE COBERTURA ======== */
-  function cargarCoberturaPorCultivoYCampania(row){
-    const selCult=row.querySelector("select[name$='cultivo']");
-    const selEst=row.querySelector("select[name$='establecimiento']");
-    const socioId=document.getElementById('id_socio')?.value||'';
-    const campaniaId=document.getElementById('id_campaña')?.value||'';
-    const cobInput=row.querySelector("input[name$='cobertura_qq']");
-    if(selCult&&selEst&&selCult.value&&selEst.value&&socioId&&campaniaId){
-      fetch("{% url 'cobertura_por_cultivo' %}?cultivo_id="+encodeURIComponent(selCult.value)+"&establecimiento_id="+encodeURIComponent(selEst.value)+"&socio_id="+encodeURIComponent(socioId)+"&campaña_id="+encodeURIComponent(campaniaId))
-      .then(r=>r.json()).then(data=>{
-        const cob=(data&&data.cobertura!=null)?Number(data.cobertura):null;
-        if(cobInput)cobInput.value=(cob!=null)?cob.toFixed(2):'';
-        recomputarIndemnizacionFila(row);recomputarTotal();
-      });
-    }else{if(cobInput)cobInput.value='';recomputarIndemnizacionFila(row);recomputarTotal();}
+    q('#total-indemnizacion-ajustada').textContent=nf.format(totAj.toFixed(2));
   }
 
   $formset.addEventListener('change',e=>{
     const name=e.target?.name||'';
     if(name.endsWith('establecimiento')||name.endsWith('cultivo')){
       const row=e.target.closest('.formset-linea');
-      if(row)cargarCoberturaPorCultivoYCampania(row);
+      if(row) cargarCoberturaPorCultivoYCampania(row);
     }
+    recomputarTotal();
   });
 
   $formset.addEventListener('input',e=>{
     const name=e.target?.name||'';
     const keys=['hectareas_afectadas','danio_porcentaje','franquicia_porcentaje','cobertura_qq','liberacion'];
-    if(keys.some(k=>name.endsWith(k))){
-      const row=e.target.closest('.formset-linea');
-      if(row){recomputarIndemnizacionFila(row);recomputarTotal();}
-    }
+    if(keys.some(k=>name.endsWith(k))) recomputarTotal();
+  });
+
+  /* ===================== AGREGAR / ELIMINAR ===================== */
+  function addLinea(){
+    const idx=getTotal();
+    const html=$tpl.innerHTML.replace(/__prefix__/g,idx);
+    const wrap=document.createElement('div');
+    wrap.innerHTML=html.trim();
+    const node=wrap.firstElementChild;
+    $formset.appendChild(node);
+    setTotal(idx+1);
+
+    // ✅ aplicar filtros y cargas al nodo nuevo
+    const socioId=q('#id_socio')?.value||'';
+    const campId=q('#id_campaña')?.value||'';
+    filtrarEstablecimientosNodo(node,socioId,campId);
+    cargarCoberturaPorCultivoYCampania(node);
+    recomputarTotal();
+  }
+  $btnAdd?.addEventListener('click',addLinea);
+
+  $formset.addEventListener('click', e=>{
+    const btn = e.target.closest('.eliminar-linea');
+    if(!btn) return;
+    const row = btn.closest('.formset-linea');
+    const del = row.querySelector("input[name$='-DELETE']");
+    if(del){ del.checked=true; row.style.display='none'; }
+    else{ row.remove(); }
+    recomputarTotal();
   });
 
   document.addEventListener('DOMContentLoaded',()=>{
-    qa('.formset-linea',$formset).forEach(row=>{
-      cargarCoberturaPorCultivoYCampania(row);
-      recomputarIndemnizacionFila(row);
-    });
+    // filtrar para todas las líneas existentes
+    filtrarEstablecimientosGlobal();
+    qa('.formset-linea',$formset).forEach(row=>cargarCoberturaPorCultivoYCampania(row));
     recomputarTotal();
   });
 })();
-/* ===================== FILTRAR ESTABLECIMIENTOS ===================== */
-function filtrarEstablecimientosGlobal(socioId,campañaId){
-  document.querySelectorAll("select[name$='establecimiento']").forEach(sel=>{
-    filtrarEstablecimientosNodo(sel.closest('.formset-linea'), socioId, campañaId);
-  });
-}
+</script>
 
-function filtrarEstablecimientosNodo(node,socioId,campañaId){
-  const sel=node.querySelector("select[name$='establecimiento']");
-  if(!sel)return;
+<script>
+(function(){
+  const socioSel = document.getElementById('id_socio');
+  const denunciaSel = document.getElementById('id_denuncia');
 
-  if(!socioId){
-    sel.innerHTML='<option value="">Seleccioná un socio primero</option>';
-    sel.disabled=true;
-    return;
-  }
+  // ✅ si vuelve por POST inválido, usar lo que el usuario mandó
+  const denunciaBound = "{{ form.denuncia.value|default_if_none:'' }}";
+  const denunciaActual = denunciaBound || "{{ siniestro.denuncia_id|default:'' }}";
 
-  const url="{% url 'establecimientos_filtrados' %}?socio_id="+encodeURIComponent(socioId)+
-            (campañaId ? "&campaña_id="+encodeURIComponent(campañaId) : "");
-
-  fetch(url).then(r=>r.json()).then(data=>{
-    const current = sel.value;
-
-    sel.innerHTML='<option value="">---------</option>';
-    (data.establecimientos||[]).forEach(est=>{
-      const opt=document.createElement('option');
-      opt.value=est.id;
-      opt.textContent=est.nombre;
-      sel.appendChild(opt);
-    });
-
-    if(current && sel.querySelector(`option[value="${current}"]`)) {
-      sel.value = current;
+  function cargarDenuncias(socioId){
+    if(!socioId){
+      denunciaSel.innerHTML = '<option value="">---------</option>';
+      denunciaSel.disabled = true;
+      return;
     }
 
-    sel.disabled=false;
-  });
-}
+    fetch("{% url 'denuncias_disponibles' %}?socio_id=" + encodeURIComponent(socioId) + "&actual_id=" + encodeURIComponent(denunciaActual || ""))
+      .then(r => r.json())
+      .then(data => {
+        denunciaSel.innerHTML = '<option value="">---------</option>';
+        (data.denuncias || []).forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.id;
+          opt.textContent = d.texto;
+          denunciaSel.appendChild(opt);
+        });
 
-const socioSel=document.getElementById('id_socio');
-const campañaSel=document.getElementById('id_campaña');
+        if (denunciaActual && denunciaSel.querySelector(`option[value="${denunciaActual}"]`)) {
+          denunciaSel.value = denunciaActual;
+        }
+        denunciaSel.disabled = false;
+      });
+  }
 
-function initFiltroSocioCampaña(){
-  const actualizar=()=>filtrarEstablecimientosGlobal(socioSel.value,campañaSel?.value);
-  socioSel?.addEventListener('change',actualizar);
-  campañaSel?.addEventListener('change',actualizar);
-  actualizar();
-}
-
-document.addEventListener('DOMContentLoaded',()=>{
-  initFiltroSocioCampaña();
-});
+  socioSel?.addEventListener('change', () => cargarDenuncias(socioSel.value));
+  document.addEventListener('DOMContentLoaded', () => cargarDenuncias(socioSel?.value || ''));
+})();
 </script>
 
 {% endblock %}
+
 

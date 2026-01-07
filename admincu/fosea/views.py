@@ -387,6 +387,25 @@ class EditarSolicitudView(View):
 		return render(request, self.template_name, ctx)
 
 # views.py
+from django.urls import reverse_lazy
+from django.views.generic import DeleteView
+
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class SolicitudDeleteView(DeleteView):
+	model = Solicitud
+	template_name = 'solicitud_confirm_delete.html'
+	success_url = reverse_lazy('registro-solicitudes')  # ajustá al nombre real
+
+	def get_queryset(self):
+		"""
+		Seguridad extra: solo puede borrar solicitudes
+		del consorcio activo
+		"""
+		qs = super().get_queryset()
+		return qs.filter(consorcio=consorcio(self.request))
+
+# views.py
  # ajustá el import
 
 class PagareSolicitudPDFView(View):
@@ -897,27 +916,32 @@ def cobertura_por_cultivo(request):
 
 	return JsonResponse({'cobertura': max_subsidio or None})
 
+from django.db.models import Q
+
 @login_required
 @require_GET
 def denuncias_disponibles(request):
-	cons = consorcio(request)
-	socio_id = request.GET.get("socio_id")
+    cons = consorcio(request)
+    socio_id = request.GET.get("socio_id")
+    actual_id = request.GET.get("actual_id")  # <- denuncia actual (opcional)
 
-	if not socio_id:
-		return JsonResponse({"denuncias": []})
+    if not socio_id:
+        return JsonResponse({"denuncias": []})
 
-	denuncias = Denuncia.objects.filter(
-		consorcio=cons,
-		socio_id=socio_id,
-		siniestro__isnull=True   # ✅ solo no usadas
-	).order_by('-fecha')
+    q = Q(consorcio=cons, socio_id=socio_id) & Q(siniestro__isnull=True)
 
-	data = [
-		{"id": d.id, "texto": f"{d.fecha.strftime('%d/%m/%Y')} - {d.campaña}"}
-		for d in denuncias
-	]
+    # ✅ en edición: incluir la denuncia actual aunque ya esté usada
+    if actual_id:
+        q = q | (Q(consorcio=cons, socio_id=socio_id) & Q(id=actual_id))
 
-	return JsonResponse({"denuncias": data})
+    denuncias = Denuncia.objects.filter(q).distinct().order_by('-fecha')
+
+    data = [
+        {"id": d.id, "texto": f"{d.fecha.strftime('%d/%m/%Y')} - {d.campaña}"}
+        for d in denuncias
+    ]
+    return JsonResponse({"denuncias": data})
+
 
 
 @method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
@@ -1074,11 +1098,13 @@ class EditarSiniestroView(View):
 		siniestro = get_object_or_404(Siniestro, pk=pk, consorcio=cons)
 
 		form = SiniestroForm(request.POST, instance=siniestro, request=request)
+		socio_post = Socio.objects.filter(pk=request.POST.get('socio'), consorcio=cons).first() or siniestro.socio
+
 		formset = SiniestroLineaFormSet(
 			request.POST,
 			instance=siniestro,
 			prefix='form',
-			form_kwargs={'request': request, 'consorcio': cons, 'socio': siniestro.socio},
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': socio_post},
 		)
 
 		if form.is_valid() and formset.is_valid():
@@ -1093,6 +1119,16 @@ class EditarSiniestroView(View):
 			'siniestro': siniestro,
 			'modo_edicion': True,
 		})
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class SiniestroDeleteView(DeleteView):
+	model = Siniestro
+	template_name = 'siniestro_confirm_delete.html'
+	success_url = reverse_lazy('registro_siniestros')
+
+	def get_queryset(self):
+		qs = super().get_queryset()
+		return qs.filter(consorcio=consorcio(self.request))
 
 @method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
 class CrearDenunciaView(View):
@@ -1194,6 +1230,16 @@ class EditarDenunciaView(View):
 			'denuncia': denuncia,
 			'modo_edicion': True
 		})
+
+@method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
+class DenunciaDeleteView(DeleteView):
+	model = Denuncia
+	template_name = 'denuncia_confirm_delete.html'
+	success_url = reverse_lazy('registro_denuncias')
+
+	def get_queryset(self):
+		qs = super().get_queryset()
+		return qs.filter(consorcio=consorcio(self.request))
 
 @method_decorator(group_required('administrativo', 'contable', 'fosea'), name='dispatch')
 class RegistroDenuncias(OrderQS):

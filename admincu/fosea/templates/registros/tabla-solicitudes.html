@@ -37,6 +37,13 @@
           {{ solicitud.total_suscripcion|default:solicitud.total_suscripcion_calc|default_if_none:"0.00"|floatformat:2 }}
         </td>        
         <td class="text-right">
+          <!-- Eliminar -->
+          <a href="{% url 'solicitud_eliminar' solicitud.pk %}"
+            class="btn btn-icon btn-xs btn-danger btn-bordered waves-efect waves-light"
+            title="Eliminar solicitud">
+            <i class="fa fa-trash"></i>
+          </a>
+          
           <!-- Editar -->
           <a href="{% url 'solicitud_editar' solicitud.pk %}"
              class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light"

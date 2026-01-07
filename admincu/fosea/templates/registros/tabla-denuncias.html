@@ -37,8 +37,16 @@
         <td class="text-right">
           {{ d.ha_denunciadas_calc|default:"0.00"|floatformat:2 }}
         </td>
-
+        
         <td class="text-right">
+            <!-- Eliminar -->
+            <a href="{% url 'denuncia_eliminar' d.pk %}"
+            class="btn btn-icon btn-xs btn-danger btn-bordered waves-efect waves-light"
+            title="Eliminar denuncia">
+            <i class="fa fa-trash"></i>
+          </a>
+
+          <!-- Editar -->
           <a href="{% url 'denuncia_editar' d.pk %}"
              class="btn btn-icon btn-xs btn-pink btn-bordered waves-efect waves-light"
              title="Editar denuncia">

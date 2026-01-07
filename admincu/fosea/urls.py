@@ -10,6 +10,7 @@ urlpatterns = [
     path('ajax/aporte_por_zona_cultivo/', aporte_por_zona_cultivo, name='aporte_por_zona_cultivo'),
     path('ajax/obtener_subsidio_max/', obtener_subsidio_max, name='obtener_subsidio_max'),
     path('editar-solicitud/<int:pk>', EditarSolicitudView.as_view(), name='solicitud_editar'),
+    path('solicitud/<int:pk>/eliminar/',SolicitudDeleteView.as_view(),name='solicitud_eliminar'),
     path('solicitud/<int:pk>/pagare/', PagareSolicitudPDFView.as_view(), name='pagare_solicitud'),
     path('crear-cotizacion/', CrearCotizacionView.as_view(), name='crear_cotizacion'),
     path('parametros-zona-cultivo/', parametros_zona_cultivo, name='parametros_zona_cultivo'),
@@ -22,11 +23,13 @@ urlpatterns = [
     path('fosea/ajax/establecimientos_filtrados/', establecimientos_filtrados, name='establecimientos_filtrados'),
     path('fosea/siniestros/registro/', RegistroSiniestros.as_view(), name='registro_siniestros'),
     path('fosea/siniestros/<int:pk>/editar/', EditarSiniestroView.as_view(), name='siniestro_editar'),
+    path('fosea/siniestros/<int:pk>/eliminar/', SiniestroDeleteView.as_view(), name='siniestro_eliminar'),
     path('cobertura_por_cultivo/', cobertura_por_cultivo, name='cobertura_por_cultivo'),
     path('fosea/ajax/denuncias-disponibles/', denuncias_disponibles, name='denuncias_disponibles'),
     #Denuncias
     path('fosea/denuncias/nueva/', CrearDenunciaView.as_view(), name='denuncia_crear'),
     path('fosea/denuncias/<int:pk>/editar/', EditarDenunciaView.as_view(), name='denuncia_editar'),
+    path('fosea/denuncias/<int:pk>/eliminar/', DenunciaDeleteView.as_view(), name='denuncia_eliminar'),
     path('fosea/denuncias/', RegistroDenuncias.as_view(), name='registro_denuncias'),
 
 

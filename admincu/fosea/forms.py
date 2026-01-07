@@ -343,31 +343,48 @@ class SiniestroForm(forms.ModelForm):
 		widgets = {
 			'socio': forms.Select(attrs={'class': 'form-control'}),
 			'campaña': forms.Select(attrs={'class': 'form-control'}),
+			'denuncia': forms.Select(attrs={'class': 'form-control'}),
 		}
 
 	def __init__(self, *args, **kwargs):
 		request = kwargs.pop('request', None)
 		super().__init__(*args, **kwargs)
+
 		if request:
 			cons = consorcio(request)
-			self.fields['campaña'].queryset = Campaña.objects.filter(consorcio=cons)
-			# Agregar data-ajuste al <option> de cada campaña
-			self.fields['campaña'].widget.choices = [
-				(c.id, f"{c}") for c in self.fields['campaña'].queryset
-			]
-			self.fields['campaña'].widget.attrs['data-ajustes'] = {
-				str(c.id): str(c.ajuste or 0)
-				for c in self.fields['campaña'].queryset
-			}
 
+			# Campañas / socios
+			self.fields['campaña'].queryset = Campaña.objects.filter(consorcio=cons)
 			self.fields['socio'].queryset = (self.fields['socio'].queryset
 				.filter(consorcio=cons, es_socio=True, baja__isnull=True)
-				.exclude(nombre_servicio_mutual__isnull=False))
-			self.fields['denuncia'].queryset = Denuncia.objects.none()
+				.exclude(nombre_servicio_mutual__isnull=False)
+			)
+
+			# ✅ Determinar socio elegido (POST o instance)
+			socio_id = None
+			if self.is_bound:
+				socio_id = self.data.get('socio') or self.data.get('siniestro-socio')  # por si cambia el name
+			if not socio_id and self.instance and getattr(self.instance, "socio_id", None):
+				socio_id = self.instance.socio_id
+
+			# ✅ Queryset de denuncias válido (las disponibles)
+			qs = Denuncia.objects.filter(consorcio=cons)
+			if socio_id:
+				qs = qs.filter(socio_id=socio_id)
+
+			# Solo denuncias sin siniestro
+			disponibles = qs.filter(siniestro__isnull=True)
+
+			# ✅ si estás editando y ya tenía una denuncia, incluirla aunque esté “ocupada”
+			if self.instance and self.instance.pk and self.instance.denuncia_id:
+				disponibles = (disponibles | qs.filter(id=self.instance.denuncia_id)).distinct()
+
+			self.fields['denuncia'].queryset = disponibles.order_by('-fecha')
 			self.fields['denuncia'].required = False
-			self.fields['denuncia'].widget.attrs['class'] = 'form-control'
+
 		for f in self.fields.values():
 			f.widget.attrs.setdefault('class', 'form-control')
+
 
 	def clean(self):
 		cd = super().clean()
