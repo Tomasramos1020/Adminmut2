@@ -12,6 +12,7 @@ from django.utils.decorators import method_decorator
 from django.core.files.storage import FileSystemStorage
 from formtools.wizard.views import SessionWizardView
 from django.utils.timezone import now
+from django.utils.dateparse import parse_date
 from tablib import Dataset
 from functools import partial, wraps
 
@@ -1116,6 +1117,11 @@ class Anular(HeaderExeptMixin, generic.DeleteView):
 	@transaction.atomic
 	def delete(self, request, *args, **kwargs):
 		comprobante = self.get_object()
+		fecha_str = (request.POST.get('fecha_anulacion') or '').strip()
+		fecha_anulacion = parse_date(fecha_str) if fecha_str else None
+		if fecha_str and not fecha_anulacion:
+			messages.error(request, 'Debe indicar una fecha de anulación válida.')
+			return redirect('anular-comprobante', pk=comprobante.pk)
 		# messages.error(request, 'Accion inhabilitada')
 		saldo_comprobante = comprobante.saldos.filter(padre__isnull=True).first()
 		if saldo_comprobante:
@@ -1124,7 +1130,10 @@ class Anular(HeaderExeptMixin, generic.DeleteView):
 				comprobante_destino = ultimo_hijo.comprobante_destino
 				messages.error(request, 'Debe anular primero el comprobante {} {}.'.format(comprobante_destino.tipo(), comprobante_destino.nombre()))
 				return redirect('ver-comprobante', pk=comprobante.pk)
-		comprobante.anular()
+		if fecha_anulacion:
+			comprobante.anular_con_fecha(fecha_anulacion)
+		else:
+			comprobante.anular()
 		messages.success(request, 'Comprobante anulado con exito.')
 		return redirect('ver-comprobante', pk=comprobante.pk)
 
@@ -1137,6 +1146,83 @@ class Anular(HeaderExeptMixin, generic.DeleteView):
 				return redirect('ver-comprobante', pk=comprobante.pk)
 		return disp
 
+
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
+class AnularMasivo(generic.View):
+
+	""" Anulacion masiva de comprobantes """
+
+	def post(self, request, *args, **kwargs):
+		ids = request.POST.getlist('comprobantes')
+		next_url = request.POST.get('next') or request.META.get('HTTP_REFERER', '')
+		confirmar = request.POST.get('confirmar')
+
+		if not ids:
+			messages.error(request, 'Debe seleccionar al menos un comprobante.')
+			return redirect('registro')
+
+		comprobantes = Comprobante.objects.filter(
+			id__in=ids,
+			consorcio=consorcio(request),
+		)
+
+		if not confirmar:
+			context = {
+				'comprobantes': comprobantes,
+				'next_url': next_url or '/cobranzas/registro/'
+			}
+			return render(request, 'comprobantes/anular/masivo.html', context)
+
+		fecha_str = (request.POST.get('fecha_anulacion') or '').strip()
+		fecha_anulacion = parse_date(fecha_str)
+		if not fecha_anulacion:
+			messages.error(request, 'Debe indicar una fecha de anulación válida.')
+			context = {
+				'comprobantes': comprobantes,
+				'next_url': next_url or '/cobranzas/registro/'
+			}
+			return render(request, 'comprobantes/anular/masivo.html', context)
+
+		anulados_ok = 0
+		errores = 0
+
+		for comprobante in comprobantes:
+			if comprobante.anulado:
+				messages.error(request, 'El comprobante {} {} ya está anulado.'.format(comprobante.tipo(), comprobante.nombre()))
+				errores += 1
+				continue
+
+			if not comprobante.punto:
+				messages.error(request, 'No se puede anular el comprobante {} {}.'.format(comprobante.tipo(), comprobante.nombre()))
+				errores += 1
+				continue
+
+			saldo_comprobante = comprobante.saldos.filter(padre__isnull=True).first()
+			if saldo_comprobante:
+				if saldo_comprobante.saldo() != saldo_comprobante.subtotal:
+					ultimo_hijo = saldo_comprobante.hijos.last()
+					comprobante_destino = ultimo_hijo.comprobante_destino
+					messages.error(
+						request,
+						'Debe anular primero el comprobante {} {}.'.format(comprobante_destino.tipo(), comprobante_destino.nombre())
+					)
+					errores += 1
+					continue
+
+			try:
+				with transaction.atomic():
+					comprobante.anular_con_fecha(fecha_anulacion)
+				anulados_ok += 1
+			except Exception:
+				errores += 1
+				messages.error(request, 'No se pudo anular el comprobante {} {}.'.format(comprobante.tipo(), comprobante.nombre()))
+
+		if anulados_ok:
+			messages.success(request, 'Se anularon {} comprobante(s) con éxito.'.format(anulados_ok))
+		elif errores:
+			messages.error(request, 'No se pudo anular ningún comprobante.')
+
+		return redirect(next_url or 'registro')
 
 @method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
 class RCXEXPMWizard(WizardComprobanteManager, SessionWizardView):

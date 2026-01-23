@@ -25,6 +25,7 @@ urlpatterns = [
 	path('pdf/<int:pk>/', PDF.as_view(), name='pdf-comprobante'),
 	path('ver/<int:pk>/', Ver.as_view(), name='ver-comprobante'),
 	path('anular/<int:pk>/', Anular.as_view(), name='anular-comprobante'),
+	path('anular/masivo/', AnularMasivo.as_view(), name='anular-comprobantes-masivo'),
 
 	path('rcx/desde-creditos/', RCXDesdeCreditosWizard.as_view(), name='rcx-desde-creditos'),
 
