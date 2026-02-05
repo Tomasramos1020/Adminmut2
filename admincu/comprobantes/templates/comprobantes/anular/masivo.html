@@ -1,0 +1,57 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+
+{% block titulo %}
+  Anular comprobantes (masivo)
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="Cobranzas" bhijo1="registro" bhijo2="anular masivo" %}
+{% endblock %}
+
+{% block header %}
+  Anular comprobantes (masivo)
+{% endblock %}
+
+{% block contenido %}
+  <div class="row">
+    <div class="col-md-8">
+      <div class="panel panel-default">
+        <div class="panel-heading">
+          <h3 class="panel-title">Confirmación</h3>
+        </div>
+        <form action="" method="POST">
+          {% csrf_token %}
+          <div class="panel-body">
+            <p>Se van a anular <strong>{{ comprobantes|length }}</strong> comprobantes.</p>
+            <div class="form-group" style="margin-top: 10px;">
+              <label>Fecha de anulación</label>
+              <input type="date" name="fecha_anulacion" class="form-control datepicker" value="{% now 'Y-m-d' %}" required>
+            </div>
+            {% for c in comprobantes %}
+              <input type="hidden" name="comprobantes" value="{{ c.pk }}">
+            {% endfor %}
+            {% if next_url %}
+              <input type="hidden" name="next" value="{{ next_url }}">
+            {% endif %}
+            <input type="hidden" name="confirmar" value="1">
+          </div>
+          <div class="panel-footer">
+            <div class="row">
+              <div class="col-xs-6">
+                <button class="btn btn-block btn-danger btn-bordered waves-effect waves-light" type="submit">
+                  <span>Si, anular</span>
+                </button>
+              </div>
+              <div class="col-xs-6">
+                <a href="{{ next_url|default:'' }}" class="btn btn-block btn-default btn-bordered waves-effect waves-light">
+                  Volver
+                </a>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock %}

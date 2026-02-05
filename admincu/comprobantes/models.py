@@ -451,6 +451,67 @@ class Comprobante(models.Model):
 				nuevo_saldo_nuevo.padre_id = id_padre
 				nuevo_saldo_nuevo.save()
 
+	def reversar_operaciones_con_fecha(self, fecha):
+
+		""" Reversar operaciones cuando se anula un comprobante con fecha indicada """
+
+		cajas = self.cajacomprobante_set.all()
+		if cajas:
+			for c in cajas:
+				nueva_caja = c
+				nueva_caja.pk = None
+				nueva_caja.fecha = fecha
+				nueva_caja.valor = -nueva_caja.valor
+				nueva_caja.save()
+
+		cobros = self.cobro_set.all()
+		if cobros:
+			for c in cobros:
+				# Creditos
+				padre = c.credito.padre if c.credito.padre else c.credito
+				id_padre = c.credito.padre.id if c.credito.padre else c.credito.id
+				nuevo_credito = c.credito
+				nuevo_credito.pk = None
+				nuevo_credito.fecha = fecha
+				nuevo_credito.fin = None
+
+				nuevo_credito.capital = c.capital
+				hijos = padre.hijos.filter(acc_desc__isnull=False)
+				if hijos:
+					nuevo_credito.acc_desc = None
+					nuevo_credito.gracia = None
+				nuevo_credito.padre_id = id_padre
+				nuevo_credito.save()
+
+				# Cobros
+				nueva_cobro = c
+				nueva_cobro.pk = None
+				nueva_cobro.fecha = fecha
+				nueva_cobro.capital = -nueva_cobro.capital
+				nueva_cobro.int_desc = -nueva_cobro.int_desc
+				nueva_cobro.subtotal = -nueva_cobro.subtotal
+				nueva_cobro.save()
+
+		saldos_utilizados = self.saldos_utilizados.all()
+		if saldos_utilizados:
+			for s in saldos_utilizados:
+				nuevo_saldo_utilizado = s
+				nuevo_saldo_utilizado.pk = None
+				nuevo_saldo_utilizado.fecha = fecha
+				nuevo_saldo_utilizado.subtotal = -nuevo_saldo_utilizado.subtotal
+				nuevo_saldo_utilizado.save()
+
+		saldos_nuevos = self.saldos.filter(padre__isnull=True)
+		if saldos_nuevos:
+			for s in saldos_nuevos:
+				id_padre = s.id
+				nuevo_saldo_nuevo = s
+				nuevo_saldo_nuevo.pk = None
+				nuevo_saldo_nuevo.fecha = fecha
+				nuevo_saldo_nuevo.subtotal = -nuevo_saldo_nuevo.subtotal
+				nuevo_saldo_nuevo.padre_id = id_padre
+				nuevo_saldo_nuevo.save()
+
 	def validar_receipt(self, receipt):
 
 		"""
@@ -576,6 +637,112 @@ class Comprobante(models.Model):
 			self.asiento_anulado = asiento
 			self.hacer_pdfs()
 			self.reversar_operaciones()
+			self.save()
+
+	def anular_con_fecha(self, fecha):
+
+		""" Anulacion del comprobante con fecha indicada """
+
+		from contabilidad.asientos.manager import AsientoCreator
+
+		if not self.anulado:
+			self.anulado = fecha
+			if self.nota_credito:
+				receipt_type_code = "12" if self.nota_credito.receipt_type.code == "13" else "102"
+				receipt_type = ReceiptType.objects.get(code=receipt_type_code)
+				self.nota_debito_anulado = Receipt(
+					point_of_sales=self.nota_credito.point_of_sales,
+					receipt_type=receipt_type,
+					concept=ConceptType.objects.get(code=2),
+					document_type=self.socio.tipo_documento,
+					document_number=self.socio.numero_documento,
+					issued_date=fecha,
+					total_amount=self.nota_credito.total_amount,
+					net_untaxed=0,
+					net_taxed=self.nota_credito.total_amount,
+					exempt_amount=0,
+					service_start=fecha,
+					service_end=fecha,
+					expiration_date=fecha,
+					currency=CurrencyType.objects.get(code="PES"),
+				)
+				self.nota_debito_anulado.save()
+				if receipt_type_code == "102":
+					last = Receipt.objects.filter(
+						receipt_type=receipt_type,
+						point_of_sales=self.nota_debito_anulado.point_of_sales,
+					).aggregate(Max('receipt_number'))['receipt_number__max'] or 0
+					self.nota_debito_anulado.receipt_number = last + 1
+					self.nota_debito_anulado.save()
+				else:
+					self.nota_debito_anulado.validate()
+				self.save()
+			if self.nota_debito:
+				receipt_type_code = "13" if self.nota_debito.receipt_type.code == "12" else "103"
+				receipt_type = ReceiptType.objects.get(code=receipt_type_code)
+				self.nota_credito_anulado = Receipt(
+					point_of_sales=self.nota_debito.point_of_sales,
+					receipt_type=receipt_type,
+					concept=ConceptType.objects.get(code=2),
+					document_type=self.socio.tipo_documento,
+					document_number=self.socio.numero_documento,
+					issued_date=fecha,
+					total_amount=self.nota_debito.total_amount,
+					net_untaxed=0,
+					net_taxed=self.nota_debito.total_amount,
+					exempt_amount=0,
+					service_start=fecha,
+					service_end=fecha,
+					expiration_date=fecha,
+					currency=CurrencyType.objects.get(code="PES"),
+				)
+				self.nota_credito_anulado.save()
+				if receipt_type_code == "103":
+					last = Receipt.objects.filter(
+						receipt_type=receipt_type,
+						point_of_sales=self.nota_credito_anulado.point_of_sales,
+					).aggregate(Max('receipt_number'))['receipt_number__max'] or 0
+					self.nota_credito_anulado.receipt_number = last + 1
+					self.nota_credito_anulado.save()
+				else:
+					self.nota_credito_anulado.validate()
+				self.save()
+			# Creacion del asiento
+			descripcion = "Anulacion {} {}".format(self.tipo(), self.nombre())
+			data_asiento = {
+				'consorcio': self.consorcio,
+				'fecha_asiento': fecha,
+				'descripcion': descripcion
+			}
+			operaciones = self.hacer_contabilidad()
+
+			cuentas = set([o[0] for o in operaciones]) # Seteamos las cuentas
+			data_operaciones = []
+			for c in cuentas:
+				diccionario = {
+					'cuenta': c,
+					'descripcion': descripcion
+				}
+				suma = 0
+				for o in operaciones:
+					if o[0] == c:
+						suma += o[1] # Sumamos las cuentas
+				if suma > 0:
+					diccionario.update({
+							'debe': 0,
+							'haber': suma
+						})
+				else:
+					diccionario.update({
+							'haber': 0,
+							'debe': -suma
+						})
+				data_operaciones.append(diccionario)
+			crear_asiento = AsientoCreator(data_asiento, data_operaciones)
+			asiento = crear_asiento.guardar()
+			self.asiento_anulado = asiento
+			self.hacer_pdfs()
+			self.reversar_operaciones_con_fecha(fecha)
 			self.save()
 
 	def rehacer_asiento_anulacion(self):

@@ -21,9 +21,26 @@
   <div class="col-md-9">
     <div class="card-box">
       {% include 'comunes/paginador.html' %}
-      <div class="table-responsive">
-        {% include 'comprobantes/registros/tabla-comprobantes.html' with comprobantes=lista %}
-      </div>
+      {% if not user.groups.all.0.name == "socio" %}
+        <form method="post" action="{% url 'anular-comprobantes-masivo' %}" id="form-anulacion-masiva">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <div class="row" style="margin-bottom: 10px;">
+            <div class="col-sm-12 text-right">
+              <button type="submit" class="btn btn-danger">
+                <i class="fa fa-ban"></i> Anular seleccionados
+              </button>
+            </div>
+          </div>
+          <div class="table-responsive">
+            {% include 'comprobantes/registros/tabla-comprobantes.html' with comprobantes=lista mostrar_checks=True %}
+          </div>
+        </form>
+      {% else %}
+        <div class="table-responsive">
+          {% include 'comprobantes/registros/tabla-comprobantes.html' with comprobantes=lista %}
+        </div>
+      {% endif %}
       {% include 'comunes/paginador.html' %}
     </div>
 </div>
@@ -32,4 +49,18 @@
 
 {% block js %}
   {% include 'comunes/js_datatable_print_excel.html' %}
+  <script>
+    (function () {
+      var checkAll = document.getElementById('check-all-comprobantes');
+      if (!checkAll) return;
+      checkAll.addEventListener('change', function () {
+        var checks = document.querySelectorAll('.js-comprobante-check');
+        for (var i = 0; i < checks.length; i++) {
+          if (!checks[i].disabled) {
+            checks[i].checked = checkAll.checked;
+          }
+        }
+      });
+    })();
+  </script>
 {% endblock %}
