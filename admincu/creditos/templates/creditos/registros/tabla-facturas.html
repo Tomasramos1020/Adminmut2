@@ -10,6 +10,9 @@
       <th>Punto de venta</th>
       <th class="text-right">Nº de Asoc.</th>
       <th>Socio</th>
+      {% if facturas|length and facturas.0.socio.consorcio.convenios %}
+        <th>{% if facturas.0.socio.consorcio.es_federacion %}Servicios AE{% else %}Convenio{% endif %}</th>
+      {% endif %}
       <th class="text-right">Importe</th>
       <th>Observación</th>
     </tr>
@@ -48,6 +51,9 @@
     
         <td class="text-right">{{ f.numero_asociado }}</td>
         <td>{{ f.socio }}</td>
+        {% if facturas|length and facturas.0.socio.consorcio.convenios %}
+          <td>{{ f.socio.convenio|default:"" }}</td>
+        {% endif %}
 
         <td class="text-right">
           {# Si querés negativo en rojo: #}
@@ -62,6 +68,5 @@
     {% endfor %}
   </tbody>
 </table>
-
 
 

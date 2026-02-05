@@ -1103,6 +1103,10 @@ class RegistroFacturas(View):
 		if apellido:
 			qs = qs.filter(socio__apellido__icontains=apellido)
 
+		convenio = cd.get('convenio')
+		if convenio:
+			qs = qs.filter(socio__convenio=convenio)
+
 		punto = cd.get('punto')
 		if punto:
 			v_id = punto.pk

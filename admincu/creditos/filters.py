@@ -2,9 +2,9 @@ from .models import *
 import django_filters
 from django_afip.models import PointOfSales
 from django import forms
-from django.db.models import Min, Q, F
+from django.db.models import Min, Q, F, Count
 from admincu.funciones import consorcio
-from arquitectura.models import PointOfSales
+from arquitectura.models import PointOfSales, Convenio
 from creditos.models import Factura
 from django.db.models.functions import Coalesce
 
@@ -54,10 +54,29 @@ class CreditoFilter(django_filters.FilterSet):
     ingreso__nombre = django_filters.CharFilter(label="Nombre del concepto", lookup_expr="icontains")
     socio__numero_asociado = django_filters.NumberFilter(label="Numero de asociado", lookup_expr="exact")
     socio__apellido = django_filters.CharFilter(label="Apellido del destinatario", lookup_expr="icontains")
+    convenio = django_filters.ModelChoiceFilter(
+        label="Convenio",
+        field_name="socio__convenio",
+        queryset=Convenio.objects.none(),
+        empty_label="-- Seleccionar convenio --",
+    )
 
     class Meta:
         model = Credito
         fields = []
+
+    def __init__(self, data=None, queryset=None, *, request=None, **kwargs):
+        super().__init__(data=data, queryset=queryset, request=request, **kwargs)
+        c = consorcio(request) if request else None
+        if not c:
+            self.filters.pop('convenio', None)
+            return
+
+        self.filters['convenio'].queryset = (
+            Convenio.objects.filter(consorcio=c, baja__isnull=True).order_by('nombre')
+        )
+        if getattr(c, 'es_federacion', False):
+            self.filters['convenio'].label = 'Servicios AE'
 
 
 class CreditoFilterSocio(django_filters.FilterSet):
@@ -89,6 +108,12 @@ class FacturaFilter(django_filters.FilterSet):
         label='Fecha (desde / hasta)',
         widget=django_filters.widgets.RangeWidget(attrs={"type": "date", "class": "form-control"}),
     )
+    convenio = django_filters.ModelChoiceFilter(
+        label="Convenio",
+        field_name="socio__convenio",
+        queryset=Convenio.objects.none(),
+        empty_label="-- Seleccionar convenio --",
+    )
 
     class Meta:
         model = Factura
@@ -98,6 +123,16 @@ class FacturaFilter(django_filters.FilterSet):
         super().__init__(data=data, queryset=queryset, request=request, **kwargs)
         c = consorcio(request)  # siempre presente
         contrib = getattr(c, 'contribuyente', None)
+
+        # Convenios (siempre que haya consorcio)
+        if c:
+            self.filters['convenio'].queryset = (
+                Convenio.objects.filter(consorcio=c, baja__isnull=True).order_by('nombre')
+            )
+            if getattr(c, 'es_federacion', False):
+                self.filters['convenio'].label = 'Servicios AE'
+        else:
+            self.filters.pop('convenio', None)
 
         # owner = contribuyente (clave para no ver POS de otros contribuyentes)
         if contrib:
@@ -159,8 +194,6 @@ class FacturaFilter(django_filters.FilterSet):
         if value.stop:
             return qs.filter(fecha_factura__lte=value.stop)
         return qs
-
-
 
 
 

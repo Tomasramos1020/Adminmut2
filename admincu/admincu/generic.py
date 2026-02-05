@@ -9,7 +9,7 @@ class OrderQS(generic.ListView):
 
 	def get_queryset(self, **kwargs):
 		datos = self.model.objects.filter(consorcio=consorcio(self.request), **kwargs).order_by('-id')
-		self.filter = self.filterset_class(self.request.GET, queryset=datos)
+		self.filter = self.filterset_class(self.request.GET, queryset=datos, request=self.request)
 		return self.filter.qs
 
 	def get_context_data(self, **kwargs):
