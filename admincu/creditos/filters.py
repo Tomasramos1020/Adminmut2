@@ -10,23 +10,39 @@ from django.db.models.functions import Coalesce
 
 class LiquidacionFilter(django_filters.FilterSet):
     numero = django_filters.NumberFilter(label="Numero de liquidacion", lookup_expr="exact")
-    fecha = django_filters.DateRangeFilter(label="Fecha de liquidacion", lookup_expr="icontains")
-    convenio = django_filters.CharFilter(method='filter_convenio', label='Convenio o Servicio')
+    fecha = django_filters.DateFromToRangeFilter(
+        label="Fecha (desde / hasta)",
+        field_name="fecha",
+        widget=django_filters.widgets.RangeWidget(attrs={"type": "date", "class": "form-control"}),
+    )
+    convenio = django_filters.ChoiceFilter(
+        label="Convenio",
+        method='filter_convenio',
+    )
 
     class Meta:
         model = Liquidacion
         fields = ['estado']
 
+    def __init__(self, data=None, queryset=None, *, request=None, **kwargs):
+        super().__init__(data=data, queryset=queryset, request=request, **kwargs)
+        c = consorcio(request) if request else None
+        if not c:
+            self.filters.pop('convenio', None)
+            return
+
+        convenios = Convenio.objects.filter(consorcio=c, baja__isnull=True).order_by('nombre')
+        choices = [('', '-- Seleccionar convenio --'), ('varios', 'Varios'), ('sin_convenio', 'Sin convenio')]
+        choices += [(str(conv.pk), conv.nombre) for conv in convenios]
+        self.filters['convenio'].extra['choices'] = choices
+        self.filters['convenio'].field.choices = choices
+        if getattr(c, 'es_federacion', False):
+            self.filters['convenio'].label = 'Servicios AE'
+
     def filter_convenio(self, queryset, name, value):
-        """
-        - 'varios' / 'varias'  -> liquidaciones con 2+ convenios distintos
-        - 'sin convenio'       -> liquidaciones con 0 convenios
-        - otro texto           -> match icontains por nombre de convenio
-        """
         if not value:
             return queryset
-
-        v = value.strip().lower()
+        v = str(value).strip().lower()
 
         if v in ('varios', 'varias'):
             return (
@@ -42,14 +58,19 @@ class LiquidacionFilter(django_filters.FilterSet):
                 .filter(_cant_conv=0)
             )
 
-        # nombre de convenio
-        return queryset.filter(credito__socio__convenio__nombre__icontains=value).distinct()
+        # id de convenio
+        return queryset.filter(credito__socio__convenio_id=value).distinct()
 
 
 
 class CreditoFilter(django_filters.FilterSet):
     liquidacion__numero = django_filters.NumberFilter(label="Numero de liquidacion", lookup_expr="exact")
     factura__receipt__receipt_number = django_filters.NumberFilter(label="Numero de factura", lookup_expr="icontains")
+    fecha = django_filters.DateFromToRangeFilter(
+        label="Fecha (desde / hasta)",
+        field_name="fecha",
+        widget=django_filters.widgets.RangeWidget(attrs={"type": "date", "class": "form-control"}),
+    )
     periodo = django_filters.DateRangeFilter(label="Periodo", lookup_expr="icontains")
     ingreso__nombre = django_filters.CharFilter(label="Nombre del concepto", lookup_expr="icontains")
     socio__numero_asociado = django_filters.NumberFilter(label="Numero de asociado", lookup_expr="exact")
@@ -194,8 +215,5 @@ class FacturaFilter(django_filters.FilterSet):
         if value.stop:
             return qs.filter(fecha_factura__lte=value.stop)
         return qs
-
-
-
 
 
