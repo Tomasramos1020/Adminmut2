@@ -31,7 +31,11 @@
           {% for documento in documentos %}
               <tr>
                 <th colspan="4" class="info">
+                  {% if not consorcio.es_ri %}
                   Socio: {{documento.socio}} - {{documento.descripcion}}
+                  {% else %}
+                  Cliente: {{documento.socio}} - {{documento.descripcion}}
+                  {% endif %}
                   {% for caja in documento.data_cajas %}
                     Total Pagado: <u>${{caja.subtotal|intcomma}}</u>
                   {% endfor %}
@@ -78,7 +82,11 @@
             <th class="text-right">{{tipo}}</th>
           </tr>
           <tr>
+            {% if not consorcio.es_ri %}
             <th>Socio</th>
+            {% else %}
+            <th>Cliente</th>
+            {% endif %}
             <th class="text-right">{{socio}}</th>
           </tr>
           {% if descripcion %}

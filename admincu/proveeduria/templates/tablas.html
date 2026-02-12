@@ -48,6 +48,9 @@
         <th width="20">Unidad de Medida</th>
         <th width="20">Lista de precio 1</th>
         <th width="20">Costo</th>
+        {% if consorcio.es_ri %}
+        <th>IVA</th>
+        {% endif %}
         <th width="20">Retornable</th>
         <th width="20">Calibre</th>
         <th width="20">Activo</th>
@@ -74,6 +77,9 @@
         <td>{{objeto.unidad_medida|default_if_none:""}}</td>
         <td>{{ objeto.precio_1|floatformat:2|default_if_none:"" }}</td>
         <td>{{ objeto.costo|floatformat:2|default_if_none:"" }}</td>
+        {% if consorcio.es_ri %}
+        <td>{{ objeto.alicuota|default_if_none:"" }}</td>
+        {% endif %}
         <td>{% if objeto.retornable == True %}Sí{% elif objeto.retornable == False %}No{% else %}{% endif %}</td>
         <td>{{objeto.calibre|default_if_none:""}}</td>
         <td>{% if objeto.activo == True %}Sí{% elif objeto.activo == False %}No{% else %}{% endif %}</td>

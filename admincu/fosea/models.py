@@ -222,13 +222,17 @@ class SiniestroLinea(models.Model):
 		Calcula indemnización en QQ y su valor ajustado según la campaña.
 		Fórmula base:
 			indemn_qq = ha * cobertura_qq * max(0, daño% * liberación_factor - franquicia%)
+		Si la liberación es resiembra (etapa o efectiva), no se descuenta franquicia.
 			indemn_ajustada = indemn_qq * (1 - campaña.ajuste / 100)
 		"""
 		ha = Decimal(self.hectareas_afectadas or 0)
 		cobertura = Decimal(self.cobertura_qq or 0)
 		danio = (Decimal(self.danio_porcentaje or 0) / Decimal('100'))
-		franquicia = (Decimal(self.franquicia_porcentaje or 0) / Decimal('100'))
 		liber_factor = LIBERACION_FACTORES.get(self.liberacion, Decimal('1.00'))
+		if self.liberacion in ('resiembra_etapa', 'resiembra_efectiva'):
+			franquicia = Decimal('0')
+		else:
+			franquicia = (Decimal(self.franquicia_porcentaje or 0) / Decimal('100'))
 
 		factor = (danio * liber_factor) - franquicia
 		if factor < 0:
@@ -257,5 +261,4 @@ class SiniestroLinea(models.Model):
 		# Actualiza totales del padre
 		self.siniestro.recomputar_totales()
 		self.siniestro.save(update_fields=['indemnizacion_total_qq', 'indemnizacion_total_ajustada'])
-
 

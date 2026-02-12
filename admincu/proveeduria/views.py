@@ -17,7 +17,7 @@ from django.http import JsonResponse
 from django.views.generic import View
 from op.models import Deuda, GastoDeuda
 from arquitectura.models import Gasto, Acreedor, Ingreso
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 # views.py
 from django.views.generic import ListView
 from .filters import RemitoFilter
@@ -28,7 +28,7 @@ from django.http import HttpResponse
 
 from django.db import transaction
 from django.contrib import messages
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
 
 from comprobantes.models import Comprobante, Cobro  # tu modelo
@@ -104,7 +104,16 @@ class Listado(generic.ListView):
 	def get_queryset(self, **kwargs):
 		evaluacion = self.kwargs['modelo']
 		if evaluacion == 'Stock':
-			objetos = Producto.objects.filter(consorcio=consorcio(self.request), nombre__isnull=False, es_modulo=False)
+			objetos = Producto.objects.filter(
+				consorcio=consorcio(self.request),
+				nombre__isnull=False,
+				es_modulo=False,
+			).order_by('nombre')
+		elif evaluacion == 'Producto':
+			objetos = Producto.objects.filter(
+				consorcio=consorcio(self.request),
+				nombre__isnull=False,
+			).order_by('nombre')
 		else:
 			objetos = eval(evaluacion).objects.filter(consorcio=consorcio(self.request), nombre__isnull=False)
 		return objetos
@@ -206,9 +215,10 @@ class CrearOperacionView(View):
 
 		cons = consorcio(request)
 		# Afecta a todos los formularios del formset (incluye empty_form)
-		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons)
+		formset.form.base_fields['producto'].queryset = Producto.objects.filter(consorcio=cons).select_related('alicuota')
 
-		return render(request, self.template_name, {'form': form, 'formset': formset})
+
+		return render(request, self.template_name, {'form': form, 'formset': formset, 'es_ri': cons.es_ri})
 
 	def post(self, request):
 		form = OperacionForm(request.POST, request=request)
@@ -228,11 +238,37 @@ class CrearOperacionView(View):
 			punto = form.cleaned_data['punto_venta']
 
 			capital = Decimal('0.00')
+			neto = Decimal('0')
+			iva_total = Decimal('0')
+			faltan_alicuota = []
+
 			for linea in formset:
 				if linea.cleaned_data and not linea.cleaned_data.get('DELETE', False):
+					producto = linea.cleaned_data['producto']
 					precio = linea.cleaned_data.get('precio') or Decimal('0')
 					cantidad = linea.cleaned_data.get('cantidad') or Decimal('0')
-					capital += precio * cantidad
+					subtotal = precio * cantidad
+					if cons.es_ri:
+						if not producto.alicuota:
+							faltan_alicuota.append(producto)
+							continue
+						alicuota = producto.alicuota
+						porc = alicuota.porcentaje / Decimal(100)
+						iva = (precio * cantidad) * porc
+
+						neto += subtotal
+						iva_total += iva
+					else:
+						capital += precio * cantidad
+			if cons.es_ri and faltan_alicuota:
+				messages.error(
+					request,
+					"Hay productos sin alícuota IVA: " +
+					", ".join(sorted({str(p) for p in faltan_alicuota}))
+				)
+				return render(request, self.template_name, {'form': form, 'formset': formset, 'es_ri': cons.es_ri})
+			if cons.es_ri:
+				capital = neto + iva_total
 
 			# Crear liquidación
 			liquidacion = Liquidacion.objects.create(
@@ -243,23 +279,63 @@ class CrearOperacionView(View):
 				estado='confirmado'
 			)
 
-			# Crear factura
-			receipt = Receipt.objects.create(
-				point_of_sales=punto,
-				receipt_type=ReceiptType.objects.get(code=101),
-				concept=ConceptType.objects.get(code=1),
-				document_type= socio.tipo_documento,
-				document_number=socio.numero_documento,
-				issued_date=fecha,
-				net_untaxed=0,
-				exempt_amount=0,
-				expiration_date=fecha,
-				currency=CurrencyType.objects.get(code="PES"),
-				service_start = fecha,
-				service_end = fecha,
-				total_amount = capital,
-				net_taxed = capital
-			)
+			if cons.es_ri:
+				# Tipo factura automática
+				cond_codigo = socio.condicionIVA.codigo if socio.condicionIVA else "5"
+				if cond_codigo == '1':
+					tipo = '1'   # Factura A
+				else:
+					tipo = '6'   # Factura B
+
+				receipt = Receipt.objects.create(
+					point_of_sales=punto,
+					receipt_type=ReceiptType.objects.get(code=tipo),
+					concept=ConceptType.objects.get(code="1"),
+					document_type=socio.tipo_documento,
+					document_number=socio.numero_documento,
+					issued_date=fecha,
+
+					net_taxed=neto,
+					net_untaxed=0,
+					exempt_amount=0,
+					total_amount=capital,
+
+					currency=CurrencyType.objects.get(code="PES"),
+					service_start=fecha,
+					service_end=fecha
+				)
+				for linea in formset:
+					if linea.cleaned_data and not linea.cleaned_data.get('DELETE', False):
+						producto = linea.cleaned_data['producto']
+						neto_item = (linea.cleaned_data.get('precio') or Decimal('0')) * (linea.cleaned_data.get('cantidad') or Decimal('0'))
+						alicuota = producto.alicuota
+
+						codigo_afip = str(alicuota.codigo_afip)
+
+						Vat.objects.create(
+							receipt=receipt,
+							vat_type=VatType.objects.get(code=codigo_afip),
+							base_amount=neto_item,
+							amount=neto_item * (alicuota.porcentaje / Decimal(100))
+						)
+			else:
+				# Crear factura
+				receipt = Receipt.objects.create(
+					point_of_sales=punto,
+					receipt_type=ReceiptType.objects.get(code=101),
+					concept=ConceptType.objects.get(code=1),
+					document_type= socio.tipo_documento,
+					document_number=socio.numero_documento,
+					issued_date=fecha,
+					net_untaxed=0,
+					exempt_amount=0,
+					expiration_date=fecha,
+					currency=CurrencyType.objects.get(code="PES"),
+					service_start = fecha,
+					service_end = fecha,
+					total_amount = capital,
+					net_taxed = capital
+				)
 			factura = Factura.objects.create(
 				consorcio=cons,
 				receipt = receipt,
@@ -308,6 +384,15 @@ class CrearOperacionView(View):
 					if not vp.costo:
 						prod_costo = getattr(vp.producto, 'costo', None)
 						vp.costo = prod_costo or Decimal('0.00')
+					# Calcular IVA SOLO si es Responsable Inscripto
+					if cons.es_ri:
+						alicuota = vp.producto.alicuota
+						porc = alicuota.porcentaje / Decimal(100)
+
+						vp.alicuota = alicuota
+						vp.neto = vp.precio * vp.cantidad
+						vp.iva = vp.neto * porc
+						vp.total_iva = vp.neto + vp.iva
 
 					vp.save()
 
@@ -326,7 +411,7 @@ class CrearOperacionView(View):
 
 			return redirect('facturacion-proveeduria')
 
-		return render(request, self.template_name, {'form': form, 'formset': formset})
+		return render(request, self.template_name, {'form': form, 'formset': formset,'es_ri': cons.es_ri})
 
 
 
@@ -344,11 +429,13 @@ def obtener_precio_producto(request):
 		p = Producto.objects.get(id=producto_id)
 		precio = p.precio_1 or 0
 		costo = getattr(p, 'costo', None)
+
+		iva = p.alicuota.porcentaje if p.alicuota else Decimal('0')
 		if costo is None:
 			costo = getattr(p, 'costo', 0)
-		return JsonResponse({'precio_1': float(precio), 'costo': float(costo or 0)})
+		return JsonResponse({'precio_1': float(precio), 'costo': float(costo or 0),'iva': float(iva)},)
 	except Producto.DoesNotExist:
-		return JsonResponse({'precio_1': 0, 'costo': 0})
+		return JsonResponse({'precio_1': 0, 'costo': 0, 'iva': 0})
 
 
 class CrearCompraView(View):
@@ -366,7 +453,7 @@ class CrearCompraView(View):
 			queryset=Compra_Producto.objects.none(),
 			form_kwargs={'request': request}   # <-- clave para filtrar productos por consorcio
 		)
-		return render(request, self.template_name, {'form': form, 'formset': formset})
+		return render(request, self.template_name, {'form': form, 'formset': formset,'es_ri': consorcio(request).es_ri })
 
 	@transaction.atomic
 	def post(self, request):
@@ -391,19 +478,12 @@ class CrearCompraView(View):
 				messages.error(request, "Ya existe una deuda con ese número.")
 				return redirect('deudas')
 
-			total = Decimal('0.00')
-			for linea in formset:
-				if linea.cleaned_data:
-					precio = linea.cleaned_data.get('precio') or 0
-					cantidad = linea.cleaned_data.get('cantidad') or 0
-					total += precio * cantidad
-
 			deuda = Deuda.objects.create(
 				consorcio=cons,
 				acreedor=acreedor,
 				fecha=fecha,
 				numero=numero_fmt,     # <<— sólo este campo del modelo
-				total=total,
+				total=Decimal('0.00'),
 				observacion=observacion,
 				confirmado=True
 			)
@@ -413,33 +493,120 @@ class CrearCompraView(View):
 				messages.error(request, "No hay gastos de proveeduría configurados.")
 				raise Exception("Gasto faltante")
 
+			lineas = []
 			for linea in formset:
-				if linea.cleaned_data:
-					compra = linea.save(commit=False)
-					compra.consorcio = cons
-					compra.deuda = deuda
-					compra.save()
+				if not linea.cleaned_data:
+					continue
+				compra = linea.save(commit=False)
+				if not compra.producto_id:
+					continue
+				try:
+					precio = Decimal(compra.precio or 0)
+					cantidad = Decimal(compra.cantidad or 0)
+				except Exception:
+					continue
+				if precio <= 0 or cantidad <= 0:
+					continue
+				compra.consorcio = cons
+				compra.deuda = deuda
+				if cons.es_ri:
+					compra.alicuota = compra.producto.alicuota.porcentaje if compra.producto.alicuota else Decimal('0')
+				lineas.append(compra)
 
-					MovimientoStock.objects.create(
-						producto=compra.producto,
-						deposito=deposito,
-						cantidad=compra.cantidad,
-						compra_producto=compra,
-						fecha=fecha
+			if not lineas:
+				messages.error(request, "Cargá al menos un producto con precio y cantidad.")
+				transaction.set_rollback(True)
+				return render(request, self.template_name, {'form': form, 'formset': formset,'es_ri': cons.es_ri})
+
+			ajuste = form.cleaned_data.get('ajuste_distribuible') or Decimal('0')
+			try:
+				ajuste = Decimal(ajuste).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+			except Exception:
+				ajuste = Decimal('0.00')
+
+			if ajuste != 0:
+				total_base = sum(
+					(Decimal(c.precio or 0) * Decimal(c.cantidad or 0)) for c in lineas
+				)
+				if total_base == 0:
+					messages.error(request, "No se puede distribuir el ajuste porque el total base es 0.")
+					transaction.set_rollback(True)
+					return render(request, self.template_name, {'form': form, 'formset': formset,'es_ri': cons.es_ri})
+
+				total_objetivo = total_base + ajuste
+				if total_objetivo <= 0:
+					messages.error(request, "El ajuste no puede dejar el total en cero o negativo.")
+					transaction.set_rollback(True)
+					return render(request, self.template_name, {'form': form, 'formset': formset,'es_ri': cons.es_ri})
+				factor = total_objetivo / total_base
+				total_aplicado = Decimal('0.00')
+
+				for idx, compra in enumerate(lineas):
+					cant = Decimal(compra.cantidad or 0)
+					if cant == 0:
+						continue
+					if idx < len(lineas) - 1:
+						nuevo_precio = (Decimal(compra.precio or 0) * factor).quantize(
+							Decimal('0.01'), rounding=ROUND_HALF_UP
+						)
+						compra.precio = nuevo_precio
+						total_aplicado += nuevo_precio * cant
+					else:
+						objetivo_linea = total_objetivo - total_aplicado
+						nuevo_precio = (objetivo_linea / cant).quantize(
+							Decimal('0.01'), rounding=ROUND_HALF_UP
+						)
+						compra.precio = nuevo_precio
+						total_aplicado += nuevo_precio * cant
+
+				diff = (total_objetivo - total_aplicado).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+				if diff != 0:
+					messages.warning(
+						request,
+						f"El ajuste distribuido difiere por {diff}. Esto puede ocurrir por redondeos."
 					)
 
-					GastoDeuda.objects.create(
-						deuda=deuda,
-						gasto=gasto_default,
-						valor=compra.total,
-						fecha=fecha
-					)
+			for compra in lineas:
+				compra.calcular()
+				compra.save()
+
+				MovimientoStock.objects.create(
+					producto=compra.producto,
+					deposito=deposito,
+					cantidad=compra.cantidad,
+					compra_producto=compra,
+					fecha=fecha
+				)
+
+				GastoDeuda.objects.create(
+					deuda=deuda,
+					gasto=gasto_default,
+					valor=compra.total,
+					fecha=fecha
+				)
+			from django.db.models import Sum
+
+			if cons.es_ri:
+				totales = deuda.compras.aggregate(
+					neto=Sum('neto'),
+					iva=Sum('iva'),
+					total=Sum('total')
+				)
+				deuda.neto = totales['neto'] or 0
+				deuda.iva = totales['iva'] or 0
+				deuda.total = totales['total'] or 0
+			else:
+				deuda.total = deuda.compras.aggregate(Sum('total'))['total__sum'] or 0
+				deuda.neto = Decimal('0.00')
+				deuda.iva = Decimal('0.00')
+
+			deuda.save()
 
 			asiento = asiento_deuda(deuda)
 			messages.success(request, "Compra y deuda creadas correctamente.")
 			return redirect('deudas')
 
-		return render(request, self.template_name, {'form': form, 'formset': formset})
+		return render(request, self.template_name, {'form': form, 'formset': formset,'es_ri': consorcio(request).es_ri})
 
 @group_required('administrativo', 'contable')
 def obtener_precio_producto_remito(request):
@@ -1344,9 +1511,3 @@ class ModuloUpdateView(generic.View):
 			'formset': formset,
 			'titulo': f'Editar módulo: {modulo.nombre}'
 		})
-
-
-
-
-
-

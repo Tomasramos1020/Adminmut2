@@ -250,7 +250,7 @@ class socioForm(FormControl, forms.ModelForm):
 			'honorarios':'Honorarios',
 			'genero':'Genero',
 			'convenio':'Convenio',
-			'condicionIVA':'Condicion de IVA',	
+			'condicionIVA':'Condicion frente al IVA',
 		}
 		widgets = {
 			'notificaciones': NullBooleanSelect(),
@@ -316,11 +316,6 @@ class socioForm(FormControl, forms.ModelForm):
 			self.fields['participantes'].widget = forms.HiddenInput()	
 			self.fields['honorarios'].widget = forms.HiddenInput()	
 		
-		if self.consorcio and self.consorcio.es_ri == False:
-			self.fields['condicionIVA'].widget = forms.HiddenInput()
-			self.fields['condicionIVA'].required = False
-
-
 		if self.consorcio and self.consorcio.es_ri:
 
 			self.fields['nombre'].label = 'Razón social / Nombre (obligatorio)'
@@ -345,7 +340,6 @@ class socioForm(FormControl, forms.ModelForm):
 				'localidad',
 				'provincia',
 				'codigo_postal',
-				'condicionIVA'
 			]
 
 			for campo in obligatorios:
@@ -728,6 +722,8 @@ class EstablecimientoForm(FormControl, forms.ModelForm):
 		super().__init__(*args, **kwargs)
 		self.consorcio = consorcio
 		if consorcio:
+			if 'zona' in self.fields:
+				self.fields['zona'].queryset = Zona.objects.filter(consorcio=consorcio)
 			socios_qs = Socio.objects.filter(consorcio=consorcio)
 			for i in range(1, 6):
 				self.fields[f'socio_{i}'].queryset = socios_qs

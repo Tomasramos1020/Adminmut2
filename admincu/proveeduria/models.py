@@ -74,6 +74,7 @@ class Producto(models.Model):
 	codigo_barra = models.IntegerField(blank=True, null=True)
 	costo = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 	es_modulo = models.BooleanField(default=False)
+	alicuota = models.ForeignKey("creditos.AlicuotaIVA", on_delete=models.PROTECT, null=True, blank=True)
 
 	def __str__(self):
 		return self.nombre
@@ -251,7 +252,9 @@ class Venta_Producto(models.Model):
 	es_nc = models.BooleanField(default=False)  # marca que es un renglón “negativo” de NC (devolución)
 	motivo_nc = models.CharField(max_length=200, blank=True, null=True)
 	comprobante_nc = models.ForeignKey('comprobantes.Comprobante', null=True, blank=True, on_delete=models.SET_NULL, related_name='vps_nc')
-
+	neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+	iva = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+	total_iva = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 	@property
 	def devuelto(self):
 		"""
@@ -285,12 +288,29 @@ class Compra_Producto(models.Model):
 	precio = models.DecimalField(max_digits=9, decimal_places=2, blank=True, null=True)
 	cantidad = models.IntegerField(blank=True, null=True)
 	deuda = models.ForeignKey('op.Deuda', on_delete=models.CASCADE, null=True, blank=True, related_name='compras')
+	neto = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+	iva = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+	alicuota = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+	total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
 	@property
-	def total(self):
+	def totall(self):
 		if self.precio and self.cantidad:
 			return self.precio * self.cantidad
 		return Decimal('0.00')
+
+	def calcular(self):
+		base = self.precio * self.cantidad
+		if not self.consorcio.es_ri:
+			self.total = base
+			# En MySQL estos campos no aceptan NULL
+			self.neto = base
+			self.iva = Decimal('0.00')
+			self.alicuota = Decimal('0.00')
+			return
+		self.neto = base
+		self.iva = base * (self.alicuota / Decimal('100'))
+		self.total = self.neto + self.iva
 
 class Remito(models.Model):
 	"""Comprobante de salida de mercadería que SOLO baja stock."""

@@ -1040,16 +1040,13 @@ class RegistroSiniestros(OrderQS):
 		ids = [s.pk for s in lista]
 		lineas = (SiniestroLinea.objects
 				  .filter(siniestro_id__in=ids)
-				  .values('siniestro_id', 'hectareas_afectadas', 'danio_porcentaje',
-						  'franquicia_porcentaje', 'cobertura_qq'))
+				  .values('siniestro_id', 'hectareas_afectadas', 'indemnizacion_qq'))
 
 		agrup = defaultdict(list)
 		for l in lineas:
 			agrup[l['siniestro_id']].append((
 				Decimal(l['hectareas_afectadas'] or 0),
-				Decimal(l['danio_porcentaje'] or 0),
-				Decimal(l['franquicia_porcentaje'] or 0),
-				Decimal(l['cobertura_qq'] or 0),
+				Decimal(l['indemnizacion_qq'] or 0),
 			))
 
 		# 2) Calcular sumas por siniestro (ha afectadas + indemnización total)
@@ -1058,12 +1055,10 @@ class RegistroSiniestros(OrderQS):
 			ha_total = Decimal('0')
 			total_indemnizacion = Decimal('0')
 
-			for ha, danio, franq, cob in pares:
+			for ha, indemn in pares:
 				ha = ha or 0
-				exceso = max(Decimal('0'), danio - franq) / Decimal('100')
-				ind = ha * cob * exceso
 				ha_total += ha
-				total_indemnizacion += ind
+				total_indemnizacion += indemn
 
 			s.ha_afectadas_calc = ha_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 			s.indemnizacion_total_calc = total_indemnizacion.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -1141,24 +1136,30 @@ class CrearDenunciaView(View):
 		formset = DenunciaLineaFormSet(
 			instance=tmp,
 			prefix='form',
-			form_kwargs={'request': request, 'consorcio': cons, 'socio': None}
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': None, 'campaña': None}
 		)
 		return render(request, self.template_name, {'form': form, 'formset': formset})
 
 	def post(self, request):
 		cons = consorcio(request)
 		form = DenunciaForm(request.POST, request=request)
+		socio = None
+		socio_id = request.POST.get('socio')
+		if socio_id:
+			socio = Socio.objects.filter(pk=socio_id, consorcio=cons).first()
+		campaña = request.POST.get('campaña') or None
 
 		if form.is_valid():
 			denuncia = form.save(commit=False)
 			denuncia.consorcio = cons
 			socio = denuncia.socio
+			campaña = denuncia.campaña
 
 			formset = DenunciaLineaFormSet(
 				request.POST,
 				instance=denuncia,
 				prefix='form',
-				form_kwargs={'request': request, 'consorcio': cons, 'socio': socio}
+				form_kwargs={'request': request, 'consorcio': cons, 'socio': socio, 'campaña': campaña}
 			)
 
 			# inyectamos denuncia
@@ -1179,7 +1180,7 @@ class CrearDenunciaView(View):
 			request.POST,
 			instance=tmp,
 			prefix='form',
-			form_kwargs={'request': request, 'consorcio': cons, 'socio': None}
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': socio, 'campaña': campaña}
 		)
 		return render(request, self.template_name, {'form': form, 'formset': formset})
 
@@ -1195,7 +1196,7 @@ class EditarDenunciaView(View):
 		formset = DenunciaLineaFormSet(
 			instance=denuncia,
 			prefix='form',
-			form_kwargs={'request': request, 'consorcio': cons, 'socio': denuncia.socio}
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': denuncia.socio, 'campaña': denuncia.campaña}
 		)
 
 		return render(request, self.template_name, {
@@ -1210,11 +1211,16 @@ class EditarDenunciaView(View):
 		denuncia = get_object_or_404(Denuncia, pk=pk, consorcio=cons)
 
 		form = DenunciaForm(request.POST, instance=denuncia, request=request)
+		socio = denuncia.socio
+		socio_id = request.POST.get('socio')
+		if socio_id:
+			socio = Socio.objects.filter(pk=socio_id, consorcio=cons).first() or socio
+		campaña = request.POST.get('campaña') or denuncia.campaña
 		formset = DenunciaLineaFormSet(
 			request.POST,
 			instance=denuncia,
 			prefix='form',
-			form_kwargs={'request': request, 'consorcio': cons, 'socio': denuncia.socio}
+			form_kwargs={'request': request, 'consorcio': cons, 'socio': socio, 'campaña': campaña}
 		)
 
 		if form.is_valid() and formset.is_valid():
@@ -1222,7 +1228,7 @@ class EditarDenunciaView(View):
 				form.save()
 				formset.save()
 			messages.success(request, "Denuncia actualizada correctamente.")
-			return redirect('registro_deudas')
+			return redirect('registro_denuncias')
 
 		return render(request, self.template_name, {
 			'form': form,
@@ -1280,5 +1286,3 @@ class RegistroDenuncias(OrderQS):
 			d.cant_lineas_calc = len(hs)
 
 		return ctx
-
-

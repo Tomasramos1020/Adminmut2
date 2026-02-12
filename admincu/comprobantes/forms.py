@@ -41,7 +41,7 @@ class InicialForm(FormControl, forms.Form):
 	""" Paso 1 de Recibo C y Nota de Credito C """
 
 	punto = forms.ModelChoiceField(queryset=PointOfSales.objects.none(), empty_label="-- Seleccionar Punto de gestion --", label="Punto de gestion")
-	socio = forms.ModelChoiceField(queryset=Socio.objects.none(), empty_label="-- Seleccionar Socio --")
+	socio = forms.ModelChoiceField(queryset=Socio.objects.none(), empty_label="-- Seleccionar Socio --", label="Socio")
 	fecha_operacion = forms.DateField(required=False, label="Fecha de la operacion")
 	condonacion = forms.BooleanField(required=False)
 
@@ -54,9 +54,14 @@ class InicialForm(FormControl, forms.Form):
 		super().__init__(*args, **kwargs)
 		self.fields['punto'].queryset = PointOfSales.objects.filter(owner=consorcio.contribuyente)
 		self.fields['socio'].queryset = Socio.objects.filter(consorcio=consorcio, nombre_servicio_mutual__isnull=True )
+		if consorcio.es_ri:
+			self.fields['socio'].label = "Cliente"
+			self.fields['socio'].empty_label = "-- Seleccionar Cliente --"
+		
 		self.fields.pop('condonacion')
 		if ok_ncc:
 			self.fields.pop('fecha_operacion')
+		
 			
 
 

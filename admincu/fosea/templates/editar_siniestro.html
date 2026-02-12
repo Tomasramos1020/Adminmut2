@@ -247,7 +247,8 @@
     const factores={'plena':1.00,'resiembra_etapa':0.40,'liberacion_lote':0.80,'resiembra_efectiva':0.20};
     const liberFactor=factores[liberVal]||1.00;
     const danioProp=danio/100.0;
-    const franProp=fran/100.0;
+    const sinFranquicia = (liberVal === 'resiembra_etapa' || liberVal === 'resiembra_efectiva');
+    const franProp=sinFranquicia ? 0 : (fran/100.0);
     const factor=Math.max(0,(danioProp*liberFactor)-franProp);
     return ha*cob*factor;
   }
@@ -374,5 +375,4 @@
 </script>
 
 {% endblock %}
-
 

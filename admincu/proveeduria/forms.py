@@ -47,6 +47,7 @@ class productoForm(FormControl, forms.ModelForm):
 		fields = [
 			'nombre',
 			'costo',                 # 👈 ahora es de modelo
+			'alicuota',
 			'precio_1','precio_2','precio_3','precio_4',
 			'embalaje','retornable','calibre','vencimiento','otra_clasificacion',
 			'activo','codigo_inter','descripcion',
@@ -62,7 +63,7 @@ class productoForm(FormControl, forms.ModelForm):
 
 	field_order = [
 		'nombre',
-		'costo', 'margen_pct',
+		'costo', 'margen_pct', 'alicuota',
 		'precio_1','precio_2','precio_3','precio_4',
 		'embalaje','retornable','calibre','vencimiento','otra_clasificacion',
 		'activo','codigo_inter','descripcion',
@@ -70,6 +71,7 @@ class productoForm(FormControl, forms.ModelForm):
 	]
 
 	def __init__(self, consorcio=None, *args, **kwargs):
+		from creditos.models import AlicuotaIVA
 		self.consorcio = consorcio
 		super().__init__(*args, **kwargs)
 		self.fields['nombre'].required = True
@@ -94,9 +96,31 @@ class productoForm(FormControl, forms.ModelForm):
 				self.fields['margen_pct'].initial = Decimal('0.00')
 
 		self.order_fields(self.field_order)
+		# --- MANEJO DE IVA DINÁMICO ---
+		if self.consorcio and getattr(self.consorcio, 'es_ri', False):
+
+			# Mostrar selector de alícuotas
+			self.fields['alicuota'].queryset = AlicuotaIVA.objects.all()
+			self.fields['alicuota'].required = True
+			self.fields['alicuota'].label = "Alícuota IVA"
+
+		else:
+
+			# Ocultar campo si no es RI
+			self.fields['alicuota'].widget = forms.HiddenInput()
+			self.fields['alicuota'].required = False
+			self.initial['alicuota'] = None
+
 
 	def clean(self):
 		cleaned = super().clean()
+		# Validación de IVA obligatoria si es RI
+		if self.consorcio and self.consorcio.es_ri:
+			if not cleaned.get("alicuota"):
+				self.add_error("alicuota", "Debe seleccionar una alícuota de IVA.")
+		else:
+			cleaned["alicuota"] = None
+
 
 		def D(x):
 			if x in (None, ""): return None
@@ -349,6 +373,14 @@ class CompraForm(forms.Form):
 	letra = forms.ChoiceField(choices=LETRAS_CBTE, initial='A', label="Letra")
 	punto_venta = forms.IntegerField(min_value=1, max_value=9999, label="Punto de venta")
 	numero_cbte = forms.IntegerField(min_value=1, max_value=99999999, label="Número")
+	ajuste_distribuible = forms.DecimalField(
+		required=False,
+		max_digits=12,
+		decimal_places=2,
+		initial=0,
+		label="Distribuible por precio",
+		widget=forms.NumberInput(attrs={'step': '0.01'}),
+	)
 
 	acreedor = forms.ModelChoiceField(queryset=None, label="Acreedor")
 	# número "legacy" que se guardará en Deuda.numero:

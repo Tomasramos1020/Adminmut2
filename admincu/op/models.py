@@ -69,7 +69,8 @@ class Deuda(models.Model):
 	asiento = models.ForeignKey(Asiento, on_delete=models.SET_NULL, blank=True, null=True, related_name='asiento_deuda')
 	anulado = models.DateField(blank=True, null=True)
 	asiento_anulado = models.ForeignKey(Asiento, on_delete=models.SET_NULL, blank=True, null=True, related_name='asiento_deuda_anulado')
-
+	neto = models.DecimalField(max_digits=14, decimal_places=2, default=0)
+	iva = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 
 	def eliminacion(self):
 		# 1) Bloqueos obvios: Notas de crédito proveedor aplicadas a la deuda

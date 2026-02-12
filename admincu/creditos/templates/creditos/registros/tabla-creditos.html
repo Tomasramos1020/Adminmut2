@@ -33,8 +33,10 @@
           <th>Cupon ExpensasPagas</th>
         {% endif %}
         <th>Fecha</th>
-        {% if not user.groups.first.name == "socio" %}
+        {% if not user.groups.first.name == "socio" and not creditos.0.consorcio.es_ri %}
           <th class="text-right">Nª de Asoc.</th>
+        {% else %}
+        <th class="text-right">Cuit</th>
         {% endif %}
         {% if not user.groups.first.name == "socio" %}
           <th>Destinatario</th>

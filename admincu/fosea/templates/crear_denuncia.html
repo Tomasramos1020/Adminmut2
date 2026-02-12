@@ -81,13 +81,7 @@
       </div>
 
       <div class="form-group">
-        <label for="id_campaña">Campaña:</label>
-        <select name="campaña" id="id_campaña" class="form-control">
-          <option value="">---------</option>
-          {% for c in form.fields.campaña.queryset %}
-            <option value="{{ c.id }}" {% if form.initial.campaña == c.id %}selected{% endif %}>{{ c }}</option>
-          {% endfor %}
-        </select>
+        {{ form.campaña.label_tag }} {{ form.campaña }}
       </div>
 
       <div class="form-group">

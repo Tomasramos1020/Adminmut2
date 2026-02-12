@@ -109,33 +109,72 @@
                 <div class="formset-linea">
                     {{ form.producto.label_tag }} {{ form.producto }}
                     {{ form.precio.label_tag }} {{ form.precio }}
-                    {{ form.costo.label_tag }} {{ form.costo }}
-                    <label>Margen (%)</label>
-                    <input type="number" class="form-margen" step="0.01" />
+        
+                    {% if not es_ri %}
+                        {{ form.costo.label_tag }} {{ form.costo }}
+                        <label>Margen (%)</label>
+                        <input type="number" class="form-margen" step="0.01" />
+                    {% endif %}
+        
                     {{ form.cantidad.label_tag }} {{ form.cantidad }}
+        
+                    {% if es_ri %}
+                        <label>Neto</label>
+                        <input type="number" class="form-neto" readonly />
+                        <label>IVA</label>
+                        <input type="number" class="form-iva" readonly />
+                    {% endif %}
+        
                     <label>Total</label>
                     <input type="number" class="form-total" readonly />
                     <button type="button" class="eliminar">Eliminar</button>
                 </div>
             {% endfor %}
         </div>
+        
 
         <div id="formset-empty" style="display:none;">
             <div class="formset-linea">
                 {{ formset.empty_form.producto.label_tag }} {{ formset.empty_form.producto }}
                 {{ formset.empty_form.precio.label_tag }} {{ formset.empty_form.precio }}
-                {{ formset.empty_form.costo.label_tag }} {{ formset.empty_form.costo }}  {# ← ENLAZADO #}
-                <label>Margen (%)</label>
-                <input type="number" class="form-margen" step="0.01" />
+        
+                {% if not es_ri %}
+                    {{ formset.empty_form.costo.label_tag }} {{ formset.empty_form.costo }}
+                    <label>Margen (%)</label>
+                    <input type="number" class="form-margen" step="0.01" />
+                {% endif %}
+        
                 {{ formset.empty_form.cantidad.label_tag }} {{ formset.empty_form.cantidad }}
+        
+                {% if es_ri %}
+                    <label>Neto</label>
+                    <input type="number" class="form-neto" readonly />
+                    <label>IVA</label>
+                    <input type="number" class="form-iva" readonly />
+                {% endif %}
+        
                 <label>Total</label>
                 <input type="number" class="form-total" readonly />
                 <button type="button" class="eliminar">Eliminar</button>
             </div>
         </div>
+        
 
         <button type="button" id="agregar-linea" class="btn btn-agregar">Agregar línea</button>
-
+        {% if es_ri %}
+        <div class="form-group" style="text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px;">
+            <label>Total Neto:</label>
+            <input type="number" id="total-neto" readonly 
+                   style="background:#eee; font-size:18px; width:200px; border:1px solid #ccc; border-radius:4px; padding:6px; text-align:right;" />
+        </div>
+        
+        <div class="form-group" style="text-align: right; font-size: 18px; font-weight: bold;">
+            <label>Total IVA:</label>
+            <input type="number" id="total-iva" readonly 
+                   style="background:#eee; font-size:18px; width:200px; border:1px solid #ccc; border-radius:4px; padding:6px; text-align:right;" />
+        </div>
+        {% endif %}
+        
         <div class="form-group" style="text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px;">
             <label for="total-final">Total Final:</label>
             <input type="number" id="total-final" readonly style="background: #eee; font-size: 18px; width: 200px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; text-align: right;" />
@@ -153,150 +192,155 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     function actualizarSucursales(socioId) {
-        $.ajax({
-            url: "{% url 'obtener_sucursales' %}",
-            data: { socio_id: socioId },
-            success: function (data) {
-                const sucursalSelect = $("#id_sucursal");
-                sucursalSelect.empty();
-                sucursalSelect.append($("<option>").text("---------").attr("value", ""));
-                data.sucursales.forEach(s => {
-                    sucursalSelect.append($("<option>").text(s.nombre).attr("value", s.id));
-                });
-            }
+        $.get("{% url 'obtener_sucursales' %}", { socio_id: socioId }, function(data){
+            const $s = $('#id_sucursal').empty();
+            $s.append('<option value="">---------</option>');
+            data.sucursales.forEach(s => {
+                $s.append(`<option value="${s.id}">${s.nombre}</option>`);
+            });
         });
     }
-
-    function calcularTotalFinal() {
-        let totalFinal = 0;
-        $('.form-total').each(function () {
-            const val = parseFloat($(this).val()) || 0;
-            totalFinal += val;
+    
+    /* ===========================
+       TOTALES GENERALES
+    =========================== */
+    function calcularTotalesFinales() {
+        let total = 0;
+        let netoTotal = 0;
+        let ivaTotal = 0;
+    
+        $(".formset-linea").each(function(){
+            total += parseFloat($(this).find('.form-total').val()) || 0;
+            netoTotal += parseFloat($(this).find('.form-neto').val()) || 0;
+            ivaTotal += parseFloat($(this).find('.form-iva').val()) || 0;
         });
-        $('#total-final').val(totalFinal.toFixed(2));
+    
+        $("#total-final").val(total.toFixed(2));
+    
+        {% if es_ri %}
+            $("#total-neto").val(netoTotal.toFixed(2));
+            $("#total-iva").val(ivaTotal.toFixed(2));
+        {% endif %}
     }
-
-    function calcularTotal($linea) {
+    
+    
+    /* ===========================
+       CALCULO POR LINEA
+    =========================== */
+    function calcularLinea($linea) {
         const precio = parseFloat($linea.find('input[name$="-precio"]').val()) || 0;
         const cantidad = parseFloat($linea.find('input[name$="-cantidad"]').val()) || 0;
-        const total = precio * cantidad;
+        const ivaPorc = parseFloat($linea.data('iva')) || 0;
+    
+        const neto = precio * cantidad;
+        const iva = neto * (ivaPorc / 100);
+        const total = neto + iva;
+    
+        {% if es_ri %}
+            $linea.find('.form-neto').val(neto.toFixed(2));
+            $linea.find('.form-iva').val(iva.toFixed(2));
+        {% endif %}
+    
         $linea.find('.form-total').val(total.toFixed(2));
-        calcularTotalFinal();
+        calcularTotalesFinales();
     }
-
-    // ← NUEVA: calcula el margen (%) a partir de precio y costo
+    
+    /* ===========================
+       MARGEN (NO RI)
+    =========================== */
     function calcularMargen($linea) {
-        const costo  = parseFloat($linea.find('input[name$="-costo"]').val()) || 0;
+        const costo = parseFloat($linea.find('input[name$="-costo"]').val()) || 0;
         const precio = parseFloat($linea.find('input[name$="-precio"]').val()) || 0;
         if (costo > 0) {
-            const margen = ((precio - costo) / costo) * 100;
-            $linea.find('.form-margen').val(margen.toFixed(2));
+            $linea.find('.form-margen').val((((precio - costo) / costo) * 100).toFixed(2));
         } else {
             $linea.find('.form-margen').val('');
         }
     }
-
-    // ← NUEVA: actualiza precio cuando editás el margen
-    function actualizarPrecioDesdeMargen($linea) {
-        const costo  = parseFloat($linea.find('input[name$="-costo"]').val()) || 0;
-        const margen = parseFloat($linea.find('.form-margen').val());
-        if (costo > 0 && !isNaN(margen)) {
-            const precio = costo * (1 + (margen / 100));
-            $linea.find('input[name$="-precio"]').val(precio.toFixed(2));
-            calcularTotal($linea);
-            // No llamo calcularMargen para evitar loop; ya quedó consistente.
-        }
-    }
-
+    
+    /* ===========================
+       EVENTOS LINEA
+    =========================== */
     function bindEventosLinea($linea) {
-        const $precio   = $linea.find('input[name$="-precio"]');
+    
+        const $producto = $linea.find('select[name$="-producto"]');
+        const $precio = $linea.find('input[name$="-precio"]');
         const $cantidad = $linea.find('input[name$="-cantidad"]');
-        const $margen   = $linea.find('.form-margen');
-        const $producto = $linea.find('select[name$="-producto"], input[name$="-producto"]');
-      
-        // Precio editable + recalcula total y margen
-        $precio
-          .removeAttr('readonly')
-          .removeClass('form-precio')
-          .css('background-color', '#eee')
-          .on('input', function () {
-            calcularTotal($linea);
-            calcularMargen($linea);
-          });
-      
-        // Cantidad
+        const $margen = $linea.find('.form-margen');
+    
+        $precio.on('input', function () {
+            calcularLinea($linea);
+            {% if not es_ri %} calcularMargen($linea); {% endif %}
+        });
+    
         $cantidad.on('input', function () {
-          calcularTotal($linea);
+            calcularLinea($linea);
         });
-      
-        // Margen -> actualiza precio
+    
         $margen.on('input', function () {
-          actualizarPrecioDesdeMargen($linea);
-        });
-      
-        // Producto -> trae precio y costo
-        $producto.on('change', function () {
-            const productoId = $(this).val();
-            if (productoId) {
-            $.ajax({
-                url: "{% url 'obtener_precio_producto' %}",
-                data: { producto_id: productoId },
-                success: function (data) {
-                const precio = parseFloat(data.precio_1) || 0;
-                const costo  = parseFloat(data.costo) || 0;
-                const $costo = $linea.find('input[name$="-costo"]');
-                $costo.val(costo.toFixed(2));
+            const costo = parseFloat($linea.find('input[name$="-costo"]').val()) || 0;
+            const m = parseFloat($margen.val());
+            if (costo && !isNaN(m)) {
+                const precio = costo * (1 + m / 100);
                 $precio.val(precio.toFixed(2));
-                calcularTotal($linea);
-                calcularMargen($linea);
-                }
-            });
-            } else {
-            $linea.find('input[name$="-costo"]').val('');
-            $precio.val('');
-            $margen.val('');
-            $linea.find('.form-total').val('0.00');
-            calcularTotalFinal();
+                calcularLinea($linea);
             }
+        });
+    
+        /* PRODUCTO SELECCIONADO */
+        $producto.on('change', function(){
+            const id = $(this).val();
+            if (!id) return;
+    
+            $.get("{% url 'obtener_precio_producto' %}", { producto_id: id }, function(data){
+    
+                $precio.val(parseFloat(data.precio_1 || 0).toFixed(2));
+                $linea.find('input[name$="-costo"]').val(parseFloat(data.costo || 0).toFixed(2));
+    
+                // ✅ GUARDAMOS ALICUOTA ACA
+                $linea.data('iva', parseFloat(data.iva) || 0);
+    
+                calcularLinea($linea);
+                {% if not es_ri %} calcularMargen($linea); {% endif %}
+            });
         });
     }
-
-    $(document).ready(function () {
-        let totalForms = parseInt($('#id_form-TOTAL_FORMS').val());
-
-        $("#id_socio").change(function () {
-            const socioId = $(this).val();
-            if (socioId) {
-                actualizarSucursales(socioId);
-            }
+    
+    /* ===========================
+       DOCUMENT READY
+    =========================== */
+    $(document).ready(function(){
+    
+        let totalForms = parseInt($("#id_form-TOTAL_FORMS").val());
+    
+        $("#id_socio").on("change", function(){
+            actualizarSucursales($(this).val());
         });
-
-        // Ligar eventos a líneas existentes
-        $("#formset .formset-linea").each(function () {
+    
+        $("#formset .formset-linea").each(function(){
             bindEventosLinea($(this));
-            calcularTotal($(this)); // por si hay datos precargados
-            calcularMargen($(this));
+            calcularLinea($(this));
         });
-
-        // Eliminar línea
-        $("#formset").on("click", ".eliminar", function () {
+    
+        /* ELIMINAR */
+        $("#formset").on("click", ".eliminar", function(){
             $(this).closest(".formset-linea").remove();
-            calcularTotalFinal();
             totalForms--;
-            $('#id_form-TOTAL_FORMS').val(totalForms);
+            $("#id_form-TOTAL_FORMS").val(totalForms);
+            calcularTotalesFinales();
         });
-        
-        // Agregar línea
-        $("#agregar-linea").click(function () {
-            const html = $("#formset-empty").html().replace(/__prefix__/g, totalForms);  // <- importante __prefix__
-            $("#formset").append(html);
-            bindEventosLinea($("#formset .formset-linea").last());
+    
+        /* AGREGAR */
+        $("#agregar-linea").on("click", function(){
+            const tpl = $("#formset-empty").html().replace(/__prefix__/g, totalForms);
+            $("#formset").append(tpl);
+            const $nueva = $("#formset .formset-linea").last();
+            bindEventosLinea($nueva);
             totalForms++;
-            $("#id_form-TOTAL_FORMS").val(totalForms);            
+            $("#id_form-TOTAL_FORMS").val(totalForms);
         });
-
-        calcularTotalFinal();  // inicial
-    });
+    
+    });    
         // --- estilos de error rápidos ---
         const cssErr = `
         .is-invalid{ border-color:#e74c3c !important; background:#fff6f6 !important; }

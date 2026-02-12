@@ -4,7 +4,11 @@
 {% block panel-body %}
 
   {{ wizard.form.management_form }}
+  {% if not consorcio.es_ri %}
   <h4 class="m-t-0 header-title">Seleccione los saldos a favor del socio que desee utilizar</h4>
+  {% else %}
+  <h4 class="m-t-0 header-title">Seleccione los saldos a favor del cliente que desee utilizar</h4>
+  {% endif %}
 
   {% if saldos_a_utilizar %}
     {% if cobros %}

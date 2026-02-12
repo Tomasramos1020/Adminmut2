@@ -183,12 +183,12 @@ class ConceptosForm(FormControl, forms.Form):
 			for s in asociados:
 				dato = 'socio-{}'.format(s.id)
 				choices.append((dato, s.nombre_completo))
-		if consorcio.es_federacion:
+		if consorcio and consorcio.permite_no_asociados:
 			clientes = Socio.objects.filter(consorcio=consorcio, es_socio=False, baja__isnull=True, nombre_servicio_mutual__isnull=True)
 			if clientes:
 				choices.append((None, '------ Padron de NO asociados ------'))
 				for c in clientes:
-					dato = 'cliente-{}'.format(s.id)
+					dato = 'socio-{}'.format(c.id)
 					choices.append((dato, c.nombre_completo))
 		self.fields['destinatario'].choices = choices
 
@@ -219,8 +219,8 @@ class IndividualesRecursoForm(FormControl, forms.Form):
 			for s in asociados:
 				dato = 'socio-{}'.format(s.id)
 				choices.append((dato, s.nombre_completo))
-		if consorcio.es_federacion:
-			clientes = Socio.objects.filter(consorcio=consorcio, es_socio=False, baja_isnull=True)
+		if consorcio and consorcio.permite_no_asociados:
+			clientes = Socio.objects.filter(consorcio=consorcio, es_socio=False, baja__isnull=True)
 			if clientes:
 				choices.append((None, '------ Padron de NO asociados ------'))
 				for cliente in clientes:
@@ -247,7 +247,7 @@ class IndividualesForm(FormControl, forms.Form):
 			for s in asociados:
 				dato = 'socio-{}'.format(s.id)
 				choices.append((dato, s.nombre_completo))
-		if consorcio.es_federacion:
+		if consorcio and consorcio.permite_no_asociados:
 			clientes = Socio.objects.filter(consorcio=consorcio, es_socio=False, baja__isnull=True)
 			if clientes:
 				choices.append((None, '------ Padron de NO asociados ------'))

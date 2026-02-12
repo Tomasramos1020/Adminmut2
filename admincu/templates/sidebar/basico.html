@@ -1,8 +1,10 @@
 {% with user_group=user.groups.all.0.name %}
 
+{% if not consorcio.es_ri %}
 <li class="has-submenu">
   <a href="{% url 'recursos' %}"><i class="fi-paper"></i>Facturación</a>
 </li>
+{% endif %}
 
 <li class="has-submenu">
   <a href="{% url 'cobranzas' %}"><i class="fi-circle-check"></i>Cobros</a>

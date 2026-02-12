@@ -96,6 +96,14 @@ PIVOT = {
 
 }
 
+def permite_no_asociados(request):
+	cons = consorcio(request)
+	return bool(cons and getattr(cons, 'permite_no_asociados', False))
+
+def rechazar_no_asociados(request):
+	messages.error(request, 'No tiene habilitado el padrón de no asociados.')
+	return redirect('parametros')
+
 
 @method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class Listado(generic.ListView):
@@ -103,6 +111,11 @@ class Listado(generic.ListView):
 	""" Lista del modelo seleccionado """
 
 	template_name = 'arquitectura/parametro.html'
+
+	def dispatch(self, request, *args, **kwargs):
+		if kwargs.get('modelo') == "Cliente" and not permite_no_asociados(request):
+			return rechazar_no_asociados(request)
+		return super().dispatch(request, *args, **kwargs)
 
 	def get_queryset(self, **kwargs):
 		if self.kwargs['modelo'] == "Punto":
@@ -159,6 +172,11 @@ class Crear(generic.CreateView):
 	template_name = 'arquitectura/instancia.html'
 	model = None
 
+	def dispatch(self, request, *args, **kwargs):
+		if kwargs.get('modelo') == "Cliente" and not permite_no_asociados(request):
+			return rechazar_no_asociados(request)
+		return super().dispatch(request, *args, **kwargs)
+
 	def get_form_class(self):
 		return PIVOT[self.kwargs['modelo']][1]
 
@@ -208,6 +226,8 @@ class Crear(generic.CreateView):
 class HeaderExeptMixin:
 
 	def dispatch(self, request, *args, **kwargs):
+		if kwargs.get('modelo') == "Cliente" and not permite_no_asociados(request):
+			return rechazar_no_asociados(request)
 		try:
 			if kwargs['modelo'] == "Cliente":
 				objeto = Socio.objects.get(consorcio=consorcio(self.request), pk=kwargs['pk'], es_socio=False)
@@ -1049,10 +1069,14 @@ def consultar_padron_ajax(request):
 
 		from arquitectura.models import CondicionIVA
 		condicion_id = None
+		obj = None
 		if condicion_iva_codigo:
 			obj = CondicionIVA.objects.filter(codigo=str(condicion_iva_codigo)).first()
-			if obj:
-				condicion_id = obj.id
+		# Default: Consumidor Final (5) cuando AFIP no informa condición
+		if not obj:
+			obj = CondicionIVA.objects.filter(codigo="5").first()
+		if obj:
+			condicion_id = obj.id
 
 		# === Tipo de persona: F o J ===
 		tipo_persona = nodo.findtext(".//{*}tipoPersona", "").lower()

@@ -1,0 +1,140 @@
+{% load staticfiles %}
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>{{ factura.receipt.receipt_type }} {{ factura.formatoAfip }}</title>
+    <link href="{% static 'anopa/pdf.css' %}" rel="stylesheet" type="text/css" />
+  </head>
+
+  <body>
+    <div class="receipt">
+
+      <header>
+        <div class="taxpayer-details group">
+          <address>
+            {% if factura.consorcio.contribuyente.extras %}
+              <img src="{{ factura.consorcio.contribuyente.extras.logo_as_data_uri }}" alt="Logo"><br>
+            {% else %}
+              <h3>{{ factura.consorcio.nombre_completo }}</h3>
+            {% endif %}
+            {{ factura.consorcio.domicilio }}<br>
+            {{ factura.consorcio.provincia }}
+          </address>
+
+          <div class="receipt-type">
+            <div class="identifier">
+              A
+            </div>
+            <div class="code">
+              Código {{ factura.receipt.receipt_type.code }}
+            </div>
+          </div>
+
+          <div class="receipt-details">
+            <div class="receipt-type-description">
+              FACTURA A
+            </div>
+            <strong>Nº</strong> {{ factura.formatoAfip }}<br>
+            Fecha: {{ factura.receipt.issued_date|date:"d/m/Y" }}<br>
+            <small>
+              C.U.I.T.: {{ factura.consorcio.cuit }}<br>
+              IVA: Responsable Inscripto<br>
+              Inicio de actividad: {{ factura.consorcio.contribuyente.active_since|date:"d/m/Y" }}
+            </small>
+          </div>
+        </div>
+
+        <hr>
+
+        <div class="client">
+          <div class="client-data">
+            <strong>CLIENTE:</strong>
+            {{ factura.destinatario_display }}<br>
+            <strong>{{ factura.socio.tipo_documento }}:</strong>
+            {{ factura.socio.numero_documento }}<br>
+            <strong>Condición IVA:</strong>
+            {{ factura.socio.condicionIVA }}<br>
+          </div>
+        </div>
+
+        <hr>
+      </header>
+
+      <p><strong>Detalle de productos:</strong></p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th class="text-center">Cantidad</th>
+            <th class="text-right">Precio Unit.</th>
+            <th class="text-right">Subtotal</th>
+            <th class="text-right">IVA</th>
+            <th class="text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vp in factura.liquidacion.venta_producto_set.all %}
+            <tr>
+              <td>{{ vp.producto }}</td>
+              <td class="text-center">{{ vp.cantidad|intcomma }}</td>
+              <td class="text-right">{{ vp.precio|intcomma }}</td>
+              <td class="text-right">{{ vp.neto|intcomma }}</td>
+              <td class="text-right">{{ vp.iva|intcomma }}</td>
+              <td class="text-right">{{ vp.total_iva|intcomma }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <br>
+
+      <div class="taxpayer-details group">
+        <div class="receipt-details">
+          <table>
+            <tr>
+              <th>Subtotal Neto Gravado:</th>
+              <th class="text-right">
+                {{ factura.receipt.net_taxed|intcomma }}
+              </th>
+            </tr>
+
+            <tr>
+                <th>Total IVA:</th>
+                <th class="text-right">
+                    <strong>{{ factura.total_iva|intcomma }}</strong>
+                </th>
+              </tr>
+              
+            <tr>
+              <th><strong>Total Factura:</strong></th>
+              <th class="text-right">
+                <strong>{{ factura.receipt.total_amount|intcomma }}</strong>
+              </th>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <footer>
+        <div class="footer_recibo">
+          <hr>
+          <div class="cae">
+            <strong>CAE</strong>
+            {{ factura.receipt.validation.cae }}
+            &nbsp;&nbsp;
+            <strong>Vto CAE</strong>
+            {{ factura.receipt.validation.cae_expiration|date:"d/m/Y" }}
+          </div>
+
+          <div class="barcode">
+            <img src="data:image/png;base64,{{ barcode }}">
+          </div>
+        </div>
+      </footer>
+
+    </div>
+  </body>
+</html>

@@ -42,6 +42,7 @@ class Consorcio(models.Model):
 	proveeduria = models.BooleanField(default=False)
 	matricula = models.CharField(max_length=50, blank=True, null=True)
 	es_federacion = models.BooleanField(default=False)
+	habilita_no_asociados = models.BooleanField(default=False)
 	convenios = models.BooleanField(default=False)
 	chatia = models.BooleanField(default=False)
 	fosea = models.BooleanField(default=False)
@@ -79,6 +80,10 @@ class Consorcio(models.Model):
 			numero[2:10],
 			numero[10:11]
 		)
+
+	@property
+	def permite_no_asociados(self):
+		return bool(self.es_federacion or self.habilita_no_asociados)
 
 
 class Tipo_Ocupante(models.Model):

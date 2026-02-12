@@ -3,7 +3,11 @@
 {% block panel-body %}
 
   {{ wizard.form.management_form }}
+  {% if not consorcio.es_ri %}
   <h4 class="m-t-0 header-title">Seleccione deudas del socio</h4>
+  {% else %}
+  <h4 class="m-t-0 header-title">Seleccione deudas del cliente</h4>
+  {% endif %}
 
   <div class="table-responsive">
       <table class="table table-striped table-condensed">

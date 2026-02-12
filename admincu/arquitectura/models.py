@@ -268,6 +268,22 @@ class Gasto(models.Model):
 	def __str__(self):
 		return self.nombre
 
+# AFIP: codigos oficiales para CondicionIVAReceptor
+CODIGOS_IVA_AFIP = {
+	"1": 1,  # Responsable Inscripto
+	"2": 2,  # Responsable no inscripto
+	"3": 3,  # No responsable
+	"4": 4,  # Sujeto Exento
+	"5": 5,  # Consumidor Final
+	"6": 6,  # Monotributo
+	"7": 7,  # Sujeto no categorizado
+	# Si quisieras agregar Social o Liberado:
+	# "8": 6,
+	# "9": 7,
+}
+
+
+
 class CondicionIVA(models.Model):
 	nombre = models.CharField(max_length=50)
 	codigo = models.CharField(max_length=2)
@@ -297,6 +313,10 @@ class CondicionIVA(models.Model):
 
 		# Default → DNI
 		return DocumentType.objects.get(code="96")
+	
+	def codigo_afip(self):
+		"""Devuelve el código AFIP para CondicionIVAReceptor."""
+		return CODIGOS_IVA_AFIP.get(self.codigo, 5)  # default: Consumidor Final
 
 class Socio(models.Model):
 	""" Socios y NO SOCIOS y servicios mutuales. Quedo con el nombre de socio por intempestividad """
@@ -868,7 +888,5 @@ class Campaña(models.Model):
 		return self.nombre
 
 	from django_afip.models import DocumentType
-
-
 
 

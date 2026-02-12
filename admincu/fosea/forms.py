@@ -534,11 +534,14 @@ SiniestroLineaFormSet = inlineformset_factory(
 )
 
 class DenunciaForm(forms.ModelForm):
+	fecha = forms.DateField(
+		widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}, format='%Y-%m-%d'),
+		input_formats=['%Y-%m-%d', '%d/%m/%Y']
+	)
 	class Meta:
 		model = Denuncia
 		fields = ['fecha', 'campaña', 'socio']
 		widgets = {
-			'fecha': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
 			'campaña': forms.Select(attrs={'class': 'form-control'}),
 			'socio': forms.Select(attrs={'class': 'form-control'}),
 		}
@@ -567,6 +570,7 @@ class DenunciaLineaForm(forms.ModelForm):
 		request = kwargs.pop('request', None)
 		cons = kwargs.pop('consorcio', None)
 		socio = kwargs.pop('socio', None)
+		campaña = kwargs.pop('campaña', None)
 		super().__init__(*args, **kwargs)
 
 		if request and not cons:
@@ -574,12 +578,30 @@ class DenunciaLineaForm(forms.ModelForm):
 
 		if cons:
 			self.fields['cultivo'].queryset = Cultivo.objects.filter(consorcio=cons)
+			establecimientos_qs = Establecimiento.objects.filter(consorcio=cons)
 			if socio:
-				self.fields['establecimiento'].queryset = Establecimiento.objects.filter(
-					consorcio=cons, socio__id=socio.id
-				).distinct()
-			else:
-				self.fields['establecimiento'].queryset = Establecimiento.objects.filter(consorcio=cons)
+				establecimientos_qs = establecimientos_qs.filter(socio__id=socio.id)
+
+				campaña_id = getattr(campaña, "id", campaña)
+				if campaña_id:
+					usados = (SolicitudLinea.objects
+						.filter(
+							solicitud__consorcio=cons,
+							solicitud__socio_id=socio.id,
+							solicitud__campaña_id=campaña_id
+						)
+						.values_list("establecimiento_id", flat=True)
+						.distinct()
+					)
+					establecimientos_qs = establecimientos_qs.filter(id__in=usados)
+
+			# Si la línea ya existe, incluimos su establecimiento aunque no cumpla filtro
+			if self.instance and self.instance.pk and self.instance.establecimiento_id:
+				establecimientos_qs = establecimientos_qs | Establecimiento.objects.filter(
+					pk=self.instance.establecimiento_id
+				)
+
+			self.fields['establecimiento'].queryset = establecimientos_qs.distinct()
 
 	def clean(self):
 		cd = super().clean()

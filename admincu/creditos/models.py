@@ -461,8 +461,35 @@ class Factura(models.Model):
 		creditos.update(factura=self)
 		return creditos
 
+	def total_iva(self):
+		return sum(
+			vp.iva for vp in self.liquidacion.venta_producto_set.all()
+			if vp.iva
+		)
+
+
 	def hacer_pdf(self):
 		pass
+
+	def get_pdf_template(self):
+		es_proveeduria = self.credito_set.filter(
+			ingreso__es_proveeduria=True
+		).exists()
+
+		codigo = str(self.receipt.receipt_type.code)
+		cons = self.consorcio
+
+		# PROVEEDURÍA
+		if es_proveeduria:
+			if not cons.es_ri:
+				return 'creditos/pdfs/proveeduria.html'
+			else:
+				# Factura A o B de productos
+				return f'creditos/pdfs/proveeduria_{codigo}.html'
+
+		# SERVICIOS
+		return f'creditos/pdfs/{codigo}.html'
+
 	def creditos_para_pdf(self):
 		return (self.credito_set
 			.filter(padre__isnull=True)
@@ -523,10 +550,7 @@ class Factura(models.Model):
 			barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
 		
 
-		if es_proveeduria:
-			template_name = 'creditos/pdfs/proveeduria.html'
-		else:
-			template_name = f'creditos/pdfs/{self.receipt.receipt_type.code}.html'
+		template_name = self.get_pdf_template()
 
 		html_string = render_to_string(template_name, locals())
 		html = HTML(string=html_string, base_url='https://www.admincu.com/comprobantes/')

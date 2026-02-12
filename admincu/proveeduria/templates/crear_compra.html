@@ -97,6 +97,12 @@
             <div class="form-group col-6">{{ form.deposito.label_tag }}{{ form.deposito }}</div>
             <div class="form-group col-6">{{ form.acreedor.label_tag }}{{ form.acreedor }}</div>
           </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              {{ form.ajuste_distribuible.label_tag }}{{ form.ajuste_distribuible }}
+              <small>Descuento negativo / Interés o percepción positivo.</small>
+            </div>
+          </div>
           {{ form.numero }} {# hidden; lo completa clean() #}
 
         <hr>
@@ -107,10 +113,23 @@
                 <div class="formset-linea">
                     {{ form.producto.label_tag }} {{ form.producto }}
                     {{ form.precio.label_tag }} {{ form.precio }}
+                    <label>Precio ajustado</label>
+                    <input type="number" class="form-precio-ajustado form-precio" readonly />
                     {{ form.cantidad.label_tag }} {{ form.cantidad }}
+                    {% if es_ri %}
+                    <label>Neto</label>
+                    <input type="number" class="form-neto" readonly />
+                
+                    <label>IVA</label>
+                    <input type="number" class="form-iva" readonly />
+                
                     <label>Total</label>
                     <input type="number" class="form-total" readonly />
-                    <button type="button" class="eliminar">Eliminar</button>
+                {% else %}
+                    <label>Total</label>
+                    <input type="number" class="form-total" readonly />
+                {% endif %}
+                <button type="button" class="eliminar">Eliminar</button>
                 </div>
             {% endfor %}
         </div>
@@ -119,19 +138,43 @@
             <div class="formset-linea">
                 {{ formset.empty_form.producto.label_tag }} {{ formset.empty_form.producto }}
                 {{ formset.empty_form.precio.label_tag }} {{ formset.empty_form.precio }}
+                <label>Precio ajustado</label>
+                <input type="number" class="form-precio-ajustado form-precio" readonly />
                 {{ formset.empty_form.cantidad.label_tag }} {{ formset.empty_form.cantidad }}
+                {% if es_ri %}
+                <label>Neto</label>
+                <input type="number" class="form-neto" readonly />
+                <label>IVA</label>
+                <input type="number" class="form-iva" readonly />
                 <label>Total</label>
                 <input type="number" class="form-total" readonly />
+            {% else %}
+                <label>Total</label>
+                <input type="number" class="form-total" readonly />
+            {% endif %}
                 <button type="button" class="eliminar">Eliminar</button>
             </div>
         </div>
 
         <button type="button" id="agregar-linea" class="btn btn-agregar">Agregar línea</button>
+        {% if es_ri %}
+        <div style="text-align:right; font-size:16px; margin-top:10px;">
+            <div>
+                <label>Total Neto:</label>
+                <input type="number" id="total-neto-final" readonly style="width:200px;background:#eee;text-align:right;">
+            </div>
+            <div>
+                <label>Total IVA:</label>
+                <input type="number" id="total-iva-final" readonly style="width:200px;background:#eee;text-align:right;">
+            </div>
+        </div>
+        {% endif %}
 
         <div class="form-group" style="text-align: right; font-size: 18px; font-weight: bold; margin-top: 15px;">
             <label for="total-final">Total Final:</label>
             <input type="number" id="total-final" readonly style="background: #eee; font-size: 18px; width: 200px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; text-align: right;" />
         </div>
+
 
         <div class="botones">
             <a href="{% url 'facturacion-proveeduria' %}" class="btn btn-cancelar">Cancelar</a>
@@ -144,22 +187,120 @@
 {% block js %}
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
+    const ES_RI = {{ es_ri|yesno:"true,false" }};
+</script>
+    
+<script>
     function calcularTotalFinal() {
-        let totalFinal = 0;
-        $('.form-total').each(function () {
-            const val = parseFloat($(this).val()) || 0;
-            totalFinal += val;
-        });
-        $('#total-final').val(totalFinal.toFixed(2));
+        recalcularTodo();
     }
 
     function calcularTotal($linea) {
-        const precio = parseFloat($linea.find('input[name$="-precio"]').val()) || 0;
-        const cantidad = parseFloat($linea.find('input[name$="-cantidad"]').val()) || 0;
-        const total = precio * cantidad;
-        $linea.find('.form-total').val(total.toFixed(2));
-        calcularTotalFinal();
+        recalcularTodo();
     }
+
+    function calcularTotalesRI() {
+        recalcularTodo();
+    }
+
+    function getAjusteDistribuible() {
+        const raw = ($('#id_ajuste_distribuible').val() || '').toString().trim();
+        if (!raw) return 0;
+        const val = parseFloat(raw.replace(',', '.'));
+        return isNaN(val) ? 0 : val;
+    }
+
+    function parseNumero(raw) {
+        const str = (raw || '').toString().trim();
+        if (!str) return NaN;
+        const val = parseFloat(str.replace(',', '.'));
+        return isNaN(val) ? NaN : val;
+    }
+
+    function recalcularTodo() {
+        const ajuste = getAjusteDistribuible();
+        const lineas = [];
+
+        $('#formset .formset-linea').each(function () {
+            const $linea = $(this);
+            const precio = parseNumero($linea.find('input[name$="-precio"]').val());
+            const cantidad = parseNumero($linea.find('input[name$="-cantidad"]').val());
+            const iva_pct = parseFloat($linea.data('iva') || 0);
+
+            const precioValido = !isNaN(precio) && precio > 0;
+            const cantidadValida = !isNaN(cantidad) && cantidad > 0;
+
+            if (precioValido) {
+                $linea.find('.form-precio-ajustado').val(precio.toFixed(2));
+            } else {
+                $linea.find('.form-precio-ajustado').val('');
+            }
+
+            if (precioValido && cantidadValida) {
+                lineas.push({ $linea, precio, cantidad, iva_pct });
+            } else {
+                if (ES_RI) {
+                    $linea.find('.form-neto').val('');
+                    $linea.find('.form-iva').val('');
+                }
+                $linea.find('.form-total').val('');
+            }
+        });
+
+        let totalBase = 0;
+        lineas.forEach(l => { totalBase += (l.precio * l.cantidad); });
+
+        const totalObjetivo = totalBase + ajuste;
+        const usarAjuste = (ajuste !== 0 && totalBase > 0 && totalObjetivo > 0);
+        const factor = usarAjuste ? (totalObjetivo / totalBase) : 1;
+
+        let totalAplicado = 0;
+        let totalNeto = 0;
+        let totalIva = 0;
+        let totalFinal = 0;
+
+        lineas.forEach((l, idx) => {
+            let precioAjustado = l.precio;
+            if (usarAjuste) {
+                if (idx < lineas.length - 1) {
+                    precioAjustado = Math.round(l.precio * factor * 100) / 100;
+                    totalAplicado += precioAjustado * l.cantidad;
+                } else {
+                    const objetivoLinea = totalObjetivo - totalAplicado;
+                    precioAjustado = Math.round((objetivoLinea / l.cantidad) * 100) / 100;
+                    totalAplicado += precioAjustado * l.cantidad;
+                }
+            }
+
+            l.$linea.find('.form-precio-ajustado').val(precioAjustado.toFixed(2));
+
+            if (!ES_RI) {
+                const totalLinea = Math.round(precioAjustado * l.cantidad * 100) / 100;
+                l.$linea.find('.form-total').val(totalLinea.toFixed(2));
+                totalFinal += totalLinea;
+                return;
+            }
+
+            const neto = Math.round(precioAjustado * l.cantidad * 100) / 100;
+            const iva = Math.round(neto * (l.iva_pct / 100) * 100) / 100;
+            const totalLinea = neto + iva;
+
+            l.$linea.find('.form-neto').val(neto.toFixed(2));
+            l.$linea.find('.form-iva').val(iva.toFixed(2));
+            l.$linea.find('.form-total').val(totalLinea.toFixed(2));
+
+            totalNeto += neto;
+            totalIva += iva;
+            totalFinal += totalLinea;
+        });
+
+        if (ES_RI) {
+            $('#total-neto-final').val(totalNeto.toFixed(2));
+            $('#total-iva-final').val(totalIva.toFixed(2));
+        }
+        $('#total-final').val(totalFinal.toFixed(2));
+    }
+    
 
     function bindEventosLinea($linea) {
         $linea.find('input[name$="-cantidad"], input[name$="-precio"]').on('input', function () {
@@ -171,20 +312,49 @@
         let totalForms = parseInt($('#id_form-TOTAL_FORMS').val());
 
         $("#formset .formset-linea").each(function () {
-            bindEventosLinea($(this));
-            calcularTotal($(this));
+            const $linea = $(this);
+            bindEventosLinea($linea);
+        
+            const productoID = $linea.find('select[name$="-producto"]').val();
+        
+            if (ES_RI && productoID) {
+                // ✅ pedir IVA automáticamente al cargar
+                $.get("{% url 'obtener_precio_producto' %}", { producto_id: productoID }, function(data){
+                    const iva = parseFloat(data.iva || 0);
+                    $linea.data('iva', iva);
+                    calcularTotal($linea);
+                });
+            } else {
+                calcularTotal($linea);
+            }
         });
+        ;
 
         $("#formset").on("click", ".eliminar", function () {
             $(this).closest(".formset-linea").remove();
             totalForms--;
             $('#id_form-TOTAL_FORMS').val(totalForms);
-            calcularTotalFinal();
+            if (ES_RI) {
+                calcularTotalesRI();
+            } else {
+                calcularTotalFinal();
+            }
         });
 
         $("#agregar-linea").click(function () {
             const html = $("#formset-empty").html().replace(/__prefix__/g, totalForms);
-            const $nuevaLinea = $('<div class="formset-linea"></div>').append(html);
+            const $nuevaLinea = $(html);
+            $nuevaLinea.data('iva', null);
+
+            const productoID = $nuevaLinea.find('select[name$="-producto"]').val();
+            if (productoID) {
+                $.get("{% url 'obtener_precio_producto' %}", { producto_id: productoID }, function(data){
+                    $nuevaLinea.data('iva', parseFloat(data.iva || 0));
+                    calcularTotal($nuevaLinea);
+                });
+            }
+            
+
             $("#formset").append($nuevaLinea);
             bindEventosLinea($nuevaLinea);
             totalForms++;
@@ -193,6 +363,29 @@
 
         calcularTotalFinal();
     });
+    $(document).on('input', '#id_ajuste_distribuible', function() {
+        if (ES_RI) {
+            calcularTotalesRI();
+        } else {
+            calcularTotalFinal();
+        }
+    });
+    $(document).on('change', 'select[name$="-producto"]', function() {  
+        const productoID = $(this).val();
+        const $linea = $(this).parents('.formset-linea:first');
+        if (!productoID) {
+            $linea.data('iva', 0);
+            calcularTotal($linea);
+            return;
+        }
+    
+        $.get("{% url 'obtener_precio_producto' %}", { producto_id: productoID }, function(data){
+            const iva = parseFloat(data.iva || 0);
+            $linea.data('iva', iva);
+            calcularTotal($linea);
+        });
+    });
+    
             // ====== Estilos y helpers de error ======
         const cssErr = `
         .is-invalid{ border-color:#e74c3c !important; background:#fff6f6 !important; }
