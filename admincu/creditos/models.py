@@ -545,10 +545,15 @@ class Factura(models.Model):
 				'saldo2': saldo2
 			}
 
-		if self.receipt.receipt_type.code == "11":
-			generator = ReceiptBarcodeGenerator(self.receipt)
-			barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
-		
+		barcode = ""
+		receipt_code = str(self.receipt.receipt_type.code)
+		if receipt_code not in ["101", "104"]:
+			try:
+				generator = ReceiptBarcodeGenerator(self.receipt)
+				barcode = base64.b64encode(generator.generate_barcode()).decode("utf-8")
+			except Exception:
+				barcode = ""
+			
 
 		template_name = self.get_pdf_template()
 

@@ -320,6 +320,7 @@ class socioForm(FormControl, forms.ModelForm):
 
 			self.fields['nombre'].label = 'Razón social / Nombre (obligatorio)'
 			self.fields['numero_documento'].label = 'CUIT (obligatorio)'
+			self.fields['condicionIVA'].label = 'Condicion frente al IVA (obligatorio)'
 			self.fields['fecha_nacimiento'].widget = forms.HiddenInput()
 			self.fields['genero'].widget = forms.HiddenInput()
 			self.fields['notificaciones'].widget = forms.HiddenInput()
@@ -328,6 +329,11 @@ class socioForm(FormControl, forms.ModelForm):
 			self.fields['observacion'].widget = forms.HiddenInput()
 			self.fields['estado'].widget = forms.HiddenInput()
 			self.fields['directivo'].widget = forms.HiddenInput()
+			self.fields['tipo_asociado'].widget = forms.HiddenInput()
+			self.fields['tipo_asociado'].required = False
+			self.fields['numero_asociado'].widget = forms.HiddenInput()
+			self.fields['numero_asociado'].required = False
+			self.fields['condicionIVA'].required = True
 			self.fields['profesion'].label = 'Actividad'
 			self.fields['fecha_alta'].required = False
 			self.fields['fecha_alta'].widget = forms.HiddenInput()

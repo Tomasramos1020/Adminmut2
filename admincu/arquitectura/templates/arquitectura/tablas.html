@@ -263,15 +263,13 @@
 
       
 
+      {% if not cons.cuit_nasociado %}
+        <td>{{ objeto.numero_asociado|default:"" }}</td>
+      {% endif %}
+
       {% if not cons.es_ri %}
         <td>{{ objeto.tipo_asociado|default:"" }}</td>
       {% endif %}
-
-        
-      
-        {% if not cons.cuit_nasociado %}
-          <td>{{ objeto.numero_asociado|default:"" }}</td>
-        {% endif %}
       
     
       <!-- CUIT -->

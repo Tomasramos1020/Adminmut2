@@ -406,6 +406,16 @@ class CrearOperacionView(View):
 					)
 
 			factura.validar_factura()
+			if (
+				factura.receipt
+				and factura.receipt.receipt_type
+				and str(factura.receipt.receipt_type.code) not in ["101", "104"]
+				and factura.observacion
+			):
+				messages.error(
+					request,
+					"AFIP devolvio un error: {}".format(factura.observacion),
+				)
 
 			liquidacion.hacer_asiento()
 

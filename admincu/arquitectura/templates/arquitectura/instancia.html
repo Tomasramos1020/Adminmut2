@@ -198,10 +198,13 @@ document.addEventListener("DOMContentLoaded", function() {
                     setVal("id_codigo_postal", d.codigo_postal);
                     setVal("id_provincia", d.provincia_id);
                     setVal("id_tipo_persona", d.tipo_persona);
+                    setVal("id_condicionIVA", d.condicionIVA_id);
 
-                    // limpiar actividad
+                    // Cargar actividad principal si viene de AFIP
                     const prof = document.getElementById("id_profesion");
-                    if (prof) prof.value = "";
+                    if (prof) {
+                        prof.value = d.profesion || "";
+                    }
 
                     configurarPersonaJuridicaUI();
                 }
@@ -244,5 +247,4 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 {% endblock %}
-
 

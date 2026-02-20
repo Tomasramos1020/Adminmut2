@@ -28,7 +28,6 @@ from consorcios.models import *
 from .models import *
 from .forms import *
 from creditos.models import Factura
-from django.db.models import Q
 
 
 @method_decorator(group_required('administrativo', 'contable', 'fosea', 'sin_op', 'sin_deudas_sin_op', 'afiliaciones'), name='dispatch')
@@ -127,8 +126,12 @@ class Listado(generic.ListView):
 			objetos = eval(self.kwargs['modelo']).objects.filter(
 				consorcio=consorcio(self.request))
 			if self.kwargs['modelo'] == "Socio":
-				objetos = objetos.filter(Q(baja__isnull=True) | Q(
-					nombre_servicio_mutual__isnull=True) | Q(es_socio=True))
+				# "Socio" debe mostrar solo padrón principal (incluye activos y de baja),
+				# evitando mezclar no asociados y grupos de servicios mutuales.
+				objetos = objetos.filter(
+					es_socio=True,
+					nombre_servicio_mutual__isnull=True
+				)
 		return objetos
 
 	def get_context_data(self, **kwargs):
@@ -459,6 +462,15 @@ class SociosImportacionWizard(SessionWizardView):
 		('importacion', ImportacionForm),
 		('revision', ConfirmacionForm),
 	]
+
+	def dispatch(self, request, *args, **kwargs):
+		if kwargs.get('modelo') != "Socio":
+			messages.error(request, "La importación sólo está disponible para el padrón de socios.")
+			return redirect('parametros')
+		if consorcio(request).es_ri:
+			messages.error(request, "La importación de padrón no está habilitada para consorcios RI.")
+			return redirect('parametro', modelo='Socio')
+		return super().dispatch(request, *args, **kwargs)
 
 	def leer_datos(self, archivo):
 		""" Retorna los datos limpios """
@@ -1008,6 +1020,15 @@ class ExportacionInaes(generic.ListView):
 	""" Index de transferencias """
 	template_name = 'arquitectura/exportacion_inaes/exportacion.html'
 	paginate_by = 10
+
+	def dispatch(self, request, *args, **kwargs):
+		if kwargs.get('modelo') != "Socio":
+			messages.error(request, "La exportación INAES sólo aplica al padrón de socios.")
+			return redirect('parametros')
+		if consorcio(request).es_ri:
+			messages.error(request, "La exportación INAES no está habilitada para consorcios RI.")
+			return redirect('parametro', modelo='Socio')
+		return super().dispatch(request, *args, **kwargs)
 
 	def get_queryset(self, **kwargs):
 

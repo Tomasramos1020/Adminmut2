@@ -7,6 +7,10 @@ from import_export.resources import ModelResource
 from import_export.admin import ImportExportMixin
 from expensas_pagas.models import DocumentoExp
 from expensas_pagas.manager import *
+from .afip_patch import (
+	get_last_payload_for_receipt,
+	get_last_payload_json_for_receipt,
+)
 
 
 def cobro_exp(modeladmin, request, queryset):
@@ -94,6 +98,29 @@ def procesar_liquidacion(modeladmin, request, queryset):
 				creditos = factura.incorporar_creditos()
 
 				factura.validar_factura()
+
+				if factura.receipt and factura.receipt.receipt_type and factura.receipt.receipt_type.code not in ["101", "104"]:
+					payload = get_last_payload_for_receipt(factura.receipt)
+					if payload:
+						payload_json = get_last_payload_json_for_receipt(factura.receipt) or "{}"
+						condicion_iva = payload.get("CondicionIVAReceptorId")
+						if len(payload_json) > 4000:
+							payload_json = payload_json[:4000] + "... [truncado]"
+						messages.success(
+							request,
+							"AFIP JSON factura {} (CondicionIVAReceptorId={}): {}".format(
+								factura.id,
+								condicion_iva,
+								payload_json,
+							),
+						)
+					else:
+						messages.warning(
+							request,
+							"Factura {}: no se capturo el JSON AFIP para inspeccion.".format(
+								factura.id
+							),
+						)
 
 			liquidacion.confirmar()
 			messages.success(request, "Liquidacion procesada")
