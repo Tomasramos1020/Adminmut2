@@ -46,6 +46,9 @@
         {% endif %}
         <th>Concepto</th>
         <th>Periodo</th>
+        {% if mostrar_detalle %}
+          <th>Detalle</th>
+        {% endif %}
         <th class="text-right">Capital</th>
         <th class="text-right">Bruto</th>
         <th class="text-right warning">Saldo</th>
@@ -102,6 +105,11 @@
 
           <td>{{ credito.ingreso }}</td>
           <td>{{ credito.periodo|date:"Y-m" }}</td>
+          {% if mostrar_detalle %}
+            <td style="max-width: 240px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ credito.detalle|default:'' }}">
+              {{ credito.detalle|default:"-"|truncatechars:45 }}
+            </td>
+          {% endif %}
           <td class="text-right">{{ credito.capital|intcomma }}</td>
           <td class="text-right">{{ credito.bruto|intcomma }}</td>
           <td class="text-right warning total_individual">

@@ -59,7 +59,7 @@
 
             <!-- TABLA -->
             <div id="liquidacion-wrapper" class="table-responsive">
-              {% include 'creditos/registros/tabla-creditos.html' with creditos=creditos %}
+              {% include 'creditos/registros/tabla-creditos.html' with creditos=creditos mostrar_detalle=True %}
             </div>
 
             <!-- PAGINACIÓN -->
@@ -78,7 +78,6 @@
 {% block js %}
 {% include 'comunes/js_datatable_print_excel.html' %}
 {% endblock %}
-
 
 
 

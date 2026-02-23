@@ -66,6 +66,17 @@ class InicialForm(FormControl, forms.Form):
 
 		super().__init__(*args, **kwargs)
 
+		# Evita superponer el datepicker nativo del navegador con el bootstrap-datepicker.
+		for field_name in ('fecha_operacion', 'fecha_factura'):
+			field = self.fields.get(field_name)
+			if not field:
+				continue
+			if field.widget.attrs.get('type') == 'date':
+				classes = field.widget.attrs.get('class', '')
+				field.widget.attrs['class'] = ' '.join(
+					c for c in classes.split() if c != 'datepicker-autoclose'
+				)
+
 		if ok_grupos:
 			gr = Tipo_asociado.objects.filter(consorcio=consorcio, baja__isnull=True)
 			GRUPO_CHOICES = ((g.id, g.nombre) for g in gr)
