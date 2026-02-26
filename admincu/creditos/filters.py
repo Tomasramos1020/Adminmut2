@@ -97,10 +97,6 @@ class CreditoFilter(django_filters.FilterSet):
         fields = []
 
     def __init__(self, data=None, queryset=None, *, request=None, **kwargs):
-        if data is not None:
-            data = data.copy()
-            if not data.get("estado_saldo"):
-                data["estado_saldo"] = "con_saldo"
         super().__init__(data=data, queryset=queryset, request=request, **kwargs)
         c = consorcio(request) if request else None
         if not c:
@@ -245,4 +241,3 @@ class FacturaFilter(django_filters.FilterSet):
         if value.stop:
             return qs.filter(fecha_factura__lte=value.stop)
         return qs
-
