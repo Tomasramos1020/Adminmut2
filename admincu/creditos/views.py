@@ -126,6 +126,7 @@ class WizardLiquidacionManager:
 		"individuales": "creditos/nuevo/individuales.html",
 		"masivo": "creditos/nuevo/masivo.html",
 		"grupo": "creditos/nuevo/masivo.html",
+		"comprobante_convenio": "creditos/nuevo/comprobante_convenio.html",
 		"plazos": "creditos/nuevo/plazos.html",
 		"confirmacion": "creditos/nuevo/confirmacion.html",
 		"preconceptos": "creditos/nuevo/preconceptos.html",
@@ -254,6 +255,35 @@ class WizardLiquidacionManager:
 							credito = base_credito.copy()
 							credito['socio'] = socio
 							credito['capital'] = round(d['subtotal'],2)
+							creditos.append(credito)
+
+		elif tipo == "comprobante_convenio":
+			for d in data_creditos:
+				if d:
+					if d['subtotal']:
+						base_credito = {
+							'consorcio': consorcio(self.request),
+							'periodo': data_inicial['fecha_operacion'],
+							'ingreso': d['ingreso'],
+						}
+						socios_convenio = Socio.objects.filter(
+							consorcio=consorcio(self.request),
+							convenio=d['convenio'],
+							nombre_servicio_mutual__isnull=True,
+							baja__isnull=True,
+						)
+						q_socios_convenio = socios_convenio.count()
+						if d['distribucion'] == "total_socio" and not q_socios_convenio:
+							continue
+						for socio in socios_convenio:
+							credito = base_credito.copy()
+							credito['dominio'] = None
+							credito['socio'] = socio
+
+							if d['distribucion'] == "total_socio":
+								credito['capital'] = round(d['subtotal']/q_socios_convenio,2)
+							elif d['distribucion'] == "socio":
+								credito['capital'] = round(d['subtotal'],2)
 							creditos.append(credito)
 
 
@@ -976,6 +1006,66 @@ class CgruposWizard(WizardLiquidacionManager, SessionWizardView):
 	@transaction.atomic
 	def done(self, form_list, **kwargs):
 		liquidacion = self.hacer_liquidacion('grupo', receipt_type="101")
+		liquidacion = liquidacion.guardar()
+		messages.success(self.request, envioAFIP)
+		return redirect('recursos')
+
+
+@method_decorator(group_required('administrativo', 'sin_op', 'sin_deudas_sin_op'), name='dispatch')
+class CconvenioWizard(WizardLiquidacionManager, SessionWizardView):
+
+	form_list = [
+		('inicial', InicialForm),
+		('comprobante_convenio', ComprobanteConvenioFormSet),
+		('plazos', PlazoFormSet),
+		('confirmacion', ConfirmacionForm)
+	]
+
+	def get_template_names(self):
+		return [self.TEMPLATES[self.steps.current]]
+
+	def get_context_data(self, form, **kwargs):
+		context = super().get_context_data(form=form, **kwargs)
+		tipo = "Por Convenio"
+		peticion = "liquidacion de comprobantes RG-1415"
+		data_comprobante_convenio = self.get_cleaned_data_for_step('comprobante_convenio')
+		if data_comprobante_convenio:
+			ingresos = set([data['ingreso'] for data in data_comprobante_convenio if data])
+			accesorios = self.obtener_accesorios(ingresos)
+
+		if self.steps.current == 'confirmacion':
+			data_plazos = self.hacer_plazos()
+			liquidacion = self.hacer_liquidacion('comprobante_convenio', receipt_type="101")
+
+		context.update(locals())
+
+		return context
+
+	def get_form_kwargs(self, step):
+		kwargs = super().get_form_kwargs()
+		if step == "inicial":
+			kwargs.update({
+					'consorcio': consorcio(self.request),
+				})
+		return kwargs
+
+	def get_form(self, step=None, data=None, files=None):
+		form = super().get_form(step, data, files)
+		formset = False
+		if data:
+			if 'comprobante_convenio' in data['cconvenio_wizard-current_step']:
+				formset = True
+		if step == "comprobante_convenio":
+			formset = True
+
+		if formset:
+			formset = formset_factory(wraps(ComprobanteConvenioForm)(partial(ComprobanteConvenioForm, consorcio=consorcio(self.request))), extra=1)
+			form = formset(prefix='comprobante_convenio', data=data)
+		return form
+
+	@transaction.atomic
+	def done(self, form_list, **kwargs):
+		liquidacion = self.hacer_liquidacion('comprobante_convenio', receipt_type="101")
 		liquidacion = liquidacion.guardar()
 		messages.success(self.request, envioAFIP)
 		return redirect('recursos')

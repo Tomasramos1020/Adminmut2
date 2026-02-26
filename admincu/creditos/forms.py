@@ -381,6 +381,26 @@ class CuotaConvenioForm(FormControl, forms.Form):
 		self.fields['convenios'].queryset = Convenio.objects.filter(consorcio=consorcio)
 
 
+class ComprobanteConvenioForm(FormControl, forms.Form):
+	"""Formulario RG-1415 por convenio con múltiples ingresos."""
+
+	convenio = forms.ModelChoiceField(queryset=Convenio.objects.none(), empty_label="-- Seleccionar convenio --", label="Convenio")
+	ingreso = forms.ModelChoiceField(queryset=Ingreso.objects.none(), empty_label="-- Seleccionar ingreso --", label="Ingreso")
+	distribucion = forms.ChoiceField(choices=DISTRIBUCION_CHOICES)
+	subtotal = forms.DecimalField(max_digits=20, decimal_places=2, required=False, validators=[MinValueValidator(Decimal('0.01'))])
+
+	def __init__(self, consorcio, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+		self.fields['convenio'].queryset = Convenio.objects.filter(consorcio=consorcio)
+		self.fields['ingreso'].queryset = Ingreso.objects.filter(consorcio=consorcio)
+
+
+ComprobanteConvenioFormSet = formset_factory(
+		form=ComprobanteConvenioForm,
+		extra=1,
+	)
+
+
 
 from django.forms import inlineformset_factory
 

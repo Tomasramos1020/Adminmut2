@@ -3,6 +3,7 @@ import django_filters
 from django_afip.models import PointOfSales
 from django import forms
 from django.db.models import Min, Q, F, Count
+from decimal import Decimal
 from admincu.funciones import consorcio
 from arquitectura.models import PointOfSales, Convenio
 from creditos.models import Factura
@@ -75,6 +76,15 @@ class CreditoFilter(django_filters.FilterSet):
     ingreso__nombre = django_filters.CharFilter(label="Nombre del concepto", lookup_expr="icontains")
     socio__numero_asociado = django_filters.NumberFilter(label="Numero de asociado", lookup_expr="exact")
     socio__apellido = django_filters.CharFilter(label="Apellido del destinatario", lookup_expr="icontains")
+    estado_saldo = django_filters.ChoiceFilter(
+        label="Saldo",
+        method="filter_estado_saldo",
+        choices=(
+            ("con_saldo", "Con saldo (distinto de 0)"),
+            ("todos", "Todos"),
+            ("saldo_cero", "Saldo cero"),
+        ),
+    )
     convenio = django_filters.ModelChoiceFilter(
         label="Convenio",
         field_name="socio__convenio",
@@ -87,6 +97,10 @@ class CreditoFilter(django_filters.FilterSet):
         fields = []
 
     def __init__(self, data=None, queryset=None, *, request=None, **kwargs):
+        if data is not None:
+            data = data.copy()
+            if not data.get("estado_saldo"):
+                data["estado_saldo"] = "con_saldo"
         super().__init__(data=data, queryset=queryset, request=request, **kwargs)
         c = consorcio(request) if request else None
         if not c:
@@ -98,6 +112,22 @@ class CreditoFilter(django_filters.FilterSet):
         )
         if getattr(c, 'es_federacion', False):
             self.filters['convenio'].label = 'Servicios AE'
+
+    def filter_estado_saldo(self, queryset, name, value):
+        if not value or value == "todos":
+            return queryset
+
+        saldo_cero = Decimal("0.00")
+        ids = []
+
+        for credito in queryset.prefetch_related("hijos"):
+            saldo = credito.saldo or saldo_cero
+            if value == "con_saldo" and saldo != saldo_cero:
+                ids.append(credito.id)
+            elif value == "saldo_cero" and saldo == saldo_cero:
+                ids.append(credito.id)
+
+        return queryset.filter(id__in=ids) if ids else queryset.none()
 
 
 class CreditoFilterSocio(django_filters.FilterSet):
@@ -215,5 +245,4 @@ class FacturaFilter(django_filters.FilterSet):
         if value.stop:
             return qs.filter(fecha_factura__lte=value.stop)
         return qs
-
 

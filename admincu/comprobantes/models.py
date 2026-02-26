@@ -156,7 +156,7 @@ class Comprobante(models.Model):
 	def hacer_pdfs_inst(self):
 		archivo = []
 		enteros = []
-		fecha_ref = self.fecha
+		fecha_ref = self.anulado or self.fecha or date.today()
 
 		creditos = Credito.objects.filter(
 				socio=self.socio,
@@ -171,7 +171,7 @@ class Comprobante(models.Model):
 #		total_deudas += sum([c.saldo for c in factura.credito_set.all()])
 
 		saldos = self.socio.get_saldos(fecha_ref)
-		total_saldos = sum([s.saldo() for s in saldos])
+		total_saldos = sum([s.saldo(fecha_ref) for s in saldos])
 
 		total_adeudado = total_deudas - total_saldos
 		if not total_adeudado == 0:

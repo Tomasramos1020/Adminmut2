@@ -83,14 +83,19 @@
               <td>{{ cobro.credito.ingreso }} {{ cobro.credito.periodo|date:"Y-m" }}</td>
               <td>{{ cobro.credito.capital|intcomma }}</td>
               <td>{{ cobro.capital|intcomma }}</td>
-              <td>{{ cobro.saldo|intcomma }}</td>
+              <td>
+                {% if cobro.subtotal < 0 %}
+                  {{ cobro.credito.capital|intcomma }}
+                {% else %}
+                  {{ cobro.saldo|intcomma }}
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
           {% for saldo in comprobante.saldos.all %}
             {% if not saldo.padre %}
               <tr>
                 <td>Nuevo saldo a favor</td>
-                <td></td>
                 <td></td>
                 <td></td>
                 <td>{{saldo.subtotal|intcomma}}</td>
