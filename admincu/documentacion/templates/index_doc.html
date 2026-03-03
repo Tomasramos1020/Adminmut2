@@ -54,14 +54,18 @@
   <div class="doc-card is-green">
     <a href="{% url 'doc_listado' 'ActaConsejo' %}">
       <div class="doc-icon"><i class="fa fa-users"></i></div>
-      <div class="doc-title">Actas de Consejo</div>
+      <div class="doc-title">
+        {% if es_federacion %}Actas de Junta de Gobierno{% else %}Actas de Consejo{% endif %}
+      </div>
     </a>
   </div>
 
   <div class="doc-card is-purple">
     <a href="{% url 'doc_listado' 'ActaJuntaFiscalizadora' %}">
       <div class="doc-icon"><i class="fa fa-shield"></i></div>
-      <div class="doc-title">Actas Junta Fiscalizadora</div>
+      <div class="doc-title">
+        {% if es_federacion %}Actas de Junta Ejecutiva{% else %}Actas Junta Fiscalizadora{% endif %}
+      </div>
     </a>
   </div>
 

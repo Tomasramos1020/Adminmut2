@@ -6,10 +6,14 @@
        href="{% url 'doc_listado' modelo='Estatuto' %}">Estatutos</a>
   
     <a class="btn btn-block btn-bordered btn-default {% if elemento == 'ActaConsejo' %}btn-primary{% endif %}"
-       href="{% url 'doc_listado' modelo='ActaConsejo' %}">Actas de Consejo</a>
+       href="{% url 'doc_listado' modelo='ActaConsejo' %}">
+       {% if es_federacion %}Actas de Junta de Gobierno{% else %}Actas de Consejo{% endif %}
+    </a>
   
     <a class="btn btn-block btn-bordered btn-default {% if elemento == 'ActaJuntaFiscalizadora' %}btn-primary{% endif %}"
-       href="{% url 'doc_listado' modelo='ActaJuntaFiscalizadora' %}">Actas Junta Fiscalizadora</a>
+       href="{% url 'doc_listado' modelo='ActaJuntaFiscalizadora' %}">
+       {% if es_federacion %}Actas de Junta Ejecutiva{% else %}Actas Junta Fiscalizadora{% endif %}
+    </a>
   
     <a class="btn btn-block btn-bordered btn-default {% if elemento == 'ActaAsamblea' %}btn-primary{% endif %}"
        href="{% url 'doc_listado' modelo='ActaAsamblea' %}">Acta de Asamblea</a>

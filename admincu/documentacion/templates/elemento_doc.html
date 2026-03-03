@@ -14,6 +14,34 @@
   .pill { display:inline-block; padding:2px 8px; border-radius:12px; font-size:12px; }
   .pill-on { background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; }
   .pill-off{ background:#fafafa; color:#616161; border:1px solid #e0e0e0; }
+  .doc-toolbar{
+    display:flex;
+    gap:12px;
+    align-items:flex-end;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    background:#f7fafc;
+    border:1px solid #e4edf4;
+    border-radius:12px;
+    padding:12px;
+  }
+  .doc-toolbar-form{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+  .doc-filter-group{ display:flex; flex-direction:column; gap:4px; }
+  .doc-filter-label{ font-size:11px; font-weight:600; color:#5f6f81; text-transform:uppercase; letter-spacing:.03em; }
+  .doc-filter-input{
+    width:220px;
+    height:40px;
+    border-radius:8px;
+    border:1px solid #d5e2ec;
+  }
+  .doc-filter-input:focus{ border-color:#86b7e8; box-shadow:0 0 0 2px rgba(52, 144, 220, .12); }
+  .doc-search-btn{ height:40px; border-radius:8px; padding:0 14px; }
+  .doc-clear-btn{ height:40px; line-height:25px; }
+  .doc-pagination{ margin-top:12px; }
+  @media (max-width: 767px){
+    .doc-filter-input{ width:100%; }
+    .doc-filter-group{ width:100%; }
+  }
 </style>
 
 <div class="row">
@@ -29,9 +57,58 @@
         <h3 class="panel-title">{{ nombre_elemento }}</h3>
       </div>
       <div class="panel-body">
-        <a href="{% url 'doc_crear' modelo=elemento %}" class="btn btn-info pull-right">
-          <i class="fa fa-plus"></i> Nuevo
-        </a>
+        <div class="doc-toolbar">
+          <form method="get" class="doc-toolbar-form">
+            <div class="doc-filter-group">
+              <label class="doc-filter-label" for="id_q">Buscar</label>
+              <input
+                id="id_q"
+                type="text"
+                name="q"
+                value="{{ q }}"
+                class="form-control doc-filter-input"
+                placeholder="Nombre, numero, foja o contenido"
+              >
+            </div>
+            <div class="doc-filter-group">
+              <label class="doc-filter-label" for="id_fecha_desde">Desde</label>
+              <input
+                id="id_fecha_desde"
+                type="date"
+                name="fecha_desde"
+                value="{{ fecha_desde }}"
+                class="form-control doc-filter-input"
+              >
+            </div>
+            <div class="doc-filter-group">
+              <label class="doc-filter-label" for="id_fecha_hasta">Hasta</label>
+              <input
+                id="id_fecha_hasta"
+                type="date"
+                name="fecha_hasta"
+                value="{{ fecha_hasta }}"
+                class="form-control doc-filter-input"
+              >
+            </div>
+            <button type="submit" class="btn btn-default doc-search-btn">
+              <i class="fa fa-search"></i> Buscar
+            </button>
+            {% if q or fecha_desde or fecha_hasta %}
+              <a href="{% url 'doc_listado' modelo=elemento %}" class="btn btn-link doc-clear-btn">Limpiar</a>
+            {% endif %}
+          </form>
+
+          <a href="{% url 'doc_crear' modelo=elemento %}" class="btn btn-info">
+            <i class="fa fa-plus"></i> Nuevo
+          </a>
+        </div>
+
+        <p class="text-muted m-t-15 m-b-0">
+          Mostrando {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ paginator.count }} registros{% if q %} para "{{ q }}"{% endif %}.
+        </p>
+
+        {% include 'paginacion_doc.html' %}
+
         <div class="table-responsive m-t-30">
           <table class="table table-striped">
             <thead>
@@ -94,10 +171,9 @@
             </tbody>
           </table>
         </div>
+        {% include 'paginacion_doc.html' %}
       </div>
     </div>
   </div>
 </div>
 {% endblock %}
-
-
