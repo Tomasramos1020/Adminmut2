@@ -2,7 +2,7 @@ from __future__ import unicode_literals
 import calendar
 import base64
 from datetime import datetime, date, timedelta
-from django.db.models import Max
+from django.db.models import Max, Sum
 from decimal import Decimal
 from django.db import models
 from django_afip.models import PointOfSales
@@ -98,9 +98,55 @@ class Liquidacion(models.Model):
 			self.estado = "confirmado"
 			self.hacer_pdf()
 			self.hacer_asiento()
+			self.crear_deudas_cuenta_tercero()
 			self.mails = True
 
 		self.save()
+
+	def _numero_deuda_cuenta_tercero(self, ingreso_id):
+		numero = f"LQ{self.id}I{ingreso_id}"
+		if len(numero) <= 15:
+			return numero
+		return f"L{self.id % 1000000}I{ingreso_id % 1000000}"
+
+	def crear_deudas_cuenta_tercero(self):
+		from op.models import Deuda
+
+		creditos = self.credito_set.filter(
+			padre__isnull=True,
+			ingreso__es_cuenta_tercero=True,
+			ingreso__acreedor_tercero__isnull=False,
+		)
+		if not creditos.exists():
+			return
+
+		agrupado = (
+			creditos
+			.values('ingreso_id', 'ingreso__acreedor_tercero_id')
+			.annotate(total_capital=Sum('capital'))
+		)
+		for fila in agrupado:
+			total = fila.get('total_capital') or Decimal('0')
+			if total <= 0:
+				continue
+
+			ingreso_id = fila['ingreso_id']
+			acreedor_id = fila['ingreso__acreedor_tercero_id']
+			numero = self._numero_deuda_cuenta_tercero(ingreso_id)
+			descripcion = "Deuda automática por cuenta y obra de terceros. Liquidación %s." % self.formatoAfip()
+
+			Deuda.objects.get_or_create(
+				consorcio=self.consorcio,
+				acreedor_id=acreedor_id,
+				numero=numero,
+				defaults={
+					'fecha': self.fecha or date.today(),
+					'total': total,
+					'observacion': descripcion,
+					'confirmado': True,
+					'aceptado': True,
+				}
+			)
 
 	def hacer_pdf(self):
 		pass
@@ -172,8 +218,11 @@ class Liquidacion(models.Model):
 			for ingreso in ingresos:
 				creditos_ingreso = creditos.filter(ingreso=ingreso)
 				haber = sum([credito.capital for credito in creditos_ingreso])
+				cuenta_haber = ingreso.cuenta_contable
+				if ingreso.es_cuenta_tercero and ingreso.acreedor_tercero and ingreso.acreedor_tercero.cuenta_contable:
+					cuenta_haber = ingreso.acreedor_tercero.cuenta_contable
 				operacion = {
-					'cuenta': ingreso.cuenta_contable,
+					'cuenta': cuenta_haber,
 					'debe': 0,
 					'haber': haber,
 					'descripcion': descripcion
@@ -242,6 +291,8 @@ class Liquidacion(models.Model):
 			# Cuenta de activo y resultado
 			cuenta_activo = ingreso.cuenta_activo
 			cuenta_resultado = ingreso.cuenta_contable
+			if ingreso.es_cuenta_tercero and ingreso.acreedor_tercero and ingreso.acreedor_tercero.cuenta_contable:
+				cuenta_resultado = ingreso.acreedor_tercero.cuenta_contable
 
 			# Debe: AR por brutos (importe a cobrar)
 			if suma_bruto > 0:
@@ -324,6 +375,8 @@ class Liquidacion(models.Model):
 			# Cuenta de activo y resultado
 			cuenta_activo = ingreso.cuenta_activo
 			cuenta_resultado = ingreso.cuenta_contable
+			if ingreso.es_cuenta_tercero and ingreso.acreedor_tercero and ingreso.acreedor_tercero.cuenta_contable:
+				cuenta_resultado = ingreso.acreedor_tercero.cuenta_contable
 
 			# Debe: AR por brutos (importe a cobrar)
 			if suma_bruto > 0:
@@ -1221,4 +1274,3 @@ class AlicuotaIVA(models.Model):
 
     def __str__(self):
         return f"{self.nombre} ({self.porcentaje}%)"
-

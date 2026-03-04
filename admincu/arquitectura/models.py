@@ -1,4 +1,6 @@
 from __future__ import unicode_literals
+import os
+import uuid
 from datetime import datetime, date, timedelta
 from email.policy import default
 # from turtle import back
@@ -81,7 +83,7 @@ class Caja(models.Model):
 
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	primario = models.BooleanField(default=False) # Unicamente para mercadopago
-	nombre = models.CharField(max_length=30)
+	nombre = models.CharField(max_length=120)
 	entidad = models.CharField(max_length=30, blank=True, null=True)
 	# Saldo a fecha determinada
 	fecha = models.DateField(blank=True, null=True)
@@ -172,7 +174,7 @@ class Ingreso(models.Model):
 
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)
 	primario = models.BooleanField(default=False)
-	nombre = models.CharField(max_length=30)
+	nombre = models.CharField(max_length=120)
 	# False = Homogeneo, True = Prorrateo segun superficie de lote
 	prorrateo = models.BooleanField(default=False)
 	prioritario = models.BooleanField(default=False)
@@ -180,6 +182,14 @@ class Ingreso(models.Model):
 	es_cuota_social = models.BooleanField(default=False)
 	es_proveeduria = models.BooleanField(default=False)
 	cuenta_activo = models.ForeignKey(Cuenta, on_delete=models.CASCADE, blank=True, null=True, related_name="ingreso_activo")
+	es_cuenta_tercero = models.BooleanField(default=False)
+	acreedor_tercero = models.ForeignKey(
+		'Acreedor',
+		on_delete=models.SET_NULL,
+		blank=True,
+		null=True,
+		related_name='ingresos_cuenta_tercero'
+	)
 
 	def __str__(self):
 		return self.nombre
@@ -281,6 +291,18 @@ CODIGOS_IVA_AFIP = {
 	# "8": 6,
 	# "9": 7,
 }
+
+
+def socio_adjunto_upload_to(instance, filename):
+	_, extension = os.path.splitext(filename)
+	extension = extension.lower() or ".pdf"
+	random_name = uuid.uuid4().hex
+	return "socios_adjuntos/{}/socio_{}/{}{}".format(
+		instance.socio.consorcio_id,
+		instance.socio_id,
+		random_name,
+		extension
+	)
 
 
 
@@ -608,6 +630,23 @@ class Socio(models.Model):
 
 
 
+class SocioAdjunto(models.Model):
+	socio = models.ForeignKey(Socio, on_delete=models.CASCADE, related_name='adjuntos')
+	nombre = models.CharField(max_length=120, blank=True, null=True)
+	archivo = models.FileField(upload_to=socio_adjunto_upload_to)
+	fecha_alta = models.DateTimeField(auto_now_add=True)
+
+	def __str__(self):
+		return self.nombre or self.nombre_archivo
+
+	@property
+	def nombre_archivo(self):
+		return os.path.basename(self.archivo.name)
+
+	class Meta:
+		ordering = ['-fecha_alta']
+
+
 class Dominio(models.Model):
 
 	""" Lotes """
@@ -888,5 +927,3 @@ class Campaña(models.Model):
 		return self.nombre
 
 	from django_afip.models import DocumentType
-
-

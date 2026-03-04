@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from django.contrib.auth.models import User, Group
 from django.db import models
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django_afip.models import TaxPayer
 from django_mercadopago.models import Account
 
@@ -48,6 +49,11 @@ class Consorcio(models.Model):
 	fosea = models.BooleanField(default=False)
 	es_ri = models.BooleanField(default=False)
 	farmacia = models.BooleanField(default=False)
+	habilita_adjuntos_socios = models.BooleanField(default=False)
+	max_adjuntos_por_socio = models.PositiveSmallIntegerField(
+		default=2,
+		validators=[MinValueValidator(1), MaxValueValidator(3)]
+	)
 
 
 
@@ -84,6 +90,12 @@ class Consorcio(models.Model):
 	@property
 	def permite_no_asociados(self):
 		return bool(self.es_federacion or self.habilita_no_asociados)
+
+	@property
+	def limite_adjuntos_socios(self):
+		if not self.habilita_adjuntos_socios:
+			return 0
+		return self.max_adjuntos_por_socio
 
 
 class Tipo_Ocupante(models.Model):

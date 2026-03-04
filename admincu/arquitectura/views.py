@@ -443,6 +443,92 @@ class PDFCodigo(generic.DetailView):
 		return super().dispatch(request, *args, **kwargs)
 
 
+@method_decorator(group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
+class SocioAdjuntos(generic.TemplateView):
+	template_name = 'arquitectura/socio_adjuntos.html'
+
+	def dispatch(self, request, *args, **kwargs):
+		self.cons = consorcio(request)
+		if not self.cons or not self.cons.habilita_adjuntos_socios:
+			messages.error(request, 'La carga de adjuntos no esta habilitada para esta mutual.')
+			return redirect('parametro', modelo='Socio')
+
+		try:
+			self.socio = Socio.objects.get(
+				consorcio=self.cons,
+				pk=kwargs['pk'],
+				es_socio=True,
+				nombre_servicio_mutual__isnull=True
+			)
+		except Socio.DoesNotExist:
+			messages.error(request, 'No se pudo encontrar el socio seleccionado.')
+			return redirect('parametro', modelo='Socio')
+
+		return super().dispatch(request, *args, **kwargs)
+
+	def get_context_data(self, **kwargs):
+		context = super().get_context_data(**kwargs)
+		adjuntos = self.socio.adjuntos.all()
+		limite = self.cons.max_adjuntos_por_socio
+		context.update({
+			'cons': self.cons,
+			'socio': self.socio,
+			'adjuntos': adjuntos,
+			'cantidad_adjuntos': adjuntos.count(),
+			'limite_adjuntos': limite,
+			'form': kwargs.get('form') or SocioAdjuntoForm(socio=self.socio),
+		})
+		return context
+
+	@transaction.atomic
+	def post(self, request, *args, **kwargs):
+		form = SocioAdjuntoForm(
+			data=request.POST or None,
+			files=request.FILES or None,
+			socio=self.socio,
+		)
+		if form.is_valid():
+			form.save()
+			messages.success(request, 'Adjunto cargado con exito.')
+			return redirect('socio-adjuntos', pk=self.socio.pk)
+
+		return render(request, self.template_name, self.get_context_data(form=form))
+
+
+@group_required('administrativo', 'contable', 'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones')
+@transaction.atomic
+def socio_adjunto_eliminar(request, pk, adjunto_pk):
+	cons = consorcio(request)
+	if not cons or not cons.habilita_adjuntos_socios:
+		messages.error(request, 'La carga de adjuntos no esta habilitada para esta mutual.')
+		return redirect('parametro', modelo='Socio')
+
+	try:
+		socio = Socio.objects.get(
+			consorcio=cons,
+			pk=pk,
+			es_socio=True,
+			nombre_servicio_mutual__isnull=True
+		)
+	except Socio.DoesNotExist:
+		messages.error(request, 'No se pudo encontrar el socio seleccionado.')
+		return redirect('parametro', modelo='Socio')
+
+	if request.method != 'POST':
+		return redirect('socio-adjuntos', pk=socio.pk)
+
+	try:
+		adjunto = SocioAdjunto.objects.get(pk=adjunto_pk, socio=socio)
+	except SocioAdjunto.DoesNotExist:
+		messages.error(request, 'No se pudo encontrar el adjunto seleccionado.')
+		return redirect('socio-adjuntos', pk=socio.pk)
+
+	adjunto.archivo.delete(save=False)
+	adjunto.delete()
+	messages.success(request, 'Adjunto eliminado con exito.')
+	return redirect('socio-adjuntos', pk=socio.pk)
+
+
 @method_decorator(group_required('administrativo',  'sin_op', 'sin_deudas_sin_op', 'fosea', 'afiliaciones'), name='dispatch')
 class SociosImportacionWizard(SessionWizardView):
 

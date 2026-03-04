@@ -246,5 +246,38 @@ document.addEventListener("DOMContentLoaded", function() {
 
 });
 </script>
-{% endblock %}
 
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const modelo = "{{ parametro }}";
+    if (modelo !== "Ingreso") return;
+
+    const checkTercero = document.getElementById("id_es_cuenta_tercero");
+    const selectCuenta = document.getElementById("id_cuenta_contable");
+    const selectAcreedor = document.getElementById("id_acreedor_tercero");
+    const contenedorCuenta = selectCuenta ? selectCuenta.closest("p") : null;
+    const contenedorAcreedor = selectAcreedor ? selectAcreedor.closest("p") : null;
+
+    if (!checkTercero || !selectCuenta || !selectAcreedor) return;
+
+    function toggleAcreedor() {
+        const soloTercero = checkTercero.checked;
+
+        if (contenedorCuenta) {
+            contenedorCuenta.style.display = soloTercero ? "none" : "";
+        }
+        if (contenedorAcreedor) {
+            contenedorAcreedor.style.display = soloTercero ? "" : "none";
+        }
+
+        selectAcreedor.required = soloTercero;
+        if (!soloTercero) {
+            selectAcreedor.value = "";
+        }
+    }
+
+    checkTercero.addEventListener("change", toggleAcreedor);
+    toggleAcreedor();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends 'raiz.html' %}
+{% load staticfiles %}
+
+{% block titulo %}
+  Parametrizacion
+{% endblock %}
+
+{% block breadcrum %}
+  {% include 'comunes/breadcrum.html' with bpadre="parametros" bhijo1="Adjuntos de socio" %}
+{% endblock %}
+
+{% block header %}
+  Parametrizacion
+{% endblock %}
+
+{% block contenido %}
+<div class="row">
+  <div class="col-md-3">
+    {% include 'arquitectura/barra.html' %}
+  </div>
+
+  <div class="col-md-9">
+    <div class="panel panel-border panel-info">
+      <div class="panel-heading">
+        <h3 class="panel-title">Adjuntos de socio</h3>
+      </div>
+      <div class="panel-body">
+        <p>
+          <strong>Socio:</strong> {{ socio.nombre_completo }}<br>
+          <strong>Adjuntos:</strong> {{ cantidad_adjuntos }} / {{ limite_adjuntos }}
+        </p>
+
+        {% if cantidad_adjuntos < limite_adjuntos %}
+          <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <div class="text-right">
+              <button type="submit" class="btn btn-primary">
+                <i class="fa fa-upload"></i> Subir adjunto
+              </button>
+            </div>
+          </form>
+          <hr>
+        {% else %}
+          <div class="alert alert-warning">
+            Este socio ya alcanzo el limite de adjuntos configurado para la mutual.
+          </div>
+        {% endif %}
+
+        {% if adjuntos %}
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Descripcion</th>
+                  <th>Archivo</th>
+                  <th width="90">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for adjunto in adjuntos %}
+                  <tr>
+                    <td>{{ adjunto.fecha_alta|date:"d/m/Y H:i" }}</td>
+                    <td>{{ adjunto.nombre|default:"-" }}</td>
+                    <td>
+                      <a href="{{ adjunto.archivo.url }}" target="_blank">
+                        {{ adjunto.nombre_archivo }}
+                      </a>
+                    </td>
+                    <td>
+                      <form method="POST" action="{% url 'socio-adjunto-eliminar' pk=socio.pk adjunto_pk=adjunto.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-icon btn-bordered btn-danger btn-xs" title="Eliminar">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </form>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <p><i>No hay adjuntos cargados para este socio.</i></p>
+        {% endif %}
+      </div>
+      <div class="panel-footer text-right">
+        <a href="{% url 'parametro' modelo='Socio' %}" class="btn btn-default">Volver al padron</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

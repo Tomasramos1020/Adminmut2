@@ -6,6 +6,8 @@ urlpatterns = [
 	path('puntosdeventa/', arq_puntos, name='puntosdeventa'),
 
 	path('codigo/<int:pk>/', PDFCodigo.as_view(), name='codigo-socio'),
+	path('socio/<int:pk>/adjuntos/', SocioAdjuntos.as_view(), name='socio-adjuntos'),
+	path('socio/<int:pk>/adjuntos/<int:adjunto_pk>/eliminar/', socio_adjunto_eliminar, name='socio-adjunto-eliminar'),
 
 	path("afip-datos/", consultar_padron_ajax, name="afip-datos"),
 

@@ -19,14 +19,17 @@ class ingresoForm(FormControl, forms.ModelForm):
 		model = Ingreso
 		fields = [
 			'nombre', 'prorrateo',
-			'prioritario', 'cuenta_contable', 'es_cuota_social', "cuenta_activo"
+			'prioritario', 'cuenta_contable', 'es_cuenta_tercero', 'acreedor_tercero', 'es_cuota_social', "cuenta_activo"
 		]
 		labels = {
 			'nombre': "Nombre del ingreso",
 			'prioritario': "Tiene prioridad de cobro?",
 			'prorrateo': "Prorratea por m2?",
+			'es_cuenta_tercero': "¿Es por cuenta y obra de tercero?",
+			'acreedor_tercero': "Proveedor / acreedor tercero",
 			'es_cuota_social': "¿Se calcula para articulo 9?",
-			"cuenta_activo": "Cuenta de activo (a cobrar)"
+			"cuenta_activo": "Cuenta de activo (a cobrar)",
+			"cuenta_contable": "Cuenta de resultado (haber)"
 		}
 		widgets = {
 			'prorrateo': NullBooleanSelect(),
@@ -38,12 +41,16 @@ class ingresoForm(FormControl, forms.ModelForm):
 		super().__init__(*args, **kwargs)
 		if not self.consorcio.superficie:
 			self.fields.pop('prorrateo')
-		self.fields['cuenta_contable'].queryset = Plan.objects.get(consorcio=consorcio).cuentas.filter(
+
+		cuentas = Plan.objects.get(consorcio=consorcio).cuentas.filter(
 				nivel=4,
 				).order_by('numero')
-		self.fields['cuenta_activo'].queryset = Plan.objects.get(consorcio=consorcio).cuentas.filter(
-				nivel=4,
-				).order_by('numero')				
+		self.fields['cuenta_contable'].queryset = cuentas
+		self.fields['cuenta_activo'].queryset = cuentas
+		self.fields['acreedor_tercero'].queryset = Acreedor.objects.filter(consorcio=consorcio).order_by('nombre')
+		if self.instance and self.instance.es_cuenta_tercero and self.instance.acreedor_tercero:
+			self.initial['cuenta_contable'] = self.instance.acreedor_tercero.cuenta_contable
+
 		if self.instance.primario:
 			self.fields.pop('cuenta_contable')
 		if self.consorcio and self.consorcio.es_federacion == False:
@@ -61,6 +68,24 @@ class ingresoForm(FormControl, forms.ModelForm):
 		if nombre in ingresos:
 			raise forms.ValidationError("ya existe un ingreso con el nombre indicado")
 		return nombre
+
+		def clean(self):
+			data = super().clean()
+			es_cuenta_tercero = data.get('es_cuenta_tercero')
+			acreedor_tercero = data.get('acreedor_tercero')
+			cuenta_activo = data.get('cuenta_activo')
+
+		if es_cuenta_tercero:
+			if not acreedor_tercero:
+				self.add_error('acreedor_tercero', "Debe seleccionar un proveedor para recursos por cuenta y obra de terceros.")
+			if not cuenta_activo:
+				self.add_error('cuenta_activo', "Debe seleccionar la cuenta a cobrar para recursos por cuenta y obra de terceros.")
+			if acreedor_tercero:
+				data['cuenta_contable'] = acreedor_tercero.cuenta_contable
+		else:
+			data['acreedor_tercero'] = None
+
+		return data
 
 
 
@@ -419,8 +444,70 @@ class socioForm(FormControl, forms.ModelForm):
 
 		return socio
 
-	
 
+class SocioAdjuntoForm(FormControl, forms.ModelForm):
+	EXTENSIONES_PERMITIDAS = {'pdf', 'png', 'jpg', 'jpeg'}
+	TAMANO_MAXIMO = 200 * 1024  # 200KB
+
+	class Meta:
+		model = SocioAdjunto
+		fields = ['nombre', 'archivo']
+		labels = {
+			'nombre': 'Descripcion (opcional)',
+			'archivo': 'Archivo',
+		}
+
+	def __init__(self, socio=None, *args, **kwargs):
+		self.socio = socio
+		super().__init__(*args, **kwargs)
+		self.fields['nombre'].required = False
+		self.fields['archivo'].required = True
+
+	def clean_archivo(self):
+		archivo = self.cleaned_data.get('archivo')
+		if not archivo:
+			return archivo
+
+		nombre = archivo.name or ''
+		extension = nombre.rsplit('.', 1)[-1].lower() if '.' in nombre else ''
+		if extension not in self.EXTENSIONES_PERMITIDAS:
+			raise forms.ValidationError("Solo se permiten archivos PDF o imagen (JPG/PNG).")
+
+		if archivo.size > self.TAMANO_MAXIMO:
+			raise forms.ValidationError("El archivo supera el tamaño máximo permitido de 200KB.")
+
+		return archivo
+
+	def clean(self):
+		cleaned_data = super().clean()
+		if not self.socio:
+			raise forms.ValidationError("No se pudo identificar el socio para el adjunto.")
+
+		cons = self.socio.consorcio
+		if not cons.habilita_adjuntos_socios:
+			raise forms.ValidationError("La carga de adjuntos no esta habilitada para esta mutual.")
+
+		limite = cons.max_adjuntos_por_socio
+		actuales = SocioAdjunto.objects.filter(socio=self.socio)
+		if self.instance and self.instance.pk:
+			actuales = actuales.exclude(pk=self.instance.pk)
+		actuales = actuales.count()
+		if actuales >= limite:
+			raise forms.ValidationError(
+				"Este socio ya alcanzo el limite de {} adjuntos.".format(limite)
+			)
+
+		return cleaned_data
+
+	def save(self, commit=True):
+		objeto = super().save(commit=False)
+		objeto.socio = self.socio
+		if commit:
+			objeto.save()
+		return objeto
+
+
+	
 
 
 

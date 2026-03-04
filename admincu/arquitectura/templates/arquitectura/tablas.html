@@ -10,7 +10,10 @@
         <th width="20"></th>
         <th width="20">Numero</th>
         <th>Nombre</th>
-        <th>Cuenta Contable</th>
+        <th>Cuenta a Cobrar</th>
+        <th>Cuenta Haber</th>
+        <th>Por Terceros</th>
+        <th>Proveedor</th>
       </tr>
     </thead>
     <tbody>
@@ -31,7 +34,10 @@
         </td>
         <td>{{ forloop.counter }}</td>
         <td>{{objeto}}</td>
+        <td><small>{% if objeto.cuenta_activo %}{{objeto.cuenta_activo.nombre}}{% else %}-{% endif %}</small></td>
         <td><small>{{objeto.cuenta_contable.nombre}}</small></td>
+        <td>{% if objeto.es_cuenta_tercero %}SI{% else %}NO{% endif %}</td>
+        <td>{% if objeto.acreedor_tercero %}{{objeto.acreedor_tercero}}{% else %}-{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
@@ -128,6 +134,9 @@
       <tr>
         <th width="20"></th>
         <th width="20"></th>
+        {% if cons.habilita_adjuntos_socios %}
+          <th width="20"></th>
+        {% endif %}
     
         <th>Nombre / Razón social</th>
     
@@ -251,6 +260,18 @@
           </a>
         {% endif %}
       </td>
+
+      {% if cons.habilita_adjuntos_socios %}
+      <td class="text-center">
+        {% if not objeto.baja and not objeto.nombre_servicio_mutual %}
+          <a href="{% url 'socio-adjuntos' pk=objeto.pk %}"
+             class="btn btn-icon btn-bordered btn-inverse btn-xs"
+             title="Adjuntos">
+            <i class="fa fa-paperclip"></i>
+          </a>
+        {% endif %}
+      </td>
+      {% endif %}
     
       <!-- Nombre -->
       <td>{{ objeto.nombre }}</td>
