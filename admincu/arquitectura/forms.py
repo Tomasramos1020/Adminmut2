@@ -1,5 +1,6 @@
 from django import forms
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
 from django.forms import Textarea, TextInput, NullBooleanSelect, Select, HiddenInput
 from consorcios.models import *
 from .models import *
@@ -11,7 +12,10 @@ from admincu.forms import FormControl
 from django.db.models import Max
 
 from admincu.forms import *
+import os
 import re
+import subprocess
+import tempfile
 
 
 class ingresoForm(FormControl, forms.ModelForm):
@@ -447,7 +451,8 @@ class socioForm(FormControl, forms.ModelForm):
 
 class SocioAdjuntoForm(FormControl, forms.ModelForm):
 	EXTENSIONES_PERMITIDAS = {'pdf', 'png', 'jpg', 'jpeg'}
-	TAMANO_MAXIMO = 200 * 1024  # 200KB
+	TAMANO_MAXIMO_FINAL = 400 * 1024  # 400KB
+	TAMANO_MAXIMO_SUBIDA_PDF = 2 * 1024 * 1024  # 2MB
 
 	class Meta:
 		model = SocioAdjunto
@@ -462,6 +467,10 @@ class SocioAdjuntoForm(FormControl, forms.ModelForm):
 		super().__init__(*args, **kwargs)
 		self.fields['nombre'].required = False
 		self.fields['archivo'].required = True
+		self.fields['archivo'].help_text = (
+			"PDF/JPG/PNG. Tamaño final máximo por archivo: 400KB. "
+			"Si el PDF supera ese peso, se intentará comprimir automáticamente."
+		)
 
 	def clean_archivo(self):
 		archivo = self.cleaned_data.get('archivo')
@@ -473,10 +482,122 @@ class SocioAdjuntoForm(FormControl, forms.ModelForm):
 		if extension not in self.EXTENSIONES_PERMITIDAS:
 			raise forms.ValidationError("Solo se permiten archivos PDF o imagen (JPG/PNG).")
 
-		if archivo.size > self.TAMANO_MAXIMO:
-			raise forms.ValidationError("El archivo supera el tamaño máximo permitido de 200KB.")
+		if extension == 'pdf':
+			if archivo.size > self.TAMANO_MAXIMO_SUBIDA_PDF:
+				raise forms.ValidationError(
+					"El PDF supera 2MB. Subilo con menor peso para poder procesarlo."
+				)
+			if archivo.size > self.TAMANO_MAXIMO_FINAL:
+				return self._comprimir_pdf_hasta_limite(archivo)
+			return archivo
+
+		if archivo.size > self.TAMANO_MAXIMO_FINAL:
+			raise forms.ValidationError(
+				"La imagen supera el tamaño máximo permitido de 400KB."
+			)
 
 		return archivo
+
+	def _comprimir_pdf_hasta_limite(self, archivo):
+		nombre_original = os.path.basename(archivo.name or "archivo.pdf")
+		nombre_comprimido = self._nombre_pdf_comprimido(nombre_original)
+
+		try:
+			contenido_original = archivo.read()
+			archivo.seek(0)
+		except Exception:
+			raise forms.ValidationError("No se pudo leer el PDF cargado.")
+
+		if len(contenido_original) <= self.TAMANO_MAXIMO_FINAL:
+			return ContentFile(contenido_original, name=nombre_original)
+
+		estrategias = [
+			('/ebook', 150),
+			('/ebook', 120),
+			('/screen', 96),
+			('/screen', 72),
+		]
+		mejor_resultado = None
+
+		try:
+			with tempfile.TemporaryDirectory(prefix='socio_adj_pdf_') as tmpdir:
+				entrada = os.path.join(tmpdir, "entrada.pdf")
+				with open(entrada, "wb") as f:
+					f.write(contenido_original)
+
+				for i, (perfil, resolucion) in enumerate(estrategias):
+					salida = os.path.join(tmpdir, "salida_{}.pdf".format(i))
+					comando = [
+						"gs",
+						"-sDEVICE=pdfwrite",
+						"-dCompatibilityLevel=1.4",
+						"-dNOPAUSE",
+						"-dQUIET",
+						"-dBATCH",
+						"-dSAFER",
+						"-dDetectDuplicateImages=true",
+						"-dCompressFonts=true",
+						"-dSubsetFonts=true",
+						"-dDownsampleColorImages=true",
+						"-dDownsampleGrayImages=true",
+						"-dDownsampleMonoImages=true",
+						"-dColorImageResolution={}".format(resolucion),
+						"-dGrayImageResolution={}".format(resolucion),
+						"-dMonoImageResolution={}".format(max(150, resolucion)),
+						"-dPDFSETTINGS={}".format(perfil),
+						"-sOutputFile={}".format(salida),
+						entrada,
+					]
+					try:
+						resultado = subprocess.run(
+							comando,
+							check=False,
+							stdout=subprocess.PIPE,
+							stderr=subprocess.PIPE,
+							timeout=45,
+						)
+					except FileNotFoundError:
+						raise forms.ValidationError(
+							"No hay motor de compresión PDF disponible en el servidor."
+						)
+					except subprocess.TimeoutExpired:
+						continue
+
+					if resultado.returncode != 0 or not os.path.exists(salida):
+						continue
+
+					with open(salida, "rb") as fs:
+						contenido_salida = fs.read()
+
+					if not contenido_salida:
+						continue
+
+					if not mejor_resultado or len(contenido_salida) < len(mejor_resultado):
+						mejor_resultado = contenido_salida
+
+					if len(contenido_salida) <= self.TAMANO_MAXIMO_FINAL:
+						return ContentFile(contenido_salida, name=nombre_comprimido)
+		except forms.ValidationError:
+			raise
+		except Exception:
+			raise forms.ValidationError(
+				"No se pudo procesar el PDF. Intentá nuevamente o subí una versión más liviana."
+			)
+
+		if mejor_resultado and len(mejor_resultado) < len(contenido_original):
+			tam_kb = int(round(len(mejor_resultado) / 1024.0))
+			raise forms.ValidationError(
+				"No se pudo comprimir el PDF por debajo de 400KB (quedó en {}KB).".format(tam_kb)
+			)
+
+		raise forms.ValidationError(
+			"No se pudo comprimir el PDF por debajo de 400KB. Probá con menor resolución de escaneo."
+		)
+
+	def _nombre_pdf_comprimido(self, nombre):
+		base, _ = os.path.splitext(nombre)
+		base = base or "archivo"
+		return "{}_comprimido.pdf".format(base[:80])
 
 	def clean(self):
 		cleaned_data = super().clean()
