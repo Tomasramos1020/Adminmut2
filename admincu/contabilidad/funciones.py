@@ -1,4 +1,5 @@
 from .models import *
+from django.db.models import Prefetch
 
 def generacionSaldos(cuentas, asientos):
 	sumas = {}
@@ -63,11 +64,18 @@ def apropiadorDeAsientosPrincipales(ejercicio):
 
 	return ejercicio
 
-def asientosNumerados(ejercicio):
+def asientosNumerados(ejercicio, prefetch_operaciones=False):
 	asientos = Asiento.objects.filter(
 			consorcio=ejercicio.consorcio,
 			fecha_asiento__range=[ejercicio.inicio, ejercicio.cierre]
 		).order_by('fecha_asiento', 'id')
+
+	if prefetch_operaciones:
+		operaciones_qs = Operacion.objects.select_related('cuenta').order_by('haber', 'id')
+		asientos = asientos.prefetch_related(
+				Prefetch('operaciones', queryset=operaciones_qs, to_attr='operaciones_ordenadas')
+			)
+
 	i = 1
 	for a in asientos:
 		a.numero = i

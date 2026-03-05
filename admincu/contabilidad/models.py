@@ -108,6 +108,9 @@ class Asiento(models.Model):
 		nombre = '%s' % (self.fecha_asiento)
 		return nombre
 
+	class Meta:
+		index_together = [('consorcio', 'fecha_asiento')]
+
 
 class Ejercicio(models.Model):
 	consorcio = models.ForeignKey(Consorcio, on_delete=models.CASCADE)

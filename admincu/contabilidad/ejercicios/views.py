@@ -113,7 +113,7 @@ def ejercicio_diario(request, ejercicio):
 	except:
 		return redirect(ejercicios_index)
 
-	asientos = asientosNumerados(ejercicio)
+	asientos = asientosNumerados(ejercicio, prefetch_operaciones=True)
 
 
 	return render(request, 'contabilidad/ejercicios/diario.html', locals())

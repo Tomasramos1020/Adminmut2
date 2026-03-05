@@ -20,12 +20,12 @@
           </a>          
         </td>
       </tr>
-      {% for op in asiento.operaciones.all|dictsort:"haber" %}
+      {% for op in asiento.operaciones_ordenadas %}
         <tr>
           <td>{{ op.cuenta.numero }}</td>
           <td>{{ op.cuenta.nombre }}</td>
-          <td>{{ op.debe|intcomma }}</td>
-          <td>{{ op.haber|intcomma }}</td>
+          <td>{{ op.debe|default_if_none:0|intcomma }}</td>
+          <td>{{ op.haber|default_if_none:0|intcomma }}</td>
           <td>{{ op.descripcion }}</td>
         </tr>
       {% endfor %}
